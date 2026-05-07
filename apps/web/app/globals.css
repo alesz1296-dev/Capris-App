@@ -1,0 +1,233 @@
+:root {
+  color-scheme: light;
+  --ink: #18211f;
+  --muted: #5d6d67;
+  --line: #dbe4df;
+  --panel: #ffffff;
+  --surface: #f3f7f4;
+  --brand: #1f7a5b;
+  --brand-strong: #15533e;
+  --accent: #e0a72e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: "Aptos", "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  background: #eef5f0;
+  padding: 24px;
+}
+
+.sidebar strong {
+  display: block;
+  margin-bottom: 28px;
+}
+
+.sidebar nav {
+  display: grid;
+  gap: 8px;
+}
+
+.sidebar a {
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.sidebar a:hover {
+  background: #dfece5;
+}
+
+.workspace {
+  padding: 28px;
+}
+
+.topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.eyebrow {
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 30px;
+  margin-bottom: 0;
+}
+
+.languageSwitch {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.languageSwitch button {
+  background: var(--panel);
+  border: 0;
+  color: var(--ink);
+  min-width: 44px;
+  padding: 10px;
+}
+
+.languageSwitch button:first-child {
+  background: var(--brand);
+  color: white;
+}
+
+.metrics {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 28px 0;
+}
+
+.metric,
+.operations > div {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.metric span {
+  color: var(--muted);
+  display: block;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.metric strong {
+  font-size: 28px;
+}
+
+.operations {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1.5fr 1fr;
+}
+
+.accessSection {
+  margin-top: 28px;
+}
+
+.catalogSection {
+  margin-top: 28px;
+}
+
+.sectionHeading {
+  margin-bottom: 18px;
+}
+
+.accessGrid,
+.catalogGrid,
+.roleGrid {
+  display: grid;
+  gap: 18px;
+}
+
+.accessGrid {
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 18px;
+}
+
+.roleGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.catalogGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.accessPanel,
+.roleCard {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.roleCard {
+  display: grid;
+  gap: 16px;
+}
+
+.roleName {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.roleDescription {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.list {
+  color: var(--muted);
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.compact {
+  font-size: 14px;
+  gap: 8px;
+}
+
+.operations p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 840px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-bottom: 1px solid var(--line);
+    border-right: 0;
+  }
+
+  .metrics,
+  .operations,
+  .accessGrid,
+  .catalogGrid,
+  .roleGrid {
+    grid-template-columns: 1fr;
+  }
+}
