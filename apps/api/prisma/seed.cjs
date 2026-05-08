@@ -251,6 +251,72 @@ async function main() {
     ]
   });
 
+  await prisma.task.create({
+    data: {
+      id: "task_launch_display",
+      organizationId: "org_capris",
+      title: "Install launch display at Escazu Plaza",
+      requesterId: "user_admin_001",
+      assigneeId: "user_field_001",
+      scheduledFor: "2026-05-08",
+      provinceId: "province_san_jose",
+      zoneId: "zone_central",
+      clientId: "client_auto_mercado",
+      pointOfSaleId: "pos_escazu_001",
+      activityTypeId: "activity_exhibition",
+      taskTypeId: "task_visit",
+      status: "pending",
+      priority: "high",
+      difficulty: "standard"
+    }
+  });
+
+  await prisma.visit.create({
+    data: {
+      id: "visit_launch_display",
+      organizationId: "org_capris",
+      taskId: "task_launch_display",
+      assigneeId: "user_field_001",
+      scheduledFor: "2026-05-08",
+      provinceId: "province_san_jose",
+      zoneId: "zone_central",
+      pointOfSaleId: "pos_escazu_001",
+      status: "scheduled"
+    }
+  });
+
+  await prisma.mediaAsset.create({
+    data: {
+      id: "media_before_launch_display",
+      organizationId: "org_capris",
+      uploaderUserId: "user_field_001",
+      fileName: "launch-display-before.jpg",
+      mimeType: "image/jpeg",
+      originalStoragePath: "/mock-storage/originals/launch-display-before.jpg",
+      thumbnailStoragePath: "/mock-storage/thumbs/launch-display-before.jpg",
+      capturedAt: "2026-05-08T13:40:00.000Z",
+      uploadStatus: "uploaded",
+      byteSize: 248000,
+      width: 1440,
+      height: 1080
+    }
+  });
+
+  await prisma.evidencePhoto.create({
+    data: {
+      id: "evidence_before_launch_display",
+      organizationId: "org_capris",
+      uploaderUserId: "user_field_001",
+      taskId: "task_launch_display",
+      visitId: "visit_launch_display",
+      mediaAssetId: "media_before_launch_display",
+      type: "before",
+      capturedAt: "2026-05-08T13:40:00.000Z",
+      latitude: 9.9186,
+      longitude: -84.1397
+    }
+  });
+
   console.log("Seed completed.");
 }
 

@@ -1,13 +1,13 @@
 :root {
   color-scheme: light;
-  --ink: #18211f;
-  --muted: #5d6d67;
-  --line: #dbe4df;
+  --ink: #251b1d;
+  --muted: #746568;
+  --line: #eadcdf;
   --panel: #ffffff;
-  --surface: #f3f7f4;
-  --brand: #1f7a5b;
-  --brand-strong: #15533e;
-  --accent: #e0a72e;
+  --surface: #fff8f8;
+  --brand: #c5333f;
+  --brand-strong: #96212c;
+  --accent: #f3d8dc;
 }
 
 * {
@@ -34,7 +34,7 @@ a {
 
 .sidebar {
   border-right: 1px solid var(--line);
-  background: #eef5f0;
+  background: #fffdfd;
   padding: 24px;
 }
 
@@ -54,7 +54,7 @@ a {
 }
 
 .sidebar a:hover {
-  background: #dfece5;
+  background: #f9eaed;
 }
 
 .workspace {
@@ -66,6 +66,13 @@ a {
   display: flex;
   justify-content: space-between;
   gap: 20px;
+}
+
+.topbarControls {
+  align-items: flex-start;
+  display: grid;
+  gap: 12px;
+  justify-items: end;
 }
 
 .eyebrow {
@@ -105,6 +112,59 @@ h1 {
 .languageSwitch button:first-child {
   background: var(--brand);
   color: white;
+}
+
+.authPanel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  gap: 12px;
+  min-width: 300px;
+  padding: 14px;
+}
+
+.authPanelHeader {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.authIdentity {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.authAvatar {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: block;
+  height: 44px;
+  object-fit: cover;
+  width: 44px;
+}
+
+.authLabel,
+.authMeta {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.authValue {
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.authSignInBlock {
+  display: grid;
+  gap: 10px;
+}
+
+.authFeedback {
+  margin-top: 0;
 }
 
 .metrics {
@@ -177,24 +237,29 @@ h1 {
 }
 
 .feedbackInfo {
-  background: #edf6f1;
-  border: 1px solid #cde3d7;
-  color: var(--brand-strong);
+  background: #fdf2f3;
+  border: 1px solid #f1cdd3;
+  color: #8f2330;
 }
 
 .feedbackSuccess {
-  background: #ebf9f0;
-  border: 1px solid #b5dfc4;
-  color: #14543d;
+  background: #fff5f5;
+  border: 1px solid #efcfd4;
+  color: #8f2330;
 }
 
 .feedbackError {
-  background: #fff0ef;
-  border: 1px solid #f2c4bf;
+  background: #fff0f1;
+  border: 1px solid #efbcc4;
   color: #8a2f27;
 }
 
 .catalogAdminLayout {
+  display: grid;
+  gap: 18px;
+}
+
+.taskAdminLayout {
   display: grid;
   gap: 18px;
 }
@@ -284,7 +349,7 @@ h1 {
 
 .formGrid input,
 .formGrid select {
-  background: #fbfcfb;
+  background: #fffdfd;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
@@ -320,8 +385,8 @@ h1 {
 }
 
 .secondaryAction {
-  align-self: start;
-  background: #f7faf8;
+  align-self: flex-start;
+  background: #fffdfd;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
@@ -333,7 +398,7 @@ h1 {
 }
 
 .secondaryAction:hover {
-  background: #eef5f0;
+  background: #f9eaed;
 }
 
 .catalogItems {
@@ -359,6 +424,204 @@ h1 {
   padding-top: 16px;
 }
 
+.taskList {
+  display: grid;
+  gap: 14px;
+}
+
+.taskCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.taskCardHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.taskCardHeader h4 {
+  margin: 0 0 4px;
+}
+
+.taskCardHeader p {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.taskBadge {
+  background: #fdf1f3;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #8f2330;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.taskMetaGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.taskMetaGrid div {
+  background: #fffafb;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.taskMetaGrid dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.taskMetaGrid dd {
+  margin: 0;
+}
+
+.taskStatusActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.evidenceOpsSummary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.evidenceOpsMetric {
+  background: #fffafb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.evidenceOpsMetric strong {
+  display: block;
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.evidenceOpsMetric span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.syncQueuePanel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.syncQueueRow {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding-bottom: 12px;
+}
+
+.syncQueueRow:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.syncQueueRow p {
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  margin-bottom: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.evidencePreviewLayout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 240px 1fr;
+}
+
+.evidenceThumbnailFrame {
+  align-items: center;
+  background: linear-gradient(180deg, #fffafb 0%, #fdf0f2 100%);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+
+.evidenceThumbnail {
+  border-radius: 10px;
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.evidenceReviewDetails {
+  display: grid;
+  gap: 14px;
+}
+
+.evidenceProgressPanel {
+  background: #fffafb;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.evidenceProgressHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.evidenceProgressBar {
+  background: #f0dde1;
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.evidenceProgressBar span {
+  background: linear-gradient(90deg, #c5333f 0%, #e96e79 100%);
+  display: block;
+  height: 100%;
+}
+
+.evidenceProgressCopy {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.evidenceInlineError {
+  margin-top: 0;
+  padding: 10px 12px;
+}
+
+.taskFormActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .workflowForm {
   display: grid;
   gap: 16px;
@@ -372,7 +635,7 @@ h1 {
 
 .checkboxRow {
   align-items: center;
-  background: #f7faf8;
+  background: #fffafb;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
@@ -401,9 +664,20 @@ h1 {
   .operations,
   .accessGrid,
   .catalogGrid,
+  .evidenceOpsSummary,
+  .taskAdminLayout,
   .formGrid,
   .toggleGrid,
-  .roleGrid {
+  .roleGrid,
+  .taskMetaGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .taskCardHeader {
+    flex-direction: column;
+  }
+
+  .evidencePreviewLayout {
     grid-template-columns: 1fr;
   }
 }

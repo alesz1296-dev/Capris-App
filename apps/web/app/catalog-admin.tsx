@@ -19,6 +19,7 @@ import type {
   WorkflowRule,
   Zone
 } from "@capris/shared";
+import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -68,10 +69,6 @@ type WorkflowFormState = {
 
 function statusLabel(active: boolean): CatalogStatus {
   return active ? "active" : "inactive";
-}
-
-function getApiBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
 }
 
 const CREATE_LABELS: Record<string, string> = {
@@ -142,6 +139,9 @@ export function CatalogAdmin() {
 
   useEffect(() => {
     void loadCatalogs();
+    return subscribeToAuthChanges(() => {
+      void loadCatalogs();
+    });
   }, []);
 
   useEffect(() => {
@@ -188,7 +188,7 @@ export function CatalogAdmin() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${getApiBaseUrl()}/catalogs/bootstrap`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/catalogs/bootstrap`, {
         cache: "no-store"
       });
 
@@ -220,7 +220,7 @@ export function CatalogAdmin() {
       setStatusMessage(null);
       setError(null);
 
-      const response = await fetch(`${getApiBaseUrl()}/catalogs/${path}`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/catalogs/${path}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -247,7 +247,7 @@ export function CatalogAdmin() {
       setStatusMessage(null);
       setError(null);
 
-      const response = await fetch(`${getApiBaseUrl()}/catalogs/${path}/${id}`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/catalogs/${path}/${id}`, {
         method: "DELETE"
       });
 

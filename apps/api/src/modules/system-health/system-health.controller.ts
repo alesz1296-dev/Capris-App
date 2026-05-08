@@ -1,8 +1,10 @@
 import { Controller, Get } from "@nestjs/common";
+import { Public } from "../auth/public.decorator";
 
 @Controller("system-health")
 export class SystemHealthController {
   @Get()
+  @Public()
   getHealth() {
     return {
       status: "ok",
@@ -15,4 +17,3 @@ export class SystemHealthController {
     };
   }
 }
-

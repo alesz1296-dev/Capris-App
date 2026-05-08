@@ -6,37 +6,19 @@ import {
   ROLE_DEFINITIONS,
   ROLE_PERMISSIONS,
   t,
-  type Locale,
-  type Task
+  type Locale
 } from "@capris/shared";
 import { CatalogsService } from "../catalogs/catalogs.service";
 import { IdentityAccessService } from "../identity-access/identity-access.service";
+import { TasksService } from "../tasks/tasks.service";
 
 @Injectable()
 export class FieldOperationsService {
   constructor(
     private readonly catalogsService: CatalogsService,
-    private readonly identityAccessService: IdentityAccessService
+    private readonly identityAccessService: IdentityAccessService,
+    private readonly tasksService: TasksService
   ) {}
-
-  private readonly sampleTasks: Task[] = [
-    {
-      id: "task_001",
-      organizationId: "org_capris",
-      title: "Install display at POS",
-      requesterId: "user_admin",
-      assigneeId: "user_field_001",
-      scheduledFor: "2026-05-07",
-      provinceId: "province_san_jose",
-      zoneId: "zone_central",
-      pointOfSaleId: "pos_001",
-      activityTypeId: "activity_exhibition",
-      taskTypeId: "task_visit",
-      status: "pending",
-      priority: "high",
-      difficulty: "standard"
-    }
-  ];
 
   async getBootstrap(locale: Locale) {
     return {
@@ -55,14 +37,16 @@ export class FieldOperationsService {
     };
   }
 
-  getDashboard() {
+  async getDashboard() {
+    const tasks = await this.tasksService.getTasks();
+
     return {
       taskCompletionRate: 0,
-      pendingTasks: this.sampleTasks.filter((task) => task.status === "pending").length,
+      pendingTasks: tasks.filter((task) => task.status === "pending").length,
       overdueTasks: 0,
       visitsCompleted: 0,
       routeCoverage: 0,
-      evidenceMissing: 1,
+      evidenceMissing: 0,
       failedSyncs: 0,
       failedEmails: 0,
       clientRequestAgingDays: 0

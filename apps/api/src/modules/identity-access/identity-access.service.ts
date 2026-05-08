@@ -339,6 +339,8 @@ export class IdentityAccessService {
     role: string;
     locale: string;
     active: boolean;
+    googleSubject?: string | null;
+    avatarUrl?: string | null;
   }): User {
     return {
       id: userRecord.id,
@@ -347,7 +349,9 @@ export class IdentityAccessService {
       email: userRecord.email,
       role: userRecord.role as User["role"],
       locale: userRecord.locale as User["locale"],
-      active: userRecord.active
+      active: userRecord.active,
+      googleSubject: userRecord.googleSubject ?? undefined,
+      avatarUrl: userRecord.avatarUrl ?? undefined
     };
   }
 }
