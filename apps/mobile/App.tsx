@@ -1,21 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import * as AuthSession from "expo-auth-session";
 import * as ImagePicker from "expo-image-picker";
 import {
+  type Activity,
+  type ActivityCreateSyncPayload,
+  type Client,
   t,
   type Comment,
   type CommentCreateSyncPayload,
   type Consignation,
   type ConsignationPrepareSyncPayload,
+  type ConsignationFailSyncPayload,
+  type ConsignationReviewSyncPayload,
   type ConsignationSendSyncPayload,
   type EvidenceBootstrap,
   type EvidencePhoto,
   type EvidenceType,
+  type ExhibitionCreateSyncPayload,
+  type ExhibitionInstallation,
   type MediaAsset,
   type Observation,
   type ObservationCreateSyncPayload,
   type PhotoUploadSyncPayload,
   type PrepareConsignationInput,
+  type ReviewConsignationInput,
+  type CreateActivityInput,
+  type CreateExhibitionInstallationInput,
   type SyncOperation,
   type Task,
   type UploadCapturedEvidenceInput,
@@ -24,7 +34,7 @@ import {
   type VisitCheckInSyncPayload,
   type VisitCheckOutSyncPayload
 } from "@capris/shared";
-import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import {
   API_BASE_URL,
   GOOGLE_CLIENT_ID,
@@ -51,6 +61,14 @@ const FALLBACK_LONGITUDE = -84.1397;
 const FIELD_USER_ID = "user_field_001";
 const ORGANIZATION_ID = "org_capris";
 const AUTO_SYNC_INTERVAL_MS = 15000;
+
+type ConsignationReviewDraft = {
+  recipientEmails: string;
+  emailSubject: string;
+  emailBody: string;
+  beforeEvidenceId?: string;
+  afterEvidenceId?: string;
+};
 
 const fallbackTasks: Task[] = [
   {
@@ -96,6 +114,7 @@ export default function App() {
   const [bootstrap, setBootstrap] = useState<EvidenceBootstrap | null>(null);
   const [captureBusyKey, setCaptureBusyKey] = useState<string | null>(null);
   const [localSyncOperations, setLocalSyncOperations] = useState<SyncOperation[]>([]);
+  const [consignationReviewDrafts, setConsignationReviewDrafts] = useState<Record<string, ConsignationReviewDraft>>({});
   const [syncingQueue, setSyncingQueue] = useState(false);
   const autoSyncEnabledRef = useRef(true);
   const effectiveUserId = mobileSession?.profile?.user.id ?? FIELD_USER_ID;
@@ -107,6 +126,9 @@ export default function App() {
   const comments = bootstrap?.comments ?? [];
   const observations = bootstrap?.observations ?? [];
   const consignations = bootstrap?.consignations ?? [];
+  const activities = bootstrap?.activities ?? [];
+  const clients = bootstrap?.clients ?? [];
+  const exhibitions = bootstrap?.exhibitions ?? [];
   const pointsOfSale = bootstrap?.pointsOfSale ?? [];
   const requirementSummaries = bootstrap?.requirementSummaries ?? [];
   const pendingSyncOperations = localSyncOperations.length ? localSyncOperations : bootstrap?.pendingSyncOperations ?? [];
@@ -138,6 +160,24 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, [pendingSyncOperations.length, syncingQueue]);
+
+  useEffect(() => {
+    setConsignationReviewDrafts((current) => {
+      const generated = buildConsignationReviewDrafts(consignations, tasks, clients, evidence);
+      const next: Record<string, ConsignationReviewDraft> = {};
+
+      for (const consignation of consignations) {
+        next[consignation.id] = current[consignation.id]
+          ? {
+              ...generated[consignation.id],
+              ...current[consignation.id]
+            }
+          : generated[consignation.id];
+      }
+
+      return next;
+    });
+  }, [clients, consignations, evidence, tasks]);
 
   const visibleTasks = useMemo(() => tasks.filter((task) => task.assigneeId === effectiveUserId), [effectiveUserId, tasks]);
   const visibleVisits = useMemo(() => visits.filter((visit) => visit.assigneeId === effectiveUserId), [effectiveUserId, visits]);
@@ -417,6 +457,68 @@ export default function App() {
     }
   }
 
+  async function recordActivity(taskId: string, visitId?: string, pointOfSaleId?: string) {
+    const payload: ActivityCreateSyncPayload = {
+      organizationId: ORGANIZATION_ID,
+      taskId,
+      userId: effectiveUserId,
+      visitId,
+      pointOfSaleId,
+      quantity: 1,
+      note: `Activity recorded at ${new Date().toLocaleTimeString("en-US")}`,
+      recordedAt: new Date().toISOString()
+    };
+
+    try {
+      await syncJsonRequest(`${API_BASE_URL}/activities`, "POST", payload satisfies CreateActivityInput);
+      setStatusMessage("Activity recorded.");
+      await loadRouteDay();
+    } catch {
+      await queueOperation(
+        {
+          id: `sync_activity_${Date.now()}`,
+          type: "activity_create",
+          state: "pending_sync",
+          payload,
+          retryCount: 0,
+          createdAt: payload.recordedAt
+        },
+        "Activity queued for sync."
+      );
+    }
+  }
+
+  async function recordExhibition(taskId: string, visitId?: string, pointOfSaleId?: string) {
+    const payload: ExhibitionCreateSyncPayload = {
+      organizationId: ORGANIZATION_ID,
+      taskId,
+      userId: effectiveUserId,
+      visitId,
+      pointOfSaleId,
+      quantity: 1,
+      note: `Exhibition installation recorded at ${new Date().toLocaleTimeString("en-US")}`,
+      recordedAt: new Date().toISOString()
+    };
+
+    try {
+      await syncJsonRequest(`${API_BASE_URL}/exhibitions`, "POST", payload satisfies CreateExhibitionInstallationInput);
+      setStatusMessage("Exhibition installation recorded.");
+      await loadRouteDay();
+    } catch {
+      await queueOperation(
+        {
+          id: `sync_exhibition_${Date.now()}`,
+          type: "exhibition_create",
+          state: "pending_sync",
+          payload,
+          retryCount: 0,
+          createdAt: payload.recordedAt
+        },
+        "Exhibition installation queued for sync."
+      );
+    }
+  }
+
   async function prepareConsignation(taskId: string, visitId?: string) {
     const localConsignationId = `consignation_local_${Date.now()}`;
     const payload: ConsignationPrepareSyncPayload = {
@@ -455,6 +557,67 @@ export default function App() {
     }
   }
 
+  async function reviewConsignation(consignation: Consignation) {
+    const draft =
+      consignationReviewDrafts[consignation.id] ?? buildConsignationReviewDraft(consignation, tasks, clients, evidence);
+    const recipientEmails = draft.recipientEmails
+      .split(",")
+      .map((email) => email.trim())
+      .filter(Boolean);
+
+    if (recipientEmails.length === 0) {
+      setError("Add at least one recipient before reviewing the consignation.");
+      return;
+    }
+
+    if (!draft.emailSubject.trim()) {
+      setError("Email subject is required before reviewing the consignation.");
+      return;
+    }
+
+    if (!draft.emailBody.trim()) {
+      setError("Email body is required before reviewing the consignation.");
+      return;
+    }
+
+    const payload: ConsignationReviewSyncPayload = {
+      consignationId: consignation.id,
+      localConsignationId: consignation.id.startsWith("consignation_local_") ? consignation.id : undefined,
+      reviewedAt: new Date().toISOString(),
+      recipientEmails,
+      emailSubject: draft.emailSubject.trim(),
+      emailBody: draft.emailBody.trim(),
+      beforeEvidenceId: draft.beforeEvidenceId,
+      afterEvidenceId: draft.afterEvidenceId
+    };
+
+    try {
+      const resolvedId = payload.localConsignationId ?? payload.consignationId;
+      await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/review`, "PATCH", {
+        reviewedAt: payload.reviewedAt,
+        recipientEmails: payload.recipientEmails,
+        emailSubject: payload.emailSubject,
+        emailBody: payload.emailBody,
+        beforeEvidenceId: payload.beforeEvidenceId,
+        afterEvidenceId: payload.afterEvidenceId
+      } satisfies ReviewConsignationInput);
+      setStatusMessage("Consignation reviewed and ready to send.");
+      await loadRouteDay();
+    } catch {
+      await queueOperation(
+        {
+          id: `sync_consignation_review_${Date.now()}`,
+          type: "consignation_review",
+          state: "pending_sync",
+          payload,
+          retryCount: 0,
+          createdAt: payload.reviewedAt
+        },
+        "Consignation review queued for sync."
+      );
+    }
+  }
+
   async function sendConsignation(consignation: Consignation) {
     const payload: ConsignationSendSyncPayload = {
       consignationId: consignation.id,
@@ -477,6 +640,37 @@ export default function App() {
           createdAt: payload.sentAt
         },
         "Consignation send queued for sync."
+      );
+    }
+  }
+
+  async function failConsignation(consignation: Consignation) {
+    const payload: ConsignationFailSyncPayload = {
+      consignationId: consignation.id,
+      localConsignationId: consignation.id.startsWith("consignation_local_") ? consignation.id : undefined,
+      failedAt: new Date().toISOString(),
+      reason: "Field user flagged send failure before delivery confirmation."
+    };
+
+    try {
+      const resolvedId = payload.localConsignationId ?? payload.consignationId;
+      await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/fail`, "PATCH", {
+        failedAt: payload.failedAt,
+        reason: payload.reason
+      });
+      setStatusMessage("Consignation marked as failed.");
+      await loadRouteDay();
+    } catch {
+      await queueOperation(
+        {
+          id: `sync_consignation_fail_${Date.now()}`,
+          type: "consignation_fail",
+          state: "pending_sync",
+          payload,
+          retryCount: 0,
+          createdAt: payload.failedAt
+        },
+        "Consignation failure queued for sync."
       );
     }
   }
@@ -578,10 +772,32 @@ export default function App() {
               preparedAt: payload.preparedAt
             });
             localConsignationIdMap.set(payload.localConsignationId, result?.item?.id ?? payload.localConsignationId);
+          } else if (operation.type === "consignation_review") {
+            const payload = operation.payload as ConsignationReviewSyncPayload;
+            const resolvedId = payload.localConsignationId ? localConsignationIdMap.get(payload.localConsignationId) ?? payload.localConsignationId : payload.consignationId;
+            await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/review`, "PATCH", {
+              reviewedAt: payload.reviewedAt,
+              recipientEmails: payload.recipientEmails,
+              emailSubject: payload.emailSubject,
+              emailBody: payload.emailBody,
+              beforeEvidenceId: payload.beforeEvidenceId,
+              afterEvidenceId: payload.afterEvidenceId
+            });
+          } else if (operation.type === "consignation_fail") {
+            const payload = operation.payload as ConsignationFailSyncPayload;
+            const resolvedId = payload.localConsignationId ? localConsignationIdMap.get(payload.localConsignationId) ?? payload.localConsignationId : payload.consignationId;
+            await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/fail`, "PATCH", {
+              failedAt: payload.failedAt,
+              reason: payload.reason
+            });
           } else if (operation.type === "consignation_send") {
             const payload = operation.payload as ConsignationSendSyncPayload;
             const resolvedId = payload.localConsignationId ? localConsignationIdMap.get(payload.localConsignationId) ?? payload.localConsignationId : payload.consignationId;
             await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/send`, "PATCH", { sentAt: payload.sentAt });
+          } else if (operation.type === "activity_create") {
+            await syncJsonRequest(`${API_BASE_URL}/activities`, "POST", operation.payload);
+          } else if (operation.type === "exhibition_create") {
+            await syncJsonRequest(`${API_BASE_URL}/exhibitions`, "POST", operation.payload);
           }
 
           await removeSyncOperation(operation.id);
@@ -619,7 +835,7 @@ export default function App() {
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Costa Rica</Text>
           <Text style={styles.title}>{t("en", "app.name")}</Text>
-          <Text style={styles.subtitle}>Session 9 now caches route data in SQLite, queues visits, evidence, notes, and consignations offline, and retries them in the background.</Text>
+          <Text style={styles.subtitle}>Session 9 caches route data in SQLite, and Session 10 layers richer consignation review plus activity tracking on top of the same field workflow.</Text>
         </View>
 
         <View style={styles.panel}>
@@ -700,6 +916,8 @@ export default function App() {
             const taskComments = comments.filter((item) => item.taskId === visit.taskId);
             const taskObservations = observations.filter((item) => item.taskId === visit.taskId);
             const taskConsignations = consignations.filter((item) => item.taskId === visit.taskId);
+            const taskActivities = activities.filter((item) => item.taskId === visit.taskId);
+            const taskExhibitions = exhibitions.filter((item) => item.taskId === visit.taskId);
             const summary = requirementSummaries.find((item) => item.taskId === visit.taskId);
 
             return (
@@ -779,15 +997,77 @@ export default function App() {
                       <Text style={styles.syncMeta}>
                         {t("en", `consignation.status.${item.status}` as never)} / {item.preparedAt}
                       </Text>
-                      {item.status === "prepared" ? (
-                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void sendConsignation(item)}>
-                          <Text style={styles.secondaryButtonText}>{t("en", "consignation.send")}</Text>
+                      <Text style={styles.syncMeta}>
+                        {t("en", "consignation.recipients")}: {consignationReviewDrafts[item.id]?.recipientEmails || "cliente@capris.example"}
+                      </Text>
+                      <TextInput
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        placeholder="cliente@capris.example"
+                        placeholderTextColor="#9b8b8e"
+                        style={styles.textInput}
+                        value={consignationReviewDrafts[item.id]?.recipientEmails ?? ""}
+                        onChangeText={(value) => updateConsignationReviewDraft(item.id, { recipientEmails: value }, setConsignationReviewDrafts)}
+                      />
+                      <TextInput
+                        placeholder={t("en", "consignation.subject")}
+                        placeholderTextColor="#9b8b8e"
+                        style={styles.textInput}
+                        value={consignationReviewDrafts[item.id]?.emailSubject ?? ""}
+                        onChangeText={(value) => updateConsignationReviewDraft(item.id, { emailSubject: value }, setConsignationReviewDrafts)}
+                      />
+                      <TextInput
+                        multiline
+                        placeholder={t("en", "consignation.body")}
+                        placeholderTextColor="#9b8b8e"
+                        style={[styles.textInput, styles.textAreaInput]}
+                        textAlignVertical="top"
+                        value={consignationReviewDrafts[item.id]?.emailBody ?? ""}
+                        onChangeText={(value) => updateConsignationReviewDraft(item.id, { emailBody: value }, setConsignationReviewDrafts)}
+                      />
+                      {item.status === "prepared" || item.status === "failed" ? (
+                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void reviewConsignation(item)}>
+                          <Text style={styles.secondaryButtonText}>{t("en", "consignation.review")}</Text>
                         </TouchableOpacity>
+                      ) : null}
+                      {item.status === "ready_to_send" ? (
+                        <>
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => void sendConsignation(item)}>
+                            <Text style={styles.secondaryButtonText}>{t("en", "consignation.send")}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => void failConsignation(item)}>
+                            <Text style={styles.secondaryButtonText}>{t("en", "consignation.fail")}</Text>
+                          </TouchableOpacity>
+                        </>
                       ) : null}
                     </View>
                   ))}
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => void prepareConsignation(visit.taskId, visit.id)}>
                     <Text style={styles.secondaryButtonText}>{t("en", "consignation.prepare")}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.notePanel}>
+                  <Text style={styles.captureHeading}>{t("en", "activity.activities")}</Text>
+                  {taskActivities.map((item: Activity) => (
+                    <Text key={item.id} style={styles.syncMeta}>
+                      {item.recordedAt}: {item.quantity} {t("en", "activity.activities").toLowerCase()}
+                    </Text>
+                  ))}
+                  <TouchableOpacity style={styles.secondaryButton} onPress={() => void recordActivity(visit.taskId, visit.id, visit.pointOfSaleId)}>
+                    <Text style={styles.secondaryButtonText}>{t("en", "activity.recordActivity")}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.notePanel}>
+                  <Text style={styles.captureHeading}>{t("en", "activity.exhibitions")}</Text>
+                  {taskExhibitions.map((item: ExhibitionInstallation) => (
+                    <Text key={item.id} style={styles.syncMeta}>
+                      {item.recordedAt}: {item.quantity} {t("en", "activity.exhibitions").toLowerCase()}
+                    </Text>
+                  ))}
+                  <TouchableOpacity style={styles.secondaryButton} onPress={() => void recordExhibition(visit.taskId, visit.id, visit.pointOfSaleId)}>
+                    <Text style={styles.secondaryButtonText}>{t("en", "activity.recordExhibition")}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -926,7 +1206,10 @@ function CaptureActionRow({
 
 function createFallbackBootstrap(): EvidenceBootstrap {
   return {
+    activities: [],
+    clients: [],
     evidence: [],
+    exhibitions: [],
     mediaAssets: [],
     comments: [],
     observations: [],
@@ -941,10 +1224,63 @@ function createFallbackBootstrap(): EvidenceBootstrap {
   };
 }
 
+function buildConsignationReviewDrafts(
+  consignations: Consignation[],
+  tasks: Task[],
+  clients: Client[],
+  evidence: EvidencePhoto[]
+) {
+  return Object.fromEntries(
+    consignations.map((consignation) => [
+      consignation.id,
+      buildConsignationReviewDraft(consignation, tasks, clients, evidence)
+    ])
+  );
+}
+
+function buildConsignationReviewDraft(
+  consignation: Consignation,
+  tasks: Task[],
+  clients: Client[],
+  evidence: EvidencePhoto[]
+): ConsignationReviewDraft {
+  const linkedTask = tasks.find((task) => task.id === consignation.taskId);
+  const linkedClient = clients.find((client) => client.id === linkedTask?.clientId);
+  const beforeEvidence = evidence.find((item) => item.taskId === consignation.taskId && item.type === "before");
+  const afterEvidence = evidence.find((item) => item.taskId === consignation.taskId && item.type === "after");
+
+  return {
+    recipientEmails: consignation.recipientEmails.join(", ") || linkedClient?.contactEmail || "cliente@capris.example",
+    emailSubject: consignation.emailSubject ?? `Consignation evidence for ${linkedTask?.title ?? consignation.taskId}`,
+    emailBody:
+      consignation.emailBody ??
+      `Attached are the before and after consignation photos for ${linkedTask?.title ?? consignation.taskId}.`,
+    beforeEvidenceId: consignation.beforeEvidenceId ?? beforeEvidence?.id,
+    afterEvidenceId: consignation.afterEvidenceId ?? afterEvidence?.id
+  };
+}
+
+function updateConsignationReviewDraft(
+  consignationId: string,
+  patch: Partial<ConsignationReviewDraft>,
+  setDrafts: Dispatch<SetStateAction<Record<string, ConsignationReviewDraft>>>
+) {
+  setDrafts((current) => ({
+    ...current,
+    [consignationId]: {
+      ...current[consignationId],
+      ...patch
+    }
+  }));
+}
+
 function applyPendingOperationsToBootstrap(base: EvidenceBootstrap, operations: SyncOperation[]): EvidenceBootstrap {
   const next: EvidenceBootstrap = {
     ...base,
+    activities: [...base.activities],
+    clients: [...base.clients],
     evidence: [...base.evidence],
+    exhibitions: [...base.exhibitions],
     mediaAssets: [...base.mediaAssets],
     comments: [...base.comments],
     observations: [...base.observations],
@@ -1005,14 +1341,71 @@ function applyPendingOperationsToBootstrap(base: EvidenceBootstrap, operations: 
         visitId: payload.visitId,
         note: payload.note,
         status: "prepared",
-        preparedAt: payload.preparedAt
+        preparedAt: payload.preparedAt,
+        recipientEmails: []
       });
+    } else if (operation.type === "consignation_review") {
+      const payload = operation.payload as ConsignationReviewSyncPayload;
+      const targetId = payload.localConsignationId ?? payload.consignationId;
+      next.consignations = next.consignations.map((item) =>
+        item.id === targetId
+          ? {
+              ...item,
+              status: "ready_to_send",
+              reviewedAt: payload.reviewedAt,
+              recipientEmails: payload.recipientEmails,
+              emailSubject: payload.emailSubject,
+              emailBody: payload.emailBody,
+              beforeEvidenceId: payload.beforeEvidenceId,
+              afterEvidenceId: payload.afterEvidenceId
+            }
+          : item
+      );
+    } else if (operation.type === "consignation_fail") {
+      const payload = operation.payload as ConsignationFailSyncPayload;
+      const targetId = payload.localConsignationId ?? payload.consignationId;
+      next.consignations = next.consignations.map((item) =>
+        item.id === targetId
+          ? {
+              ...item,
+              status: "failed",
+              failedAt: payload.failedAt,
+              sendFailureReason: payload.reason
+            }
+          : item
+      );
     } else if (operation.type === "consignation_send") {
       const payload = operation.payload as ConsignationSendSyncPayload;
       const targetId = payload.localConsignationId ?? payload.consignationId;
       next.consignations = next.consignations.map((item) =>
         item.id === targetId ? { ...item, status: "sent", sentAt: payload.sentAt } : item
       );
+    } else if (operation.type === "activity_create") {
+      const payload = operation.payload as ActivityCreateSyncPayload;
+      upsertActivity(next, {
+        id: `activity_local_${operation.id}`,
+        organizationId: payload.organizationId,
+        taskId: payload.taskId,
+        userId: payload.userId,
+        visitId: payload.visitId,
+        pointOfSaleId: payload.pointOfSaleId,
+        quantity: payload.quantity,
+        note: payload.note,
+        recordedAt: payload.recordedAt
+      });
+    } else if (operation.type === "exhibition_create") {
+      const payload = operation.payload as ExhibitionCreateSyncPayload;
+      upsertExhibition(next, {
+        id: `exhibition_local_${operation.id}`,
+        organizationId: payload.organizationId,
+        taskId: payload.taskId,
+        userId: payload.userId,
+        visitId: payload.visitId,
+        pointOfSaleId: payload.pointOfSaleId,
+        quantity: payload.quantity,
+        note: payload.note,
+        recordedAt: payload.recordedAt
+      });
     }
   }
 
@@ -1100,6 +1493,24 @@ function upsertConsignation(bootstrap: EvidenceBootstrap, consignation: Consigna
     bootstrap.consignations[index] = consignation;
   } else {
     bootstrap.consignations.unshift(consignation);
+  }
+}
+
+function upsertActivity(bootstrap: EvidenceBootstrap, activity: Activity) {
+  const index = bootstrap.activities.findIndex((item) => item.id === activity.id);
+  if (index >= 0) {
+    bootstrap.activities[index] = activity;
+  } else {
+    bootstrap.activities.unshift(activity);
+  }
+}
+
+function upsertExhibition(bootstrap: EvidenceBootstrap, exhibition: ExhibitionInstallation) {
+  const index = bootstrap.exhibitions.findIndex((item) => item.id === exhibition.id);
+  if (index >= 0) {
+    bootstrap.exhibitions[index] = exhibition;
+  } else {
+    bootstrap.exhibitions.unshift(exhibition);
   }
 }
 
@@ -1202,6 +1613,18 @@ const styles = StyleSheet.create({
   inlineActions: { gap: 10 },
   notePanel: { backgroundColor: "#fffafb", borderRadius: 8, gap: 8, padding: 12 },
   captureHeading: { color: "#251b1d", fontSize: 14, fontWeight: "700" },
+  textInput: {
+    backgroundColor: "#ffffff",
+    borderColor: "#e3c4c9",
+    borderRadius: 8,
+    borderWidth: 1,
+    color: "#251b1d",
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  textAreaInput: {
+    minHeight: 96
+  },
   captureRow: { gap: 10 },
   primaryButton: { alignItems: "center", backgroundColor: "#c5333f", borderRadius: 8, padding: 14 },
   primaryButtonText: { color: "#ffffff", fontWeight: "700" },

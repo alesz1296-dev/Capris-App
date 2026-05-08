@@ -348,13 +348,19 @@ h1 {
 }
 
 .formGrid input,
-.formGrid select {
+.formGrid select,
+.formGrid textarea {
   background: #fffdfd;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
   font: inherit;
   padding: 10px 12px;
+}
+
+.formGrid textarea {
+  min-height: 104px;
+  resize: vertical;
 }
 
 .fullWidth {
@@ -620,6 +626,12 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.csvPreview {
+  font-family: "Cascadia Code", "Consolas", monospace;
+  min-height: 240px;
+  white-space: pre;
 }
 
 .workflowForm {

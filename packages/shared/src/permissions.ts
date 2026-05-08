@@ -7,9 +7,23 @@ export type Permission =
   | "workflow_rules.manage"
   | "tasks.assign"
   | "tasks.complete"
+  | "visits.view"
   | "visits.perform"
+  | "visits.manage"
+  | "evidence.view"
   | "evidence.upload"
+  | "notes.view"
+  | "notes.manage"
+  | "consignations.view"
   | "consignations.review_send"
+  | "activities.view"
+  | "activities.manage"
+  | "exhibitions.view"
+  | "exhibitions.manage"
+  | "client_requests.view"
+  | "client_requests.manage"
+  | "calendar.view"
+  | "calendar.manage"
   | "exceptions.review"
   | "dashboards.view"
   | "reports.export"
@@ -25,9 +39,23 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "workflow_rules.manage",
     "tasks.assign",
     "tasks.complete",
+    "visits.view",
     "visits.perform",
+    "visits.manage",
+    "evidence.view",
     "evidence.upload",
+    "notes.view",
+    "notes.manage",
+    "consignations.view",
     "consignations.review_send",
+    "activities.view",
+    "activities.manage",
+    "exhibitions.view",
+    "exhibitions.manage",
+    "client_requests.view",
+    "client_requests.manage",
+    "calendar.view",
+    "calendar.manage",
     "exceptions.review",
     "dashboards.view",
     "reports.export",
@@ -37,6 +65,20 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   supervisor: [
     "tasks.assign",
+    "visits.view",
+    "visits.manage",
+    "evidence.view",
+    "notes.view",
+    "consignations.view",
+    "consignations.review_send",
+    "activities.view",
+    "activities.manage",
+    "exhibitions.view",
+    "exhibitions.manage",
+    "client_requests.view",
+    "client_requests.manage",
+    "calendar.view",
+    "calendar.manage",
     "exceptions.review",
     "dashboards.view",
     "reports.export",
@@ -45,9 +87,19 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   field_user: [
     "tasks.complete",
+    "visits.view",
     "visits.perform",
+    "evidence.view",
     "evidence.upload",
-    "consignations.review_send"
+    "notes.view",
+    "notes.manage",
+    "consignations.view",
+    "consignations.review_send",
+    "activities.view",
+    "activities.manage",
+    "exhibitions.view",
+    "exhibitions.manage",
+    "calendar.view"
   ]
 };
 

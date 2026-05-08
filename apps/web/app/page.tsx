@@ -6,17 +6,16 @@ import {
   type SupervisorScopeType
 } from "@capris/shared";
 import { AuthPanel } from "./auth-panel";
+import { AgendaAdmin } from "./agenda-admin";
+import { ActivitiesAdmin } from "./activities-admin";
 import { CatalogAdmin } from "./catalog-admin";
+import { DashboardOverview } from "./dashboard-overview";
 import { EvidenceAdmin } from "./evidence-admin";
+import { ExceptionsAdmin } from "./exceptions-admin";
+import { ImportsAdmin } from "./imports-admin";
+import { ReportsAdmin } from "./reports-admin";
 import { TaskAdmin } from "./task-admin";
 import { VisitAdmin } from "./visit-admin";
-
-const metrics = [
-  { label: "Task completion", value: "0%" },
-  { label: "Route coverage", value: "0%" },
-  { label: "Evidence missing", value: "1" },
-  { label: "Sync/email health", value: "OK" }
-];
 
 const scopeExamples: { type: SupervisorScopeType; referenceName: string }[] = [
   { type: "organization", referenceName: "Capris Costa Rica" },
@@ -40,10 +39,14 @@ export default function DashboardPage() {
         <strong>{t("en", "app.name")}</strong>
         <nav>
           <a href="#dashboard">Dashboard</a>
+          <a href="#agenda">Agenda</a>
           <a href="#tasks">Tasks</a>
           <a href="#routes">Routes</a>
           <a href="#evidence">Evidence</a>
+          <a href="#activities">Activities</a>
+          <a href="#exceptions">Exceptions</a>
           <a href="#reports">Reports</a>
+          <a href="#admin-config">Config</a>
           <a href="#settings">Admin</a>
         </nav>
       </aside>
@@ -62,25 +65,7 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <section className="metrics" aria-label="Operational metrics">
-          {metrics.map((metric) => (
-            <article className="metric" key={metric.label}>
-              <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
-            </article>
-          ))}
-        </section>
-
-        <section className="operations">
-          <div>
-            <h2>Today&apos;s route</h2>
-            <p>Assigned visits, check-ins, required evidence, and route coverage will appear here.</p>
-          </div>
-          <div>
-            <h2>Exceptions</h2>
-            <p>Missing GPS, failed uploads, closed stores, and failed consignation emails will be reviewed here.</p>
-          </div>
-        </section>
+        <DashboardOverview />
 
         <section className="accessSection" id="settings">
           <div className="sectionHeading">
@@ -123,8 +108,13 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        <AgendaAdmin />
         <VisitAdmin />
         <EvidenceAdmin />
+        <ActivitiesAdmin />
+        <ExceptionsAdmin />
+        <ReportsAdmin />
+        <ImportsAdmin />
         <TaskAdmin />
         <CatalogAdmin />
       </section>

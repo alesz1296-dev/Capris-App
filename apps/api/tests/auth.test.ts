@@ -69,7 +69,8 @@ async function testGoogleSignInLinksExistingUser() {
         locale: "es" as const,
         avatarUrl: "https://example.com/avatar.png"
       })
-    } as never
+    } as never,
+    {} as never
   );
 
   const result = await service.signInWithGoogle({
@@ -99,7 +100,8 @@ async function testGoogleSignInRejectsUnknownUser() {
         name: "Unknown User",
         locale: "en" as const
       })
-    } as never
+    } as never,
+    {} as never
   );
 
   await assert.rejects(
@@ -143,6 +145,7 @@ async function testRefreshSessionRejectsRevokedSession() {
       }
     } as never,
     tokenService,
+    {} as never,
     {} as never
   );
 
@@ -154,11 +157,106 @@ async function testRefreshSessionRejectsRevokedSession() {
   );
 }
 
+async function testGetDeviceSessionsReturnsSummaries() {
+  const service = new AuthService(
+    {
+      deviceSession: {
+        findMany: async () => [
+          {
+            id: "session_auth_001",
+            organizationId: "org_capris",
+            userId: "user_admin_001",
+            provider: "google",
+            deviceName: "Chrome",
+            expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+            revokedAt: null,
+            createdAt: new Date("2026-05-08T12:00:00.000Z"),
+            lastUsedAt: new Date("2026-05-08T14:00:00.000Z"),
+            user: {
+              name: "Alejandro S",
+              email: "admin@example.com"
+            }
+          }
+        ]
+      }
+    } as never,
+    new AuthTokenService(),
+    {} as never,
+    {
+      getUsers: async () => [
+        {
+          id: "user_admin_001",
+          organizationId: "org_capris",
+          name: "Alejandro S",
+          email: "admin@example.com",
+          role: "admin",
+          locale: "es",
+          active: true,
+          permissions: []
+        }
+      ]
+    } as never
+  );
+
+  const result = await service.getDeviceSessions();
+  assert.equal(result.sessions.length, 1);
+  assert.equal(result.sessions[0].active, true);
+  assert.equal(result.users.length, 1);
+}
+
+async function testRevokeDeviceSessionRequiresAdmin() {
+  const service = new AuthService(
+    {
+      deviceSession: {
+        findUnique: async () => ({
+          id: "session_auth_001",
+          organizationId: "org_capris",
+          userId: "user_field_001",
+          provider: "google",
+          deviceName: "Phone",
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          revokedAt: null,
+          createdAt: new Date("2026-05-08T12:00:00.000Z"),
+          lastUsedAt: null,
+          user: {
+            name: "Andrea",
+            email: "andrea@example.com"
+          }
+        })
+      },
+      user: {
+        findUnique: async () => ({
+          id: "user_supervisor_001",
+          organizationId: "org_capris",
+          role: "supervisor",
+          active: true
+        })
+      }
+    } as never,
+    new AuthTokenService(),
+    {} as never,
+    {} as never
+  );
+
+  await assert.rejects(
+    () =>
+      service.revokeDeviceSession("session_auth_001", {
+        revokedByUserId: "user_supervisor_001",
+        revokedAt: "2026-05-08T16:00:00.000Z"
+      }),
+    (error: unknown) =>
+      error instanceof UnauthorizedException &&
+      `${error.message}`.includes("Only admins can revoke device sessions.")
+  );
+}
+
 async function main() {
   await testAuthControllerValidation();
   await testGoogleSignInLinksExistingUser();
   await testGoogleSignInRejectsUnknownUser();
   await testRefreshSessionRejectsRevokedSession();
+  await testGetDeviceSessionsReturnsSummaries();
+  await testRevokeDeviceSessionRequiresAdmin();
   console.log("Auth tests passed.");
 }
 

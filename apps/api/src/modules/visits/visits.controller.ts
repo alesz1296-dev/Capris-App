@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import { ZodError } from "zod";
 import {
   createVisitSchema,
@@ -8,40 +8,60 @@ import {
   type VisitCheckInInput,
   type VisitCheckOutInput
 } from "@capris/shared";
+import { RequirePermissions } from "../auth/require-permission.decorator";
+import { ActorAccessService } from "../auth/actor-access.service";
+import type { AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { VisitsService } from "./visits.service";
 
 @Controller("visits")
 export class VisitsController {
-  constructor(private readonly service: VisitsService) {}
+  constructor(
+    private readonly service: VisitsService,
+    private readonly actorAccessService: ActorAccessService
+  ) {}
 
   @Get("bootstrap")
+  @RequirePermissions("visits.view")
   getBootstrap() {
     return this.service.getVisitBootstrap();
   }
 
   @Get()
+  @RequirePermissions("visits.view")
   getVisits() {
     return this.service.getVisits();
   }
 
   @Get(":id")
+  @RequirePermissions("visits.view")
   getVisit(@Param("id") id: string) {
     return this.service.getVisit(id);
   }
 
   @Post()
-  createVisit(@Body() input: CreateVisitInput) {
-    return this.service.createVisit(parseVisitInput(createVisitSchema, input));
+  @RequirePermissions("visits.manage")
+  createVisit(@Body() input: CreateVisitInput, @Req() request: AuthenticatedRequest) {
+    const actor = this.actorAccessService.getActor(request);
+    return this.service.createVisit(
+      parseVisitInput(createVisitSchema, {
+        ...input,
+        organizationId: actor.organizationId,
+        assigneeId: actor.role === "field_user" ? actor.sub : input.assigneeId
+      }),
+      actor
+    );
   }
 
   @Patch(":id/check-in")
-  checkInVisit(@Param("id") id: string, @Body() input: VisitCheckInInput) {
-    return this.service.checkInVisit(id, parseVisitInput(visitCheckInSchema, input));
+  @RequirePermissions("visits.perform")
+  checkInVisit(@Param("id") id: string, @Body() input: VisitCheckInInput, @Req() request: AuthenticatedRequest) {
+    return this.service.checkInVisit(id, parseVisitInput(visitCheckInSchema, input), this.actorAccessService.getActor(request));
   }
 
   @Patch(":id/check-out")
-  checkOutVisit(@Param("id") id: string, @Body() input: VisitCheckOutInput) {
-    return this.service.checkOutVisit(id, parseVisitInput(visitCheckOutSchema, input));
+  @RequirePermissions("visits.perform")
+  checkOutVisit(@Param("id") id: string, @Body() input: VisitCheckOutInput, @Req() request: AuthenticatedRequest) {
+    return this.service.checkOutVisit(id, parseVisitInput(visitCheckOutSchema, input), this.actorAccessService.getActor(request));
   }
 }
 

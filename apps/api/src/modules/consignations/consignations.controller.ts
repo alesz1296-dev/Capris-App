@@ -1,30 +1,63 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import { ZodError } from "zod";
 import {
+  failConsignationSchema,
   prepareConsignationSchema,
+  reviewConsignationSchema,
   sendConsignationSchema,
+  type FailConsignationInput,
   type PrepareConsignationInput,
+  type ReviewConsignationInput,
   type SendConsignationInput
 } from "@capris/shared";
+import { RequirePermissions } from "../auth/require-permission.decorator";
+import { ActorAccessService } from "../auth/actor-access.service";
+import type { AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { ConsignationsService } from "./consignations.service";
 
 @Controller("consignations")
 export class ConsignationsController {
-  constructor(private readonly service: ConsignationsService) {}
+  constructor(
+    private readonly service: ConsignationsService,
+    private readonly actorAccessService: ActorAccessService
+  ) {}
 
   @Get()
+  @RequirePermissions("consignations.view")
   getConsignations() {
     return this.service.getConsignations();
   }
 
   @Post("prepare")
-  prepareConsignation(@Body() input: PrepareConsignationInput) {
-    return this.service.prepareConsignation(parseInput(prepareConsignationSchema, input));
+  @RequirePermissions("consignations.review_send")
+  prepareConsignation(@Body() input: PrepareConsignationInput, @Req() request: AuthenticatedRequest) {
+    const actor = this.actorAccessService.getActor(request);
+    return this.service.prepareConsignation(
+      parseInput(prepareConsignationSchema, {
+        ...input,
+        organizationId: actor.organizationId,
+        userId: actor.sub
+      }),
+      actor
+    );
+  }
+
+  @Patch(":id/review")
+  @RequirePermissions("consignations.review_send")
+  reviewConsignation(@Param("id") id: string, @Body() input: ReviewConsignationInput, @Req() request: AuthenticatedRequest) {
+    return this.service.reviewConsignation(id, parseInput(reviewConsignationSchema, input), this.actorAccessService.getActor(request));
   }
 
   @Patch(":id/send")
-  sendConsignation(@Param("id") id: string, @Body() input: SendConsignationInput) {
-    return this.service.sendConsignation(id, parseInput(sendConsignationSchema, input));
+  @RequirePermissions("consignations.review_send")
+  sendConsignation(@Param("id") id: string, @Body() input: SendConsignationInput, @Req() request: AuthenticatedRequest) {
+    return this.service.sendConsignation(id, parseInput(sendConsignationSchema, input), this.actorAccessService.getActor(request));
+  }
+
+  @Patch(":id/fail")
+  @RequirePermissions("consignations.review_send")
+  failConsignation(@Param("id") id: string, @Body() input: FailConsignationInput, @Req() request: AuthenticatedRequest) {
+    return this.service.failConsignation(id, parseInput(failConsignationSchema, input), this.actorAccessService.getActor(request));
   }
 }
 

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type {
+  Activity,
   Comment,
   Consignation,
   CreateEvidenceInput,
@@ -7,6 +8,7 @@ import type {
   EvidenceMutationResult,
   EvidencePhoto,
   EvidenceRequirementSummary,
+  ExhibitionInstallation,
   MediaAsset,
   MediaAssetMutationResult,
   RequestMediaRetryInput,
@@ -21,6 +23,8 @@ import type {
   WorkflowRule
 } from "@capris/shared";
 import { CatalogsService } from "../catalogs/catalogs.service";
+import { ActorAccessService } from "../auth/actor-access.service";
+import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { PrismaService } from "../database/prisma.service";
 import { IdentityAccessService } from "../identity-access/identity-access.service";
 import { ObjectStorageService } from "../object-storage/object-storage.service";
@@ -29,6 +33,8 @@ type EvidencePrisma = PrismaService & {
   comment: any;
   observation: any;
   consignation: any;
+  activation: any;
+  exhibitionInstallation: any;
   evidencePhoto: any;
   mediaAsset: any;
   task: any;
@@ -52,12 +58,15 @@ export class EvidenceService {
     private readonly prisma: PrismaService,
     private readonly catalogsService: CatalogsService,
     private readonly identityAccessService: IdentityAccessService,
-    private readonly objectStorageService: ObjectStorageService
+    private readonly objectStorageService: ObjectStorageService,
+    private readonly actorAccessService: ActorAccessService
   ) {}
 
   async getEvidenceBootstrap(): Promise<EvidenceBootstrap> {
-    const [evidence, mediaAssets, comments, observations, consignations, tasks, visits, users, catalogs] = await Promise.all([
+    const [activities, evidence, exhibitions, mediaAssets, comments, observations, consignations, tasks, visits, users, catalogs] = await Promise.all([
+      this.getActivities(),
       this.getEvidence(),
+      this.getExhibitions(),
       this.getMediaAssets(),
       this.getComments(),
       this.getObservations(),
@@ -69,7 +78,10 @@ export class EvidenceService {
     ]);
 
     return {
+      activities,
+      clients: catalogs.clients,
       evidence,
+      exhibitions,
       mediaAssets,
       comments,
       observations,
@@ -149,12 +161,68 @@ export class EvidenceService {
       note: item.note ?? undefined,
       status: item.status,
       preparedAt: item.preparedAt,
+      reviewedAt: item.reviewedAt ?? undefined,
+      recipientEmails: item.recipientEmails ? item.recipientEmails.split(",").map((email: string) => email.trim()).filter(Boolean) : [],
+      emailSubject: item.emailSubject ?? undefined,
+      emailBody: item.emailBody ?? undefined,
+      beforeEvidenceId: item.beforeEvidenceId ?? undefined,
+      afterEvidenceId: item.afterEvidenceId ?? undefined,
+      sendFailureReason: item.sendFailureReason ?? undefined,
+      failedAt: item.failedAt ?? undefined,
       sentAt: item.sentAt ?? undefined
     }));
   }
 
-  async createEvidence(input: CreateEvidenceInput): Promise<EvidenceMutationResult> {
-    await this.assertEvidenceReferences(input);
+  async getActivities(): Promise<Activity[]> {
+    const prisma = this.prisma as unknown as EvidencePrisma;
+    const items = await prisma.activation.findMany({
+      orderBy: [{ recordedAt: "desc" }, { createdAt: "desc" }]
+    });
+
+    return items.map((item: any) => ({
+      id: item.id,
+      organizationId: item.organizationId,
+      taskId: item.taskId,
+      userId: item.userId,
+      visitId: item.visitId ?? undefined,
+      pointOfSaleId: item.pointOfSaleId ?? undefined,
+      quantity: item.quantity,
+      note: item.note ?? undefined,
+      recordedAt: item.recordedAt
+    }));
+  }
+
+  async getExhibitions(): Promise<ExhibitionInstallation[]> {
+    const prisma = this.prisma as unknown as EvidencePrisma;
+    const items = await prisma.exhibitionInstallation.findMany({
+      orderBy: [{ recordedAt: "desc" }, { createdAt: "desc" }]
+    });
+
+    return items.map((item: any) => ({
+      id: item.id,
+      organizationId: item.organizationId,
+      taskId: item.taskId,
+      userId: item.userId,
+      visitId: item.visitId ?? undefined,
+      pointOfSaleId: item.pointOfSaleId ?? undefined,
+      quantity: item.quantity,
+      note: item.note ?? undefined,
+      recordedAt: item.recordedAt
+    }));
+  }
+
+  async createEvidence(input: CreateEvidenceInput, actor?: AuthJwtPayload): Promise<EvidenceMutationResult> {
+    const references = await this.assertEvidenceReferences(input);
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: input.organizationId,
+        userId: input.uploaderUserId,
+        assigneeId: references.task.assigneeId,
+        provinceId: references.task.provinceId,
+        zoneId: references.task.zoneId,
+        clientId: references.task.clientId ?? undefined
+      });
+    }
 
     const uploadStatus = input.uploadStatus ?? "pending_upload";
     const syncState = input.syncState ?? this.deriveSyncState(uploadStatus);
@@ -220,8 +288,18 @@ export class EvidenceService {
     };
   }
 
-  async uploadCapturedEvidence(input: UploadCapturedEvidenceInput): Promise<EvidenceMutationResult> {
-    await this.assertEvidenceReferences(input);
+  async uploadCapturedEvidence(input: UploadCapturedEvidenceInput, actor?: AuthJwtPayload): Promise<EvidenceMutationResult> {
+    const references = await this.assertEvidenceReferences(input);
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: input.organizationId,
+        userId: input.uploaderUserId,
+        assigneeId: references.task.assigneeId,
+        provinceId: references.task.provinceId,
+        zoneId: references.task.zoneId,
+        clientId: references.task.clientId ?? undefined
+      });
+    }
 
     const bytes = this.decodeBase64Payload(input.fileBase64);
     const stored = await this.objectStorageService.storeEvidenceCapture({
@@ -258,11 +336,17 @@ export class EvidenceService {
     });
   }
 
-  async updateMediaUploadStatus(id: string, input: UpdateMediaUploadStatusInput): Promise<MediaAssetMutationResult> {
+  async updateMediaUploadStatus(id: string, input: UpdateMediaUploadStatusInput, actor?: AuthJwtPayload): Promise<MediaAssetMutationResult> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const mediaAsset = await prisma.mediaAsset.findUnique({ where: { id } });
     if (!mediaAsset) {
       throw new NotFoundException(`Media asset ${id} was not found.`);
+    }
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: mediaAsset.organizationId,
+        userId: mediaAsset.uploaderUserId
+      });
     }
 
     const currentStatus = mediaAsset.uploadStatus as UploadStatus;
@@ -302,11 +386,17 @@ export class EvidenceService {
     };
   }
 
-  async requestMediaRetry(id: string, input: RequestMediaRetryInput): Promise<MediaAssetMutationResult> {
+  async requestMediaRetry(id: string, input: RequestMediaRetryInput, actor?: AuthJwtPayload): Promise<MediaAssetMutationResult> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const mediaAsset = await prisma.mediaAsset.findUnique({ where: { id } });
     if (!mediaAsset) {
       throw new NotFoundException(`Media asset ${id} was not found.`);
+    }
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: mediaAsset.organizationId,
+        userId: mediaAsset.uploaderUserId
+      });
     }
 
     if (mediaAsset.uploadStatus === "uploaded") {
@@ -547,6 +637,8 @@ export class EvidenceService {
         throw new NotFoundException(`Visit ${input.visitId} was not found for task ${input.taskId}.`);
       }
     }
+
+    return { task, uploader };
   }
 
   private async getTasks(): Promise<Task[]> {

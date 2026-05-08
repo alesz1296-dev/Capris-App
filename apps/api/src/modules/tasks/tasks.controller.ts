@@ -8,6 +8,7 @@ import {
   type UpdateTaskInput,
   type UpdateTaskStatusInput
 } from "@capris/shared";
+import { RequirePermissions } from "../auth/require-permission.decorator";
 import { TasksService } from "./tasks.service";
 
 @Controller("tasks")
@@ -30,16 +31,19 @@ export class TasksController {
   }
 
   @Post()
+  @RequirePermissions("tasks.assign")
   createTask(@Body() input: CreateTaskInput) {
     return this.service.createTask(parseTaskInput(createTaskSchema, input));
   }
 
   @Patch(":id")
+  @RequirePermissions("tasks.assign")
   updateTask(@Param("id") id: string, @Body() input: UpdateTaskInput) {
     return this.service.updateTask(id, parseTaskInput(updateTaskSchema, input));
   }
 
   @Patch(":id/status")
+  @RequirePermissions("tasks.complete")
   updateTaskStatus(@Param("id") id: string, @Body() input: UpdateTaskStatusInput) {
     return this.service.updateTaskStatus(id, parseTaskInput(updateTaskStatusSchema, input));
   }

@@ -4,6 +4,7 @@ import { CONSIGNATION_STATUSES, type Consignation, type ConsignationStatus } fro
 const identifierSchema = z.string().trim().min(1);
 const noteSchema = z.string().trim().max(1000);
 const isoTimestampSchema = z.string().datetime({ offset: true });
+const emailSchema = z.string().trim().email();
 
 export const prepareConsignationSchema = z.object({
   organizationId: identifierSchema,
@@ -14,8 +15,22 @@ export const prepareConsignationSchema = z.object({
   preparedAt: isoTimestampSchema
 });
 
+export const reviewConsignationSchema = z.object({
+  reviewedAt: isoTimestampSchema,
+  recipientEmails: z.array(emailSchema).min(1),
+  emailSubject: z.string().trim().min(3).max(200),
+  emailBody: z.string().trim().min(10).max(5000),
+  beforeEvidenceId: identifierSchema.optional(),
+  afterEvidenceId: identifierSchema.optional()
+});
+
 export const sendConsignationSchema = z.object({
   sentAt: isoTimestampSchema
+});
+
+export const failConsignationSchema = z.object({
+  failedAt: isoTimestampSchema,
+  reason: z.string().trim().min(3).max(1000)
 });
 
 export interface PrepareConsignationInput {
@@ -27,8 +42,22 @@ export interface PrepareConsignationInput {
   preparedAt: string;
 }
 
+export interface ReviewConsignationInput {
+  reviewedAt: string;
+  recipientEmails: string[];
+  emailSubject: string;
+  emailBody: string;
+  beforeEvidenceId?: string;
+  afterEvidenceId?: string;
+}
+
 export interface SendConsignationInput {
   sentAt: string;
+}
+
+export interface FailConsignationInput {
+  failedAt: string;
+  reason: string;
 }
 
 export interface ConsignationMutationResult {

@@ -4,6 +4,8 @@ export const TASK_STATUSES = ["pending", "in_progress", "completed"] as const;
 export const VISIT_STATUSES = ["scheduled", "checked_in", "checked_out"] as const;
 export const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 export const DIFFICULTIES = ["easy", "standard", "hard", "critical"] as const;
+export const CLIENT_REQUEST_STATUSES = ["open", "in_progress", "waiting_client", "resolved", "closed"] as const;
+export const CALENDAR_VIEWS = ["day", "week", "month", "year"] as const;
 import type { SyncState } from "./sync";
 
 export const EVIDENCE_TYPES = ["before", "after", "supporting"] as const;
@@ -22,18 +24,16 @@ export type SupervisorScopeType =
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type VisitStatus = (typeof VISIT_STATUSES)[number];
-export type ClientRequestStatus =
-  | "open"
-  | "in_progress"
-  | "waiting_client"
-  | "resolved"
-  | "closed";
+export type ClientRequestStatus = (typeof CLIENT_REQUEST_STATUSES)[number];
+export type CalendarView = (typeof CALENDAR_VIEWS)[number];
+export type AgendaEntryKind = "agenda_event" | "task" | "visit" | "client_request";
+export type AgendaScopeType = "organization" | "team" | "user";
 
 export type Priority = (typeof PRIORITIES)[number];
 export type Difficulty = (typeof DIFFICULTIES)[number];
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 export type UploadStatus = (typeof UPLOAD_STATUSES)[number];
-export const CONSIGNATION_STATUSES = ["prepared", "sent"] as const;
+export const CONSIGNATION_STATUSES = ["prepared", "ready_to_send", "sent", "failed"] as const;
 export type ConsignationStatus = (typeof CONSIGNATION_STATUSES)[number];
 export type EmailStatus = "draft" | "pending_review" | "queued" | "sent" | "failed";
 export type ExceptionStatus = "submitted" | "approved" | "rejected" | "needs_correction";
@@ -200,7 +200,98 @@ export interface Consignation {
   note?: string;
   status: ConsignationStatus;
   preparedAt: string;
+  reviewedAt?: string;
+  recipientEmails: string[];
+  emailSubject?: string;
+  emailBody?: string;
+  beforeEvidenceId?: string;
+  afterEvidenceId?: string;
+  sendFailureReason?: string;
+  failedAt?: string;
   sentAt?: string;
+}
+
+export interface Activity {
+  id: string;
+  organizationId: string;
+  taskId: string;
+  userId: string;
+  visitId?: string;
+  pointOfSaleId?: string;
+  quantity: number;
+  note?: string;
+  recordedAt: string;
+}
+
+export interface ExhibitionInstallation {
+  id: string;
+  organizationId: string;
+  taskId: string;
+  userId: string;
+  visitId?: string;
+  pointOfSaleId?: string;
+  quantity: number;
+  note?: string;
+  recordedAt: string;
+}
+
+export interface AgendaEvent {
+  id: string;
+  organizationId: string;
+  title: string;
+  description?: string;
+  startAt: string;
+  endAt: string;
+  allDay: boolean;
+  scopeType: AgendaScopeType;
+  scopeReferenceId?: string;
+  ownerUserId?: string;
+  teamId?: string;
+  colorToken?: string;
+  createdByUserId: string;
+}
+
+export interface CalendarEntry {
+  id: string;
+  kind: AgendaEntryKind;
+  organizationId: string;
+  title: string;
+  description?: string;
+  startAt: string;
+  endAt: string;
+  allDay: boolean;
+  ownerUserId?: string;
+  scopeType?: AgendaScopeType;
+  scopeReferenceId?: string;
+  teamId?: string;
+  taskId?: string;
+  visitId?: string;
+  clientRequestId?: string;
+  status?: TaskStatus | VisitStatus | ClientRequestStatus;
+  colorToken?: string;
+}
+
+export interface ClientRequest {
+  id: string;
+  organizationId: string;
+  title: string;
+  description?: string;
+  requesterName: string;
+  requesterEmail?: string;
+  ownerUserId: string;
+  clientId?: string;
+  provinceId?: string;
+  zoneId?: string;
+  pointOfSaleId?: string;
+  taskId?: string;
+  status: ClientRequestStatus;
+  dueDate: string;
+  openedAt: string;
+  resolvedAt?: string;
+  closedAt?: string;
+  agingDays: number;
+  overdue: boolean;
+  priority: Priority;
 }
 
 export interface MediaAsset {

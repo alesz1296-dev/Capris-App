@@ -1,0 +1,573 @@
+"use client";
+
+import { useEffect, useMemo, useState, useTransition } from "react";
+import type {
+  AgendaEvent,
+  CalendarBootstrap,
+  CalendarEntry,
+  CalendarView,
+  ClientRequest,
+  ClientRequestBootstrap,
+  ClientRequestStatus,
+  CreateAgendaEventInput,
+  CreateClientRequestInput
+} from "@capris/shared";
+import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+
+const ORGANIZATION_ID = "org_capris";
+const DEFAULT_DATE = "2026-05-08";
+
+const CALENDAR_VIEWS: CalendarView[] = ["day", "week", "month", "year"];
+const REQUEST_STATUSES: ClientRequestStatus[] = ["open", "in_progress", "waiting_client", "resolved", "closed"];
+
+type AgendaFormState = {
+  title: string;
+  description: string;
+  startAt: string;
+  endAt: string;
+  allDay: boolean;
+  scopeType: "organization" | "team" | "user";
+  scopeReferenceId: string;
+  ownerUserId: string;
+  teamId: string;
+  colorToken: string;
+  createdByUserId: string;
+};
+
+type ClientRequestFormState = {
+  title: string;
+  description: string;
+  requesterName: string;
+  requesterEmail: string;
+  ownerUserId: string;
+  clientId: string;
+  provinceId: string;
+  zoneId: string;
+  pointOfSaleId: string;
+  taskId: string;
+  dueDate: string;
+  priority: "low" | "medium" | "high" | "urgent";
+};
+
+const EMPTY_AGENDA_FORM: AgendaFormState = {
+  title: "",
+  description: "",
+  startAt: "2026-05-08T14:00:00.000Z",
+  endAt: "2026-05-08T15:00:00.000Z",
+  allDay: false,
+  scopeType: "organization",
+  scopeReferenceId: "",
+  ownerUserId: "",
+  teamId: "",
+  colorToken: "agenda",
+  createdByUserId: "user_supervisor_001"
+};
+
+const EMPTY_REQUEST_FORM: ClientRequestFormState = {
+  title: "",
+  description: "",
+  requesterName: "",
+  requesterEmail: "",
+  ownerUserId: "user_supervisor_001",
+  clientId: "",
+  provinceId: "",
+  zoneId: "",
+  pointOfSaleId: "",
+  taskId: "",
+  dueDate: "2026-05-12",
+  priority: "medium"
+};
+
+export function AgendaAdmin() {
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [view, setView] = useState<CalendarView>("week");
+  const [anchorDate, setAnchorDate] = useState(DEFAULT_DATE);
+  const [calendar, setCalendar] = useState<CalendarBootstrap | null>(null);
+  const [requestBootstrap, setRequestBootstrap] = useState<ClientRequestBootstrap | null>(null);
+  const [agendaForm, setAgendaForm] = useState<AgendaFormState>(EMPTY_AGENDA_FORM);
+  const [requestForm, setRequestForm] = useState<ClientRequestFormState>(EMPTY_REQUEST_FORM);
+
+  useEffect(() => {
+    void loadSession12();
+    return subscribeToAuthChanges(() => {
+      void loadSession12();
+    });
+  }, [view, anchorDate]);
+
+  useEffect(() => {
+    if (!requestBootstrap?.users.length) {
+      return;
+    }
+
+    setAgendaForm((current) => ({
+      ...current,
+      ownerUserId: current.ownerUserId || requestBootstrap.users[0].id,
+      createdByUserId: current.createdByUserId || requestBootstrap.users[0].id
+    }));
+    setRequestForm((current) => ({
+      ...current,
+      ownerUserId: current.ownerUserId || requestBootstrap.users[0].id
+    }));
+  }, [requestBootstrap]);
+
+  const entries = calendar?.entries ?? [];
+  const agendaEvents = calendar?.agendaEvents ?? [];
+  const requests = requestBootstrap?.requests ?? [];
+  const users = requestBootstrap?.users ?? [];
+  const teams = calendar?.teams ?? [];
+  const clients = requestBootstrap?.clients ?? [];
+  const provinces = requestBootstrap?.provinces ?? [];
+  const zones = requestBootstrap?.zones ?? [];
+  const pointsOfSale = requestBootstrap?.pointsOfSale ?? [];
+  const tasks = requestBootstrap?.tasks ?? [];
+
+  const groupedCounts = useMemo(
+    () => ({
+      agenda: entries.filter((entry) => entry.kind === "agenda_event").length,
+      tasks: entries.filter((entry) => entry.kind === "task").length,
+      visits: entries.filter((entry) => entry.kind === "visit").length,
+      requests: entries.filter((entry) => entry.kind === "client_request").length
+    }),
+    [entries]
+  );
+
+  async function loadSession12() {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [calendarResponse, requestsResponse] = await Promise.all([
+        authenticatedFetch(`${API_BASE_URL}/calendar/bootstrap?view=${view}&date=${anchorDate}`, { cache: "no-store" }),
+        authenticatedFetch(`${API_BASE_URL}/client-requests/bootstrap`, { cache: "no-store" })
+      ]);
+
+      if (!calendarResponse.ok) {
+        throw new Error(await extractErrorMessage(calendarResponse, "Unable to load calendar data."));
+      }
+      if (!requestsResponse.ok) {
+        throw new Error(await extractErrorMessage(requestsResponse, "Unable to load client requests."));
+      }
+
+      const [calendarPayload, requestsPayload] = await Promise.all([
+        calendarResponse.json() as Promise<CalendarBootstrap>,
+        requestsResponse.json() as Promise<ClientRequestBootstrap>
+      ]);
+
+      setCalendar(calendarPayload);
+      setRequestBootstrap(requestsPayload);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load session 12 data.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createAgendaEvent() {
+    const payload: CreateAgendaEventInput = {
+      organizationId: ORGANIZATION_ID,
+      title: agendaForm.title,
+      description: agendaForm.description || undefined,
+      startAt: agendaForm.startAt,
+      endAt: agendaForm.endAt,
+      allDay: agendaForm.allDay,
+      scopeType: agendaForm.scopeType,
+      scopeReferenceId: agendaForm.scopeReferenceId || undefined,
+      ownerUserId: agendaForm.ownerUserId || undefined,
+      teamId: agendaForm.teamId || undefined,
+      colorToken: agendaForm.colorToken || undefined,
+      createdByUserId: agendaForm.createdByUserId
+    };
+
+    await submit(`${API_BASE_URL}/calendar/agenda-events`, payload, "Shared agenda event created.");
+    setAgendaForm((current) => ({ ...EMPTY_AGENDA_FORM, createdByUserId: current.createdByUserId, ownerUserId: current.ownerUserId }));
+  }
+
+  async function createClientRequest() {
+    const payload: CreateClientRequestInput = {
+      organizationId: ORGANIZATION_ID,
+      title: requestForm.title,
+      description: requestForm.description || undefined,
+      requesterName: requestForm.requesterName,
+      requesterEmail: requestForm.requesterEmail || undefined,
+      ownerUserId: requestForm.ownerUserId,
+      clientId: requestForm.clientId || undefined,
+      provinceId: requestForm.provinceId || undefined,
+      zoneId: requestForm.zoneId || undefined,
+      pointOfSaleId: requestForm.pointOfSaleId || undefined,
+      taskId: requestForm.taskId || undefined,
+      dueDate: requestForm.dueDate,
+      openedAt: new Date().toISOString(),
+      priority: requestForm.priority
+    };
+
+    await submit(`${API_BASE_URL}/client-requests`, payload, "Client request created.");
+    setRequestForm((current) => ({ ...EMPTY_REQUEST_FORM, ownerUserId: current.ownerUserId }));
+  }
+
+  async function updateRequestStatus(request: ClientRequest, status: ClientRequestStatus) {
+    await submit(
+      `${API_BASE_URL}/client-requests/${request.id}/status`,
+      {
+        status,
+        resolvedAt: status === "resolved" ? new Date().toISOString() : undefined,
+        closedAt: status === "closed" ? new Date().toISOString() : undefined
+      },
+      `Client request moved to ${status}.`,
+      "PATCH"
+    );
+  }
+
+  async function submit(url: string, payload: unknown, successMessage: string, method: "POST" | "PATCH" = "POST") {
+    try {
+      setStatusMessage(null);
+      setError(null);
+
+      const response = await authenticatedFetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response, "Unable to save Session 12 data."));
+      }
+
+      setStatusMessage(successMessage);
+      startTransition(() => {
+        void loadSession12();
+      });
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save Session 12 data.");
+    }
+  }
+
+  return (
+    <section className="catalogSection" id="agenda">
+      <div className="sectionHeading">
+        <p className="eyebrow">Session 12</p>
+        <h2>Shared agenda, calendars, and client requests</h2>
+        <p className="sectionDescription">
+          View daily, weekly, monthly, and yearly scheduling windows, create shared team agenda events, and follow client requests with ownership, due dates, and aging.
+        </p>
+      </div>
+
+      <div className="catalogFeedbackRow">
+        {loading ? <p className="feedbackInfo">Loading calendar and client-request data...</p> : null}
+        {isPending ? <p className="feedbackInfo">Refreshing Session 12 state from API...</p> : null}
+        {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
+        {error ? <p className="feedbackError">{error}</p> : null}
+      </div>
+
+      <div className="metrics">
+        <article className="metric">
+          <span>Agenda events</span>
+          <strong>{groupedCounts.agenda}</strong>
+        </article>
+        <article className="metric">
+          <span>Scheduled tasks</span>
+          <strong>{groupedCounts.tasks}</strong>
+        </article>
+        <article className="metric">
+          <span>Scheduled visits</span>
+          <strong>{groupedCounts.visits}</strong>
+        </article>
+        <article className="metric">
+          <span>Requests due in view</span>
+          <strong>{groupedCounts.requests}</strong>
+        </article>
+      </div>
+
+      <div className="taskAdminLayout">
+        <article className="catalogManagerCard">
+          <div className="catalogManagerHeader">
+            <div>
+              <h3>Calendar views</h3>
+              <p>
+                {calendar?.window.startDate ?? anchorDate} to {calendar?.window.endDate ?? anchorDate}
+              </p>
+            </div>
+          </div>
+          <div className="taskStatusActions">
+            {CALENDAR_VIEWS.map((calendarView) => (
+              <button
+                key={calendarView}
+                className={calendarView === view ? "primaryAction" : "secondaryAction"}
+                type="button"
+                onClick={() => setView(calendarView)}
+              >
+                {calendarView}
+              </button>
+            ))}
+          </div>
+          <label className="fullWidth">
+            <span>Anchor date</span>
+            <input type="date" value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} />
+          </label>
+          <div className="taskList">
+            {entries.map((entry: CalendarEntry) => (
+              <article className="taskCard" key={entry.id}>
+                <div className="taskCardHeader">
+                  <div>
+                    <h4>{entry.title}</h4>
+                    <p>
+                      {entry.kind} / {entry.startAt}
+                    </p>
+                  </div>
+                  <span className="taskBadge">{entry.status ?? entry.kind}</span>
+                </div>
+                {entry.description ? <p>{entry.description}</p> : null}
+              </article>
+            ))}
+          </div>
+        </article>
+
+        <article className="catalogManagerCard">
+          <div className="catalogManagerHeader">
+            <div>
+              <h3>Create agenda event</h3>
+              <p>Use shared events for team meetings, special activations, holiday blockers, and supervisor follow-up windows.</p>
+            </div>
+          </div>
+          <div className="formGrid">
+            <label className="fullWidth">
+              <span>Title</span>
+              <input value={agendaForm.title} onChange={(event) => setAgendaForm((current) => ({ ...current, title: event.target.value }))} />
+            </label>
+            <label className="fullWidth">
+              <span>Description</span>
+              <textarea value={agendaForm.description} onChange={(event) => setAgendaForm((current) => ({ ...current, description: event.target.value }))} />
+            </label>
+            <label>
+              <span>Start</span>
+              <input value={agendaForm.startAt} onChange={(event) => setAgendaForm((current) => ({ ...current, startAt: event.target.value }))} />
+            </label>
+            <label>
+              <span>End</span>
+              <input value={agendaForm.endAt} onChange={(event) => setAgendaForm((current) => ({ ...current, endAt: event.target.value }))} />
+            </label>
+            <label>
+              <span>Scope</span>
+              <select value={agendaForm.scopeType} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeType: event.target.value as AgendaFormState["scopeType"] }))}>
+                <option value="organization">organization</option>
+                <option value="team">team</option>
+                <option value="user">user</option>
+              </select>
+            </label>
+            <label>
+              <span>Scope reference</span>
+              <input value={agendaForm.scopeReferenceId} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeReferenceId: event.target.value }))} />
+            </label>
+            <label>
+              <span>Owner</span>
+              <select value={agendaForm.ownerUserId} onChange={(event) => setAgendaForm((current) => ({ ...current, ownerUserId: event.target.value }))}>
+                <option value="">No owner</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Team</span>
+              <select value={agendaForm.teamId} onChange={(event) => setAgendaForm((current) => ({ ...current, teamId: event.target.value }))}>
+                <option value="">No team</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Color token</span>
+              <input value={agendaForm.colorToken} onChange={(event) => setAgendaForm((current) => ({ ...current, colorToken: event.target.value }))} />
+            </label>
+          </div>
+          <div className="taskFormActions">
+            <button className="primaryAction" disabled={loading || isPending} type="button" onClick={() => void createAgendaEvent()}>
+              Create agenda event
+            </button>
+          </div>
+          <div className="taskList">
+            {agendaEvents.map((item: AgendaEvent) => (
+              <article className="taskCard" key={item.id}>
+                <div className="taskCardHeader">
+                  <div>
+                    <h4>{item.title}</h4>
+                    <p>
+                      {item.startAt} to {item.endAt}
+                    </p>
+                  </div>
+                  <span className="taskBadge">{item.scopeType}</span>
+                </div>
+                {item.description ? <p>{item.description}</p> : null}
+              </article>
+            ))}
+          </div>
+        </article>
+      </div>
+
+      <article className="catalogManagerCard" id="requests">
+        <div className="catalogManagerHeader">
+          <div>
+            <h3>Client request follow-up</h3>
+            <p>Track requester expectations, ownership, aging, and overdue risk from one supervisor/admin view.</p>
+          </div>
+        </div>
+        <div className="formGrid">
+          <label className="fullWidth">
+            <span>Title</span>
+            <input value={requestForm.title} onChange={(event) => setRequestForm((current) => ({ ...current, title: event.target.value }))} />
+          </label>
+          <label className="fullWidth">
+            <span>Description</span>
+            <textarea value={requestForm.description} onChange={(event) => setRequestForm((current) => ({ ...current, description: event.target.value }))} />
+          </label>
+          <label>
+            <span>Requester</span>
+            <input value={requestForm.requesterName} onChange={(event) => setRequestForm((current) => ({ ...current, requesterName: event.target.value }))} />
+          </label>
+          <label>
+            <span>Requester email</span>
+            <input value={requestForm.requesterEmail} onChange={(event) => setRequestForm((current) => ({ ...current, requesterEmail: event.target.value }))} />
+          </label>
+          <label>
+            <span>Owner</span>
+            <select value={requestForm.ownerUserId} onChange={(event) => setRequestForm((current) => ({ ...current, ownerUserId: event.target.value }))}>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Due date</span>
+            <input type="date" value={requestForm.dueDate} onChange={(event) => setRequestForm((current) => ({ ...current, dueDate: event.target.value }))} />
+          </label>
+          <label>
+            <span>Priority</span>
+            <select value={requestForm.priority} onChange={(event) => setRequestForm((current) => ({ ...current, priority: event.target.value as ClientRequestFormState["priority"] }))}>
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+              <option value="urgent">urgent</option>
+            </select>
+          </label>
+          <label>
+            <span>Client</span>
+            <select value={requestForm.clientId} onChange={(event) => setRequestForm((current) => ({ ...current, clientId: event.target.value }))}>
+              <option value="">No client</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Province</span>
+            <select value={requestForm.provinceId} onChange={(event) => setRequestForm((current) => ({ ...current, provinceId: event.target.value }))}>
+              <option value="">No province</option>
+              {provinces.map((province) => (
+                <option key={province.id} value={province.id}>
+                  {province.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Zone</span>
+            <select value={requestForm.zoneId} onChange={(event) => setRequestForm((current) => ({ ...current, zoneId: event.target.value }))}>
+              <option value="">No zone</option>
+              {zones
+                .filter((zone) => !requestForm.provinceId || zone.provinceId === requestForm.provinceId)
+                .map((zone) => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            <span>Point of sale</span>
+            <select value={requestForm.pointOfSaleId} onChange={(event) => setRequestForm((current) => ({ ...current, pointOfSaleId: event.target.value }))}>
+              <option value="">No POS</option>
+              {pointsOfSale
+                .filter((pointOfSale) => (!requestForm.clientId || pointOfSale.clientId === requestForm.clientId) && (!requestForm.zoneId || pointOfSale.zoneId === requestForm.zoneId))
+                .map((pointOfSale) => (
+                  <option key={pointOfSale.id} value={pointOfSale.id}>
+                    {pointOfSale.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="fullWidth">
+            <span>Linked task</span>
+            <select value={requestForm.taskId} onChange={(event) => setRequestForm((current) => ({ ...current, taskId: event.target.value }))}>
+              <option value="">No task</option>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="taskFormActions">
+          <button className="primaryAction" disabled={loading || isPending} type="button" onClick={() => void createClientRequest()}>
+            Create client request
+          </button>
+        </div>
+        <div className="taskList">
+          {requests.map((request) => (
+            <article className="taskCard" key={request.id}>
+              <div className="taskCardHeader">
+                <div>
+                  <h4>{request.title}</h4>
+                  <p>
+                    {request.requesterName} / due {request.dueDate}
+                  </p>
+                </div>
+                <span className="taskBadge">{request.status}</span>
+              </div>
+              {request.description ? <p>{request.description}</p> : null}
+              <p>
+                Aging {request.agingDays} days {request.overdue ? "/ overdue" : ""}
+              </p>
+              <p>
+                Owner: {users.find((user) => user.id === request.ownerUserId)?.name ?? request.ownerUserId} / Priority: {request.priority}
+              </p>
+              <div className="taskStatusActions">
+                {REQUEST_STATUSES.filter((status) => status !== request.status).map((status) => (
+                  <button key={status} className="secondaryAction" type="button" onClick={() => void updateRequestStatus(request, status)}>
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </article>
+    </section>
+  );
+}
+
+async function extractErrorMessage(response: Response, fallback: string) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const payload = (await response.json()) as { message?: string | string[] };
+    if (Array.isArray(payload.message)) {
+      return payload.message.join(" ");
+    }
+    if (payload.message) {
+      return payload.message;
+    }
+  }
+  const text = await response.text();
+  return text || fallback;
+}

@@ -9,9 +9,11 @@ import type {
   VisitStatus
 } from "@capris/shared";
 import { CatalogsService } from "../catalogs/catalogs.service";
+import { ActorAccessService } from "../auth/actor-access.service";
 import { PrismaService } from "../database/prisma.service";
 import { IdentityAccessService } from "../identity-access/identity-access.service";
 import { TasksService } from "../tasks/tasks.service";
+import type { AuthJwtPayload } from "../auth/auth-token.service";
 
 @Injectable()
 export class VisitsService {
@@ -19,7 +21,8 @@ export class VisitsService {
     private readonly prisma: PrismaService,
     private readonly tasksService: TasksService,
     private readonly catalogsService: CatalogsService,
-    private readonly identityAccessService: IdentityAccessService
+    private readonly identityAccessService: IdentityAccessService,
+    private readonly actorAccessService: ActorAccessService
   ) {}
 
   async getVisitBootstrap(): Promise<VisitBootstrap> {
@@ -51,7 +54,15 @@ export class VisitsService {
     return this.toVisit(await this.findVisit(id));
   }
 
-  async createVisit(input: CreateVisitInput): Promise<Visit> {
+  async createVisit(input: CreateVisitInput, actor?: AuthJwtPayload): Promise<Visit> {
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: input.organizationId,
+        assigneeId: input.assigneeId,
+        provinceId: input.provinceId,
+        zoneId: input.zoneId
+      });
+    }
     await this.assertVisitReferences(input);
 
     const visit = await this.prisma.visit.create({
@@ -71,8 +82,16 @@ export class VisitsService {
     return this.toVisit(visit);
   }
 
-  async checkInVisit(id: string, input: VisitCheckInInput): Promise<VisitMutationResult> {
+  async checkInVisit(id: string, input: VisitCheckInInput, actor?: AuthJwtPayload): Promise<VisitMutationResult> {
     const visit = await this.findVisit(id);
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: visit.organizationId,
+        assigneeId: visit.assigneeId,
+        provinceId: visit.provinceId,
+        zoneId: visit.zoneId
+      });
+    }
 
     if (visit.status !== "scheduled") {
       throw new BadRequestException(`Visit ${visit.id} cannot check in from ${visit.status}.`);
@@ -94,8 +113,16 @@ export class VisitsService {
     };
   }
 
-  async checkOutVisit(id: string, input: VisitCheckOutInput): Promise<VisitMutationResult> {
+  async checkOutVisit(id: string, input: VisitCheckOutInput, actor?: AuthJwtPayload): Promise<VisitMutationResult> {
     const visit = await this.findVisit(id);
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: visit.organizationId,
+        assigneeId: visit.assigneeId,
+        provinceId: visit.provinceId,
+        zoneId: visit.zoneId
+      });
+    }
 
     if (visit.status !== "checked_in") {
       throw new BadRequestException(`Visit ${visit.id} cannot check out from ${visit.status}.`);
