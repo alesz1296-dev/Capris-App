@@ -9,6 +9,8 @@ coverage/
 .env
 .env.*
 !.env.example
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
 
 # Private project context and user guides.
 docs/
