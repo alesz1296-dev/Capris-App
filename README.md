@@ -18,6 +18,8 @@ Implementation is tracked in two layers:
 - `docs/implementation-roadmap.md`: phase-level delivery plan
 - `docs/implementation-sessions.md`: session-by-session execution plan for building the product incrementally
 - `docs/log.md`: private implementation logbook by day and session
+- `docs/production-readiness.md`: private rollout and pilot-readiness checklist
+- `docs/priorities.md`: adversarial review priorities and risk backlog
 
 ## Planned Stack
 
@@ -50,6 +52,16 @@ npm run dev:mobile
 ## Working Style
 
 The project is intentionally organized so we can implement it in visible sessions. Each session should produce a small, testable slice of the platform instead of a large opaque batch of changes.
+
+## Validation Rule
+
+The working local validation rule is:
+
+- Every meaningful code slice: run `npm.cmd run typecheck` and `npm.cmd test`.
+- Every frontend or shared-contract change: run `npm.cmd --workspace apps/web run build`.
+- Every schema change: run `npm.cmd --workspace apps/api run db:push`.
+- Every workflow milestone: run the relevant app in `dev` mode for manual validation of the affected flow.
+- Before commits: run the full local verification set for the slices touched by the change.
 
 ## Spec-Driven Rule
 

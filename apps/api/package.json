@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch --entryFile apps/api/src/main",
     "test:build": "npm --workspace @capris/shared run build && tsc -p tsconfig.test.json",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:build && node dist-test/tests/tasks.test.js && node dist-test/tests/visits.test.js && node dist-test/tests/evidence.test.js && node dist-test/tests/notes.test.js && node dist-test/tests/consignations.test.js && node dist-test/tests/auth.test.js && node dist-test/tests/object-storage.test.js"
+    "test": "npm run test:build && node dist-test/tests/tasks.test.js && node dist-test/tests/visits.test.js && node dist-test/tests/evidence.test.js && node dist-test/tests/notes.test.js && node dist-test/tests/consignations.test.js && node dist-test/tests/activations.test.js && node dist-test/tests/exhibitions.test.js && node dist-test/tests/calendar.test.js && node dist-test/tests/client-requests.test.js && node dist-test/tests/dashboard.test.js && node dist-test/tests/auth.test.js && node dist-test/tests/exceptions.test.js && node dist-test/tests/reports.test.js && node dist-test/tests/admin-config.test.js && node dist-test/tests/permission-guard.test.js && node dist-test/tests/permissions.test.js && node dist-test/tests/route-permissions.test.js && node dist-test/tests/system-health.test.js && node dist-test/tests/object-storage.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",

@@ -207,7 +207,7 @@ export class DatabaseSeederService implements OnModuleInit {
         {
           id: "task_activation",
           organizationId: "org_capris",
-          name: "Activation",
+          name: "Activity",
           code: "ACTIVATION",
           active: true
         }
@@ -236,6 +236,44 @@ export class DatabaseSeederService implements OnModuleInit {
           requiresConsignationEmail: true
         }
       ]
+    });
+
+    await (this.prisma as any).agendaEvent.create({
+      data: {
+        id: "agenda_team_sync_001",
+        organizationId: "org_capris",
+        title: "Central route weekly sync",
+        description: "Supervisor follow-up for route coverage, client requests, and pending evidence.",
+        startAt: "2026-05-08T15:00:00.000Z",
+        endAt: "2026-05-08T16:00:00.000Z",
+        allDay: false,
+        scopeType: "team",
+        scopeReferenceId: "team_central",
+        ownerUserId: "user_supervisor_001",
+        teamId: "team_central",
+        colorToken: "agenda",
+        createdByUserId: "user_admin_001"
+      }
+    });
+
+    await (this.prisma as any).clientRequest.create({
+      data: {
+        id: "request_caps_001",
+        organizationId: "org_capris",
+        title: "Replace missing shelf talker",
+        description: "Client requested updated material before the next weekend promotion.",
+        requesterName: "Auto Mercado trade team",
+        requesterEmail: "trade@automercado.example",
+        ownerUserId: "user_supervisor_001",
+        clientId: "client_auto_mercado",
+        provinceId: "province_san_jose",
+        zoneId: "zone_central",
+        pointOfSaleId: "pos_escazu_001",
+        status: "open",
+        dueDate: "2026-05-10",
+        openedAt: "2026-05-08T14:30:00.000Z",
+        priority: "high"
+      }
     });
   }
 }

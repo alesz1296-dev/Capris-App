@@ -7,6 +7,8 @@ import type {
   Observation,
   ObservationMutationResult
 } from "@capris/shared";
+import { ActorAccessService } from "../auth/actor-access.service";
+import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { PrismaService } from "../database/prisma.service";
 
 type NotesPrisma = PrismaService & {
@@ -18,7 +20,10 @@ type NotesPrisma = PrismaService & {
 
 @Injectable()
 export class NotesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly actorAccessService: ActorAccessService
+  ) {}
 
   async getComments(): Promise<Comment[]> {
     const prisma = this.prisma as unknown as NotesPrisma;
@@ -36,8 +41,18 @@ export class NotesService {
     return items.map((item: any) => this.toObservation(item));
   }
 
-  async createComment(input: CreateCommentInput): Promise<CommentMutationResult> {
-    await this.assertReferences(input.organizationId, input.taskId, input.userId);
+  async createComment(input: CreateCommentInput, actor?: AuthJwtPayload): Promise<CommentMutationResult> {
+    const task = await this.assertReferences(input.organizationId, input.taskId, input.userId);
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        assigneeId: task.assigneeId,
+        provinceId: task.provinceId,
+        zoneId: task.zoneId,
+        clientId: task.clientId ?? undefined
+      });
+    }
     const created = await (this.prisma as unknown as NotesPrisma).comment.create({
       data: {
         id: this.createId("comment"),
@@ -55,8 +70,18 @@ export class NotesService {
     };
   }
 
-  async createObservation(input: CreateObservationInput): Promise<ObservationMutationResult> {
-    await this.assertReferences(input.organizationId, input.taskId, input.userId);
+  async createObservation(input: CreateObservationInput, actor?: AuthJwtPayload): Promise<ObservationMutationResult> {
+    const task = await this.assertReferences(input.organizationId, input.taskId, input.userId);
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        assigneeId: task.assigneeId,
+        provinceId: task.provinceId,
+        zoneId: task.zoneId,
+        clientId: task.clientId ?? undefined
+      });
+    }
     const created = await (this.prisma as unknown as NotesPrisma).observation.create({
       data: {
         id: this.createId("observation"),
@@ -88,6 +113,8 @@ export class NotesService {
     if (!user) {
       throw new NotFoundException(`User ${userId} was not found.`);
     }
+
+    return task;
   }
 
   private toComment(item: {

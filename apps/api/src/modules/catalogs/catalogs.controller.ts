@@ -17,9 +17,11 @@ import type {
   UpdateTaskTypeInput,
   UpdateWorkflowRuleInput
 } from "@capris/shared";
+import { RequirePermissions } from "../auth/require-permission.decorator";
 import { CatalogsService } from "./catalogs.service";
 
 @Controller("catalogs")
+@RequirePermissions("catalogs.manage")
 export class CatalogsController {
   constructor(private readonly service: CatalogsService) {}
 

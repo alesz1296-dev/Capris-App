@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Post, Req } from "@nestjs/common";
 import { ZodError } from "zod";
 import {
   createCommentSchema,
@@ -6,30 +6,56 @@ import {
   type CreateCommentInput,
   type CreateObservationInput
 } from "@capris/shared";
+import { RequirePermissions } from "../auth/require-permission.decorator";
+import { ActorAccessService } from "../auth/actor-access.service";
+import type { AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { NotesService } from "./notes.service";
 
 @Controller("notes")
 export class NotesController {
-  constructor(private readonly service: NotesService) {}
+  constructor(
+    private readonly service: NotesService,
+    private readonly actorAccessService: ActorAccessService
+  ) {}
 
   @Get("comments")
+  @RequirePermissions("notes.view")
   getComments() {
     return this.service.getComments();
   }
 
   @Get("observations")
+  @RequirePermissions("notes.view")
   getObservations() {
     return this.service.getObservations();
   }
 
   @Post("comments")
-  createComment(@Body() input: CreateCommentInput) {
-    return this.service.createComment(parseInput(createCommentSchema, input));
+  @RequirePermissions("notes.manage")
+  createComment(@Body() input: CreateCommentInput, @Req() request: AuthenticatedRequest) {
+    const actor = this.actorAccessService.getActor(request);
+    return this.service.createComment(
+      parseInput(createCommentSchema, {
+        ...input,
+        organizationId: actor.organizationId,
+        userId: actor.sub
+      }),
+      actor
+    );
   }
 
   @Post("observations")
-  createObservation(@Body() input: CreateObservationInput) {
-    return this.service.createObservation(parseInput(createObservationSchema, input));
+  @RequirePermissions("notes.manage")
+  createObservation(@Body() input: CreateObservationInput, @Req() request: AuthenticatedRequest) {
+    const actor = this.actorAccessService.getActor(request);
+    return this.service.createObservation(
+      parseInput(createObservationSchema, {
+        ...input,
+        organizationId: actor.organizationId,
+        userId: actor.sub
+      }),
+      actor
+    );
   }
 }
 

@@ -30,6 +30,14 @@ model Organization {
   comments      Comment[]
   observations  Observation[]
   consignations Consignation[]
+  activations   Activation[]
+  exhibitions   ExhibitionInstallation[]
+  agendaEvents  AgendaEvent[]
+  clientRequests ClientRequest[]
+  exceptions    ExceptionRecord[]
+  reportSnapshots ReportSnapshot[]
+  reminderRules ReminderRule[]
+  adminSettings AdminSettings?
   sessions      DeviceSession[]
 }
 
@@ -55,6 +63,13 @@ model User {
   comments       Comment[]
   observations   Observation[]
   consignations  Consignation[]
+  activations    Activation[]
+  exhibitions    ExhibitionInstallation[]
+  ownedAgendaEvents AgendaEvent[]     @relation("AgendaEventOwner")
+  createdAgendaEvents AgendaEvent[]   @relation("AgendaEventCreator")
+  ownedClientRequests ClientRequest[] @relation("ClientRequestOwner")
+  submittedExceptions ExceptionRecord[] @relation("ExceptionSubmittedBy")
+  reviewedExceptions ExceptionRecord[]  @relation("ExceptionReviewedBy")
   sessions       DeviceSession[]
 }
 
@@ -85,6 +100,7 @@ model Team {
   active         Boolean      @default(true)
   organization   Organization @relation(fields: [organizationId], references: [id])
   leadUser       User?        @relation("TeamLead", fields: [leadUserId], references: [id])
+  agendaEvents   AgendaEvent[]
 }
 
 model SupervisorScope {
@@ -113,6 +129,7 @@ model Province {
   pointsOfSale   PointOfSale[]
   tasks          Task[]
   visits         Visit[]
+  clientRequests ClientRequest[]
 
   @@unique([organizationId, code])
 }
@@ -129,6 +146,7 @@ model Zone {
   pointsOfSale   PointOfSale[]
   tasks          Task[]
   visits         Visit[]
+  clientRequests ClientRequest[]
 
   @@unique([organizationId, code])
 }
@@ -143,6 +161,7 @@ model Client {
   organization   Organization @relation(fields: [organizationId], references: [id])
   pointsOfSale   PointOfSale[]
   tasks          Task[]
+  clientRequests ClientRequest[]
 
   @@unique([organizationId, code])
 }
@@ -165,6 +184,9 @@ model PointOfSale {
   client         Client       @relation(fields: [clientId], references: [id])
   tasks          Task[]
   visits         Visit[]
+  activations    Activation[]
+  exhibitions    ExhibitionInstallation[]
+  clientRequests ClientRequest[]
 
   @@unique([organizationId, code])
 }
@@ -243,6 +265,10 @@ model Task {
   comments       Comment[]
   observations   Observation[]
   consignations  Consignation[]
+  activations    Activation[]
+  exhibitions    ExhibitionInstallation[]
+  clientRequests ClientRequest[]
+  exceptions     ExceptionRecord[]
 
   @@index([organizationId, scheduledFor])
   @@index([organizationId, assigneeId, status])
@@ -274,6 +300,10 @@ model Visit {
   pointOfSale         PointOfSale?  @relation(fields: [pointOfSaleId], references: [id])
   evidencePhotos      EvidencePhoto[]
   consignations       Consignation[]
+  activations         Activation[]
+  exhibitions         ExhibitionInstallation[]
+  clientRequests      ClientRequest[]
+  exceptions          ExceptionRecord[]
 
   @@index([organizationId, scheduledFor])
   @@index([assigneeId, status])
@@ -304,6 +334,7 @@ model MediaAsset {
   organization         Organization  @relation(fields: [organizationId], references: [id])
   uploader             User          @relation(fields: [uploaderUserId], references: [id])
   evidencePhotos       EvidencePhoto[]
+  exceptions           ExceptionRecord[]
 
   @@index([organizationId, uploadStatus])
 }
@@ -326,6 +357,8 @@ model EvidencePhoto {
   task           Task         @relation(fields: [taskId], references: [id])
   visit          Visit?       @relation(fields: [visitId], references: [id])
   mediaAsset     MediaAsset   @relation(fields: [mediaAssetId], references: [id])
+  beforeConsignations Consignation[] @relation("ConsignationBeforeEvidence")
+  afterConsignations  Consignation[] @relation("ConsignationAfterEvidence")
 
   @@index([taskId, type])
   @@index([visitId])
@@ -373,6 +406,14 @@ model Consignation {
   note           String?
   status         String
   preparedAt     String
+  reviewedAt     String?
+  recipientEmails String?
+  emailSubject   String?
+  emailBody      String?
+  beforeEvidenceId String?
+  afterEvidenceId String?
+  sendFailureReason String?
+  failedAt       String?
   sentAt         String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -380,7 +421,188 @@ model Consignation {
   task           Task         @relation(fields: [taskId], references: [id])
   user           User         @relation(fields: [userId], references: [id])
   visit          Visit?       @relation(fields: [visitId], references: [id])
+  beforeEvidence EvidencePhoto? @relation("ConsignationBeforeEvidence", fields: [beforeEvidenceId], references: [id])
+  afterEvidence  EvidencePhoto? @relation("ConsignationAfterEvidence", fields: [afterEvidenceId], references: [id])
+  exceptions     ExceptionRecord[]
 
   @@index([taskId, preparedAt])
   @@index([organizationId, status])
+}
+
+model Activation {
+  id             String       @id
+  organizationId String
+  taskId         String
+  userId         String
+  visitId        String?
+  pointOfSaleId  String?
+  quantity       Int
+  note           String?
+  recordedAt     String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  task           Task         @relation(fields: [taskId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  visit          Visit?       @relation(fields: [visitId], references: [id])
+  pointOfSale    PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
+
+  @@index([taskId, recordedAt])
+  @@index([organizationId, recordedAt])
+}
+
+model ExhibitionInstallation {
+  id             String       @id
+  organizationId String
+  taskId         String
+  userId         String
+  visitId        String?
+  pointOfSaleId  String?
+  quantity       Int
+  note           String?
+  recordedAt     String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  task           Task         @relation(fields: [taskId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  visit          Visit?       @relation(fields: [visitId], references: [id])
+  pointOfSale    PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
+
+  @@index([taskId, recordedAt])
+  @@index([organizationId, recordedAt])
+}
+
+model AgendaEvent {
+  id               String       @id
+  organizationId   String
+  title            String
+  description      String?
+  startAt          String
+  endAt            String
+  allDay           Boolean      @default(false)
+  scopeType        String
+  scopeReferenceId String?
+  ownerUserId      String?
+  teamId           String?
+  colorToken       String?
+  createdByUserId  String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  owner            User?        @relation("AgendaEventOwner", fields: [ownerUserId], references: [id])
+  team             Team?        @relation(fields: [teamId], references: [id])
+  createdBy        User         @relation("AgendaEventCreator", fields: [createdByUserId], references: [id])
+
+  @@index([organizationId, startAt])
+  @@index([organizationId, scopeType, scopeReferenceId])
+}
+
+model ClientRequest {
+  id             String       @id
+  organizationId String
+  title          String
+  description    String?
+  requesterName  String
+  requesterEmail String?
+  ownerUserId    String
+  clientId       String?
+  provinceId     String?
+  zoneId         String?
+  pointOfSaleId  String?
+  taskId         String?
+  visitId        String?
+  status         String
+  dueDate        String
+  openedAt       String
+  resolvedAt     String?
+  closedAt       String?
+  priority       String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  owner          User         @relation("ClientRequestOwner", fields: [ownerUserId], references: [id])
+  client         Client?      @relation(fields: [clientId], references: [id])
+  province       Province?    @relation(fields: [provinceId], references: [id])
+  zone           Zone?        @relation(fields: [zoneId], references: [id])
+  pointOfSale    PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
+  task           Task?        @relation(fields: [taskId], references: [id])
+  visit          Visit?       @relation(fields: [visitId], references: [id])
+
+  @@index([organizationId, dueDate])
+  @@index([organizationId, status])
+  @@index([ownerUserId, status])
+}
+
+model ExceptionRecord {
+  id               String        @id
+  organizationId   String
+  type             String
+  title            String
+  description      String?
+  submittedByUserId String
+  reviewedByUserId String?
+  taskId           String?
+  visitId          String?
+  mediaAssetId     String?
+  consignationId   String?
+  status           String
+  submittedAt      String
+  reviewedAt       String?
+  reviewNote       String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  organization     Organization  @relation(fields: [organizationId], references: [id])
+  submittedBy      User          @relation("ExceptionSubmittedBy", fields: [submittedByUserId], references: [id])
+  reviewedBy       User?         @relation("ExceptionReviewedBy", fields: [reviewedByUserId], references: [id])
+  task             Task?         @relation(fields: [taskId], references: [id])
+  visit            Visit?        @relation(fields: [visitId], references: [id])
+  mediaAsset       MediaAsset?   @relation(fields: [mediaAssetId], references: [id])
+  consignation     Consignation? @relation(fields: [consignationId], references: [id])
+
+  @@index([organizationId, status])
+  @@index([organizationId, type])
+  @@index([submittedByUserId, status])
+}
+
+model ReportSnapshot {
+  id             String       @id
+  organizationId String
+  reportName     String
+  locale         String
+  fileName       String
+  filtersJson    String
+  rowCount       Int
+  csvContent     String
+  generatedAt    String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, reportName])
+  @@index([organizationId, createdAt])
+}
+
+model ReminderRule {
+  id             String       @id
+  organizationId String
+  name           String
+  eventType      String
+  channel        String
+  offsetMinutes  Int
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, active])
+}
+
+model AdminSettings {
+  organizationId        String       @id
+  defaultRecipientEmails String
+  retentionPhotoDays    Int
+  retentionGpsDays      Int
+  retentionAuditDays    Int
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id])
 }

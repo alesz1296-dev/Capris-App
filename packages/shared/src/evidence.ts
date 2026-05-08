@@ -1,8 +1,11 @@
 import { z } from "zod";
 import {
+  type Activity,
+  type Client,
   type Comment,
   type Consignation,
   EVIDENCE_TYPES,
+  type ExhibitionInstallation,
   UPLOAD_STATUSES,
   type EvidencePhoto,
   type EvidenceType,
@@ -228,7 +231,10 @@ export interface UploadSessionPlan {
 }
 
 export interface EvidenceBootstrap {
+  activities: Activity[];
+  clients: Client[];
   evidence: EvidencePhoto[];
+  exhibitions: ExhibitionInstallation[];
   mediaAssets: MediaAsset[];
   comments: Comment[];
   observations: Observation[];

@@ -6,24 +6,31 @@ import {
 } from "@nestjs/common";
 import {
   ROLE_DEFINITIONS,
+  hasPermission,
   getPermissionsForRole,
   toAuthenticatedUser,
   type AuthProfileResponse,
   type AuthResponse,
+  type DeviceSessionBootstrap,
+  type DeviceSessionMutationResult,
+  type DeviceSessionSummary,
   type GoogleSignInInput,
   type RefreshSessionInput,
+  type RevokeDeviceSessionInput,
   type SignOutInput
 } from "@capris/shared";
 import { PrismaService } from "../database/prisma.service";
 import { AuthTokenService } from "./auth-token.service";
 import { GoogleIdentityService } from "./google-identity.service";
+import { IdentityAccessService } from "../identity-access/identity-access.service";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokenService: AuthTokenService,
-    private readonly googleIdentityService: GoogleIdentityService
+    private readonly googleIdentityService: GoogleIdentityService,
+    private readonly identityAccessService: IdentityAccessService
   ) {}
 
   async signInWithGoogle(input: GoogleSignInInput): Promise<AuthResponse> {
@@ -181,6 +188,60 @@ export class AuthService {
     };
   }
 
+  async getDeviceSessions(): Promise<DeviceSessionBootstrap> {
+    const [sessions, users] = await Promise.all([
+      this.prisma.deviceSession.findMany({
+        include: { user: true },
+        orderBy: [{ revokedAt: "asc" }, { lastUsedAt: "desc" }, { createdAt: "desc" }]
+      }),
+      this.identityAccessService.getUsers()
+    ]);
+
+    return {
+      sessions: sessions.map((session) => this.toDeviceSessionSummary(session)),
+      users: users.map(({ permissions, ...user }) => user)
+    };
+  }
+
+  async revokeDeviceSession(id: string, input: RevokeDeviceSessionInput): Promise<DeviceSessionMutationResult> {
+    const [session, revoker] = await Promise.all([
+      this.prisma.deviceSession.findUnique({
+        where: { id },
+        include: { user: true }
+      }),
+      this.prisma.user.findUnique({ where: { id: input.revokedByUserId } })
+    ]);
+
+    if (!session) {
+      throw new NotFoundException(`Device session ${id} was not found.`);
+    }
+
+    if (!revoker || !revoker.active) {
+      throw new NotFoundException(`Revoking user ${input.revokedByUserId} was not found.`);
+    }
+
+    if (!hasPermission(revoker.role as "admin" | "supervisor" | "field_user", "device_sessions.revoke")) {
+      throw new UnauthorizedException("Only admins can revoke device sessions.");
+    }
+
+    if (revoker.organizationId !== session.organizationId) {
+      throw new UnauthorizedException("Device session revocation must stay within the same organization.");
+    }
+
+    const updated = await this.prisma.deviceSession.update({
+      where: { id },
+      data: {
+        revokedAt: session.revokedAt ?? new Date(input.revokedAt)
+      },
+      include: { user: true }
+    });
+
+    return {
+      item: this.toDeviceSessionSummary(updated),
+      message: `Device session ${updated.id} revoked.`
+    };
+  }
+
   getAccessProfile(role: "admin" | "supervisor" | "field_user") {
     return {
       permissions: getPermissionsForRole(role),
@@ -218,6 +279,37 @@ export class AuthService {
       active: user.active,
       googleSubject: user.googleSubject ?? undefined,
       avatarUrl: user.avatarUrl ?? undefined
+    };
+  }
+
+  private toDeviceSessionSummary(session: {
+    id: string;
+    organizationId: string;
+    userId: string;
+    provider: string;
+    deviceName: string | null;
+    expiresAt: Date;
+    revokedAt: Date | null;
+    createdAt: Date;
+    lastUsedAt: Date | null;
+    user: {
+      name: string;
+      email: string;
+    };
+  }): DeviceSessionSummary {
+    return {
+      id: session.id,
+      organizationId: session.organizationId,
+      userId: session.userId,
+      userName: session.user.name,
+      userEmail: session.user.email,
+      provider: session.provider,
+      deviceName: session.deviceName ?? undefined,
+      expiresAt: session.expiresAt.toISOString(),
+      revokedAt: session.revokedAt?.toISOString(),
+      createdAt: session.createdAt.toISOString(),
+      lastUsedAt: session.lastUsedAt?.toISOString(),
+      active: !session.revokedAt && session.expiresAt.getTime() > Date.now()
     };
   }
 

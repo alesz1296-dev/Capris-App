@@ -1,19 +1,21 @@
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "../auth/public.decorator";
+import { RequirePermissions } from "../auth/require-permission.decorator";
+import { SystemHealthService } from "./system-health.service";
 
 @Controller("system-health")
 export class SystemHealthController {
+  constructor(private readonly service: SystemHealthService) {}
+
   @Get()
   @Public()
   getHealth() {
-    return {
-      status: "ok",
-      checks: {
-        api: "ok",
-        syncQueue: "pending_integration",
-        email: "pending_integration",
-        media: "pending_integration"
-      }
-    };
+    return this.service.getPublicHealth();
+  }
+
+  @Get("details")
+  @RequirePermissions("system_health.view")
+  getHealthDetails() {
+    return this.service.getProtectedHealthDetails();
   }
 }

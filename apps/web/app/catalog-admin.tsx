@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import type {
   ActivityType,
+  AuthProfileResponse,
   CatalogBootstrap,
   Client,
   CreateActivityTypeInput,
@@ -96,6 +97,7 @@ export function CatalogAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
 
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
@@ -187,6 +189,27 @@ export function CatalogAdmin() {
     try {
       setLoading(true);
       setError(null);
+
+      const profileResponse = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" });
+      if (!profileResponse.ok) {
+        throw new Error(`Auth profile failed with status ${profileResponse.status}.`);
+      }
+
+      const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
+      setProfile(profilePayload);
+
+      if (profilePayload.user.role !== "admin") {
+        setCatalogState({
+          provinces: [],
+          zones: [],
+          clients: [],
+          pointsOfSale: [],
+          activityTypes: [],
+          taskTypes: [],
+          workflowRules: []
+        });
+        return;
+      }
 
       const response = await authenticatedFetch(`${API_BASE_URL}/catalogs/bootstrap`, {
         cache: "no-store"
@@ -417,9 +440,12 @@ export function CatalogAdmin() {
         {isPending ? <p className="feedbackInfo">Refreshing from API...</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
+        {profile && profile.user.role !== "admin" ? (
+          <p className="feedbackInfo">Catalog management is limited to admin users.</p>
+        ) : null}
       </div>
 
-      <div className="catalogAdminLayout">
+      {profile && profile.user.role !== "admin" ? null : <div className="catalogAdminLayout">
         <CatalogPanel
           title="Provinces"
           description="Maintain Costa Rica province records used by zones, visits, and routing."
@@ -823,7 +849,7 @@ export function CatalogAdmin() {
             };
           })}
         />
-      </div>
+      </div>}
     </section>
   );
 }

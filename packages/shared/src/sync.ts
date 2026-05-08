@@ -8,7 +8,11 @@ export type SyncOperationType =
   | "comment_create"
   | "observation_create"
   | "consignation_prepare"
+  | "consignation_review"
+  | "consignation_fail"
   | "consignation_send"
+  | "activity_create"
+  | "exhibition_create"
   | "reminder_acknowledge";
 
 export interface SyncOperation {
@@ -93,6 +97,46 @@ export interface ConsignationSendSyncPayload {
   consignationId: string;
   sentAt: string;
   localConsignationId?: string;
+}
+
+export interface ConsignationReviewSyncPayload {
+  consignationId: string;
+  reviewedAt: string;
+  recipientEmails: string[];
+  emailSubject: string;
+  emailBody: string;
+  beforeEvidenceId?: string;
+  afterEvidenceId?: string;
+  localConsignationId?: string;
+}
+
+export interface ConsignationFailSyncPayload {
+  consignationId: string;
+  failedAt: string;
+  reason: string;
+  localConsignationId?: string;
+}
+
+export interface ActivityCreateSyncPayload {
+  organizationId: string;
+  taskId: string;
+  userId: string;
+  visitId?: string;
+  pointOfSaleId?: string;
+  quantity: number;
+  note?: string;
+  recordedAt: string;
+}
+
+export interface ExhibitionCreateSyncPayload {
+  organizationId: string;
+  taskId: string;
+  userId: string;
+  visitId?: string;
+  pointOfSaleId?: string;
+  quantity: number;
+  note?: string;
+  recordedAt: string;
 }
 
 export interface ReminderAcknowledgeSyncPayload {

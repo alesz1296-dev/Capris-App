@@ -2,9 +2,13 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import type {
   Consignation,
   ConsignationMutationResult,
+  FailConsignationInput,
   PrepareConsignationInput,
+  ReviewConsignationInput,
   SendConsignationInput
 } from "@capris/shared";
+import { ActorAccessService } from "../auth/actor-access.service";
+import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { PrismaService } from "../database/prisma.service";
 
 type ConsignationsPrisma = PrismaService & {
@@ -12,11 +16,15 @@ type ConsignationsPrisma = PrismaService & {
   task: any;
   user: any;
   visit: any;
+  evidencePhoto: any;
 };
 
 @Injectable()
 export class ConsignationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly actorAccessService: ActorAccessService
+  ) {}
 
   async getConsignations(): Promise<Consignation[]> {
     const prisma = this.prisma as unknown as ConsignationsPrisma;
@@ -26,8 +34,18 @@ export class ConsignationsService {
     return items.map((item: any) => this.toConsignation(item));
   }
 
-  async prepareConsignation(input: PrepareConsignationInput): Promise<ConsignationMutationResult> {
-    await this.assertReferences(input);
+  async prepareConsignation(input: PrepareConsignationInput, actor?: AuthJwtPayload): Promise<ConsignationMutationResult> {
+    const task = await this.assertReferences(input);
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        assigneeId: task.assigneeId,
+        provinceId: task.provinceId,
+        zoneId: task.zoneId,
+        clientId: task.clientId ?? undefined
+      });
+    }
     const created = await (this.prisma as unknown as ConsignationsPrisma).consignation.create({
       data: {
         id: this.createId("consignation"),
@@ -37,7 +55,10 @@ export class ConsignationsService {
         visitId: input.visitId ?? null,
         note: input.note?.trim() || null,
         status: "prepared",
-        preparedAt: input.preparedAt
+        preparedAt: input.preparedAt,
+        recipientEmails: "",
+        emailSubject: null,
+        emailBody: null
       }
     });
 
@@ -47,11 +68,63 @@ export class ConsignationsService {
     };
   }
 
-  async sendConsignation(id: string, input: SendConsignationInput): Promise<ConsignationMutationResult> {
+  async reviewConsignation(id: string, input: ReviewConsignationInput, actor?: AuthJwtPayload): Promise<ConsignationMutationResult> {
     const prisma = this.prisma as unknown as ConsignationsPrisma;
     const existing = await prisma.consignation.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException(`Consignation ${id} was not found.`);
+    }
+    if (actor) {
+      const task = await prisma.task.findUnique({ where: { id: existing.taskId } });
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: existing.organizationId,
+        userId: existing.userId,
+        assigneeId: task?.assigneeId,
+        provinceId: task?.provinceId,
+        zoneId: task?.zoneId,
+        clientId: task?.clientId ?? undefined
+      });
+    }
+
+    await this.assertReviewEvidence(existing.organizationId, existing.taskId, existing.visitId, input);
+
+    const updated = await prisma.consignation.update({
+      where: { id },
+      data: {
+        status: "ready_to_send",
+        reviewedAt: input.reviewedAt,
+        recipientEmails: input.recipientEmails.join(","),
+        emailSubject: input.emailSubject.trim(),
+        emailBody: input.emailBody.trim(),
+        beforeEvidenceId: input.beforeEvidenceId ?? null,
+        afterEvidenceId: input.afterEvidenceId ?? null,
+        sendFailureReason: null,
+        failedAt: null
+      }
+    });
+
+    return {
+      item: this.toConsignation(updated),
+      message: `Consignation ${updated.id} reviewed and ready to send.`
+    };
+  }
+
+  async sendConsignation(id: string, input: SendConsignationInput, actor?: AuthJwtPayload): Promise<ConsignationMutationResult> {
+    const prisma = this.prisma as unknown as ConsignationsPrisma;
+    const existing = await prisma.consignation.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Consignation ${id} was not found.`);
+    }
+    if (actor) {
+      const task = await prisma.task.findUnique({ where: { id: existing.taskId } });
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: existing.organizationId,
+        userId: existing.userId,
+        assigneeId: task?.assigneeId,
+        provinceId: task?.provinceId,
+        zoneId: task?.zoneId,
+        clientId: task?.clientId ?? undefined
+      });
     }
 
     if (existing.status === "sent") {
@@ -62,6 +135,8 @@ export class ConsignationsService {
       where: { id },
       data: {
         status: "sent",
+        sendFailureReason: null,
+        failedAt: null,
         sentAt: input.sentAt
       }
     });
@@ -69,6 +144,43 @@ export class ConsignationsService {
     return {
       item: this.toConsignation(updated),
       message: `Consignation ${updated.id} marked as sent.`
+    };
+  }
+
+  async failConsignation(id: string, input: FailConsignationInput, actor?: AuthJwtPayload): Promise<ConsignationMutationResult> {
+    const prisma = this.prisma as unknown as ConsignationsPrisma;
+    const existing = await prisma.consignation.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Consignation ${id} was not found.`);
+    }
+    if (actor) {
+      const task = await prisma.task.findUnique({ where: { id: existing.taskId } });
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: existing.organizationId,
+        userId: existing.userId,
+        assigneeId: task?.assigneeId,
+        provinceId: task?.provinceId,
+        zoneId: task?.zoneId,
+        clientId: task?.clientId ?? undefined
+      });
+    }
+
+    if (existing.status === "sent") {
+      throw new BadRequestException(`Consignation ${id} has already been sent and cannot be marked as failed.`);
+    }
+
+    const updated = await prisma.consignation.update({
+      where: { id },
+      data: {
+        status: "failed",
+        failedAt: input.failedAt,
+        sendFailureReason: input.reason.trim()
+      }
+    });
+
+    return {
+      item: this.toConsignation(updated),
+      message: `Consignation ${updated.id} marked as failed.`
     };
   }
 
@@ -100,6 +212,50 @@ export class ConsignationsService {
         throw new NotFoundException(`Visit ${input.visitId} was not found for task ${input.taskId}.`);
       }
     }
+
+    return task;
+  }
+
+  private async assertReviewEvidence(
+    organizationId: string,
+    taskId: string,
+    visitId: string | null,
+    input: ReviewConsignationInput
+  ) {
+    const prisma = this.prisma as unknown as ConsignationsPrisma;
+
+    for (const requirement of [
+      { evidenceId: input.beforeEvidenceId, type: "before" },
+      { evidenceId: input.afterEvidenceId, type: "after" }
+    ] as const) {
+      if (!requirement.evidenceId) {
+        continue;
+      }
+
+      const evidence = await prisma.evidencePhoto.findFirst({
+        where: {
+          id: requirement.evidenceId,
+          organizationId,
+          taskId,
+          ...(visitId ? { visitId } : {})
+        },
+        include: {
+          mediaAsset: true
+        }
+      });
+
+      if (!evidence) {
+        throw new NotFoundException(`Evidence ${requirement.evidenceId} was not found for consignation review.`);
+      }
+
+      if (evidence.type !== requirement.type) {
+        throw new BadRequestException(`Evidence ${requirement.evidenceId} must be a ${requirement.type} photo.`);
+      }
+
+      if (evidence.mediaAsset?.uploadStatus !== "uploaded") {
+        throw new BadRequestException(`Evidence ${requirement.evidenceId} must finish uploading before consignation review.`);
+      }
+    }
   }
 
   private toConsignation(item: {
@@ -111,6 +267,14 @@ export class ConsignationsService {
     note: string | null;
     status: string;
     preparedAt: string;
+    reviewedAt: string | null;
+    recipientEmails: string | null;
+    emailSubject: string | null;
+    emailBody: string | null;
+    beforeEvidenceId: string | null;
+    afterEvidenceId: string | null;
+    sendFailureReason: string | null;
+    failedAt: string | null;
     sentAt: string | null;
   }): Consignation {
     return {
@@ -122,6 +286,14 @@ export class ConsignationsService {
       note: item.note ?? undefined,
       status: item.status as Consignation["status"],
       preparedAt: item.preparedAt,
+      reviewedAt: item.reviewedAt ?? undefined,
+      recipientEmails: item.recipientEmails ? item.recipientEmails.split(",").map((email) => email.trim()).filter(Boolean) : [],
+      emailSubject: item.emailSubject ?? undefined,
+      emailBody: item.emailBody ?? undefined,
+      beforeEvidenceId: item.beforeEvidenceId ?? undefined,
+      afterEvidenceId: item.afterEvidenceId ?? undefined,
+      sendFailureReason: item.sendFailureReason ?? undefined,
+      failedAt: item.failedAt ?? undefined,
       sentAt: item.sentAt ?? undefined
     };
   }
