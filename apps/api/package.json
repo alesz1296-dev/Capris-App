@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "db:generate": "prisma generate",
+    "db:init": "prisma db execute --file prisma/init.sql --schema prisma/schema.prisma",
+    "db:push": "prisma db push",
+    "db:seed": "node prisma/seed.cjs",
     "start:dev": "nest start --watch",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand --passWithNoTests"
@@ -12,6 +16,8 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@prisma/client": "^6.19.3",
+    "prisma": "^6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.0"
   },

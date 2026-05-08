@@ -2,13 +2,10 @@ import {
   ROLE_DEFINITIONS,
   getPermissionsForRole,
   t,
-  type Client,
-  type PointOfSale,
-  type Province,
   type Role,
-  type SupervisorScopeType,
-  type Zone
+  type SupervisorScopeType
 } from "@capris/shared";
+import { CatalogAdmin } from "./catalog-admin";
 
 const metrics = [
   { label: "Task completion", value: "0%" },
@@ -21,79 +18,6 @@ const scopeExamples: { type: SupervisorScopeType; referenceName: string }[] = [
   { type: "organization", referenceName: "Capris Costa Rica" },
   { type: "team", referenceName: "Central Route Team" },
   { type: "province", referenceName: "San Jose" }
-];
-
-const provinces: Province[] = [
-  {
-    id: "province_san_jose",
-    organizationId: "org_capris",
-    country: "Costa Rica",
-    name: "San Jose",
-    code: "SJ",
-    active: true
-  },
-  {
-    id: "province_alajuela",
-    organizationId: "org_capris",
-    country: "Costa Rica",
-    name: "Alajuela",
-    code: "AL",
-    active: true
-  }
-];
-
-const zones: Zone[] = [
-  {
-    id: "zone_central",
-    organizationId: "org_capris",
-    provinceId: "province_san_jose",
-    name: "Central",
-    code: "CENTRAL",
-    active: true
-  },
-  {
-    id: "zone_west",
-    organizationId: "org_capris",
-    provinceId: "province_alajuela",
-    name: "West",
-    code: "WEST",
-    active: true
-  }
-];
-
-const clients: Client[] = [
-  {
-    id: "client_auto_mercado",
-    organizationId: "org_capris",
-    name: "Auto Mercado",
-    code: "AUTOMERCADO",
-    contactEmail: "trade@automercado.example",
-    active: true
-  },
-  {
-    id: "client_walmart",
-    organizationId: "org_capris",
-    name: "Walmart",
-    code: "WALMART",
-    contactEmail: "ops@walmart.example",
-    active: true
-  }
-];
-
-const pointsOfSale: PointOfSale[] = [
-  {
-    id: "pos_escazu_001",
-    organizationId: "org_capris",
-    provinceId: "province_san_jose",
-    zoneId: "zone_central",
-    clientId: "client_auto_mercado",
-    name: "Escazu Plaza",
-    code: "ESCAZU-001",
-    address: "Escazu, San Jose",
-    latitude: 9.9186,
-    longitude: -84.1397,
-    active: true
-  }
 ];
 
 function getScopeLabel(type: SupervisorScopeType) {
@@ -191,58 +115,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="catalogSection" id="routes">
-          <div className="sectionHeading">
-            <p className="eyebrow">Catalogs</p>
-            <h2>Costa Rica geography, clients, and points of sale</h2>
-          </div>
-
-          <div className="catalogGrid">
-            <article className="accessPanel">
-              <h3>Provinces</h3>
-              <ul className="list compact">
-                {provinces.map((province) => (
-                  <li key={province.id}>
-                    {province.name} ({province.code})
-                  </li>
-                ))}
-              </ul>
-            </article>
-
-            <article className="accessPanel">
-              <h3>Zones</h3>
-              <ul className="list compact">
-                {zones.map((zone) => (
-                  <li key={zone.id}>
-                    {zone.name} ({zone.code})
-                  </li>
-                ))}
-              </ul>
-            </article>
-
-            <article className="accessPanel">
-              <h3>Clients</h3>
-              <ul className="list compact">
-                {clients.map((client) => (
-                  <li key={client.id}>
-                    {client.name} ({client.code})
-                  </li>
-                ))}
-              </ul>
-            </article>
-
-            <article className="accessPanel">
-              <h3>Points of sale</h3>
-              <ul className="list compact">
-                {pointsOfSale.map((point) => (
-                  <li key={point.id}>
-                    {point.name} ({point.code})
-                  </li>
-                ))}
-              </ul>
-            </article>
-          </div>
-        </section>
+        <CatalogAdmin />
       </section>
     </main>
   );

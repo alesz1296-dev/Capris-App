@@ -38,7 +38,7 @@ export class FieldOperationsService {
     }
   ];
 
-  getBootstrap(locale: Locale) {
+  async getBootstrap(locale: Locale) {
     return {
       appName: t(locale, "app.name"),
       defaults: {
@@ -46,8 +46,8 @@ export class FieldOperationsService {
         timezone: DEFAULT_TIMEZONE,
         locale
       },
-      catalogs: this.catalogsService.getCatalogBootstrap(),
-      identityAccess: this.identityAccessService.getIdentityAccessBootstrap(),
+      catalogs: await this.catalogsService.getCatalogBootstrap(),
+      identityAccess: await this.identityAccessService.getIdentityAccessBootstrap(),
       roleDefinitions: ROLE_DEFINITIONS,
       roles: ROLE_PERMISSIONS,
       workflowDefaults: DEFAULT_FIELD_WORKFLOW_RULE,

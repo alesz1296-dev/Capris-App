@@ -151,6 +151,54 @@ h1 {
   margin-bottom: 18px;
 }
 
+.sectionDescription {
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  max-width: 72ch;
+}
+
+.sectionAction {
+  min-height: 40px;
+}
+
+.catalogFeedbackRow {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.feedbackInfo,
+.feedbackSuccess,
+.feedbackError {
+  border-radius: 8px;
+  margin-bottom: 0;
+  padding: 12px 14px;
+}
+
+.feedbackInfo {
+  background: #edf6f1;
+  border: 1px solid #cde3d7;
+  color: var(--brand-strong);
+}
+
+.feedbackSuccess {
+  background: #ebf9f0;
+  border: 1px solid #b5dfc4;
+  color: #14543d;
+}
+
+.feedbackError {
+  background: #fff0ef;
+  border: 1px solid #f2c4bf;
+  color: #8a2f27;
+}
+
+.catalogAdminLayout {
+  display: grid;
+  gap: 18px;
+}
+
 .accessGrid,
 .catalogGrid,
 .roleGrid {
@@ -172,11 +220,23 @@ h1 {
 }
 
 .accessPanel,
+.catalogManagerCard,
 .roleCard {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 18px;
+}
+
+.catalogManagerCard {
+  display: grid;
+  gap: 18px;
+}
+
+.catalogManagerHeader p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 0;
 }
 
 .roleCard {
@@ -208,6 +268,120 @@ h1 {
   gap: 8px;
 }
 
+.formGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.formGrid label {
+  color: var(--muted);
+  display: grid;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.formGrid input,
+.formGrid select {
+  background: #fbfcfb;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.primaryAction {
+  align-self: end;
+  background: var(--brand);
+  border: 0;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+.primaryAction:hover {
+  background: var(--brand-strong);
+}
+
+.primaryAction:disabled,
+.secondaryAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.secondaryAction {
+  align-self: start;
+  background: #f7faf8;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.secondaryAction:hover {
+  background: #eef5f0;
+}
+
+.catalogItems {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 16px 0 0 18px;
+}
+
+.catalogItemRow {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.catalogEmptyState {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  margin: 0;
+  padding-top: 16px;
+}
+
+.workflowForm {
+  display: grid;
+  gap: 16px;
+}
+
+.toggleGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.checkboxRow {
+  align-items: center;
+  background: #f7faf8;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  display: flex;
+  gap: 10px;
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
 .operations p {
   color: var(--muted);
   line-height: 1.5;
@@ -227,6 +401,8 @@ h1 {
   .operations,
   .accessGrid,
   .catalogGrid,
+  .formGrid,
+  .toggleGrid,
   .roleGrid {
     grid-template-columns: 1fr;
   }

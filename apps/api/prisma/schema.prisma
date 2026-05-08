@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id            String            @id
+  name          String
+  defaultLocale String
+  timezone      String
+  active        Boolean           @default(true)
+  users         User[]
+  teams         Team[]
+  scopes        SupervisorScope[]
+  provinces     Province[]
+  zones         Zone[]
+  clients       Client[]
+  pointsOfSale  PointOfSale[]
+  activityTypes ActivityType[]
+  taskTypes     TaskType[]
+  workflowRules WorkflowRule[]
+}
+
+model User {
+  id             String            @id
+  organizationId String
+  name           String
+  email          String            @unique
+  role           String
+  locale         String
+  active         Boolean           @default(true)
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  leadingTeams   Team[]            @relation("TeamLead")
+  scopes         SupervisorScope[]
+}
+
+model Team {
+  id             String       @id
+  organizationId String
+  name           String
+  leadUserId     String?
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  leadUser       User?        @relation("TeamLead", fields: [leadUserId], references: [id])
+}
+
+model SupervisorScope {
+  id             String       @id
+  organizationId String
+  userId         String
+  type           String
+  referenceId    String
+  referenceName  String
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([userId, organizationId, type, referenceId])
+}
+
+model Province {
+  id             String       @id
+  organizationId String
+  country        String
+  name           String
+  code           String
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  zones          Zone[]
+  pointsOfSale   PointOfSale[]
+
+  @@unique([organizationId, code])
+}
+
+model Zone {
+  id             String       @id
+  organizationId String
+  provinceId     String
+  name           String
+  code           String
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  province       Province     @relation(fields: [provinceId], references: [id])
+  pointsOfSale   PointOfSale[]
+
+  @@unique([organizationId, code])
+}
+
+model Client {
+  id             String       @id
+  organizationId String
+  name           String
+  code           String
+  contactEmail   String?
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  pointsOfSale   PointOfSale[]
+
+  @@unique([organizationId, code])
+}
+
+model PointOfSale {
+  id             String       @id
+  organizationId String
+  provinceId     String
+  zoneId         String
+  clientId       String
+  name           String
+  code           String
+  address        String?
+  latitude       Float?
+  longitude      Float?
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  province       Province     @relation(fields: [provinceId], references: [id])
+  zone           Zone         @relation(fields: [zoneId], references: [id])
+  client         Client       @relation(fields: [clientId], references: [id])
+
+  @@unique([organizationId, code])
+}
+
+model ActivityType {
+  id             String         @id
+  organizationId String
+  name           String
+  code           String
+  active         Boolean        @default(true)
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  workflowRules  WorkflowRule[]
+
+  @@unique([organizationId, code])
+}
+
+model TaskType {
+  id             String         @id
+  organizationId String
+  name           String
+  code           String
+  active         Boolean        @default(true)
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  workflowRules  WorkflowRule[]
+
+  @@unique([organizationId, code])
+}
+
+model WorkflowRule {
+  id                         String        @id
+  organizationId             String
+  taskTypeId                 String?
+  activityTypeId             String?
+  requiresBeforePhoto        Boolean       @default(true)
+  requiresAfterPhoto         Boolean       @default(true)
+  requiresGps                Boolean       @default(true)
+  requiresComment            Boolean       @default(false)
+  requiresSupervisorApproval Boolean       @default(false)
+  requiresConsignationEmail  Boolean       @default(false)
+  organization               Organization  @relation(fields: [organizationId], references: [id])
+  taskType                   TaskType?     @relation(fields: [taskTypeId], references: [id])
+  activityType               ActivityType? @relation(fields: [activityTypeId], references: [id])
+}
