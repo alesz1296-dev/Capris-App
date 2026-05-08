@@ -1,0 +1,30 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "development",
+        "EXPO_PUBLIC_API_BASE_URL": "http://localhost:4000/api/v1"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "staging",
+        "EXPO_PUBLIC_API_BASE_URL": "https://capris-api-staging.up.railway.app/api/v1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "production"
+      }
+    }
+  }
+}

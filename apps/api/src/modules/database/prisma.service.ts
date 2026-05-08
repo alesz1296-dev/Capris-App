@@ -31,8 +31,25 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async enableShutdownHooks(app: INestApplication) {
-    this.$on("beforeExit" as never, async () => {
+    let closed = false;
+
+    const closeApp = async () => {
+      if (closed) {
+        return;
+      }
+
+      closed = true;
       await app.close();
+    };
+
+    process.once("beforeExit", () => {
+      void closeApp();
+    });
+    process.once("SIGINT", () => {
+      void closeApp();
+    });
+    process.once("SIGTERM", () => {
+      void closeApp();
     });
   }
 }

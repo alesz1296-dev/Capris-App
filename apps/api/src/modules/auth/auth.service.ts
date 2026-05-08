@@ -1,0 +1,227 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException
+} from "@nestjs/common";
+import {
+  ROLE_DEFINITIONS,
+  getPermissionsForRole,
+  toAuthenticatedUser,
+  type AuthProfileResponse,
+  type AuthResponse,
+  type GoogleSignInInput,
+  type RefreshSessionInput,
+  type SignOutInput
+} from "@capris/shared";
+import { PrismaService } from "../database/prisma.service";
+import { AuthTokenService } from "./auth-token.service";
+import { GoogleIdentityService } from "./google-identity.service";
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tokenService: AuthTokenService,
+    private readonly googleIdentityService: GoogleIdentityService
+  ) {}
+
+  async signInWithGoogle(input: GoogleSignInInput): Promise<AuthResponse> {
+    const googleIdentity = await this.googleIdentityService.verifyIdToken(input.idToken);
+    const user = await this.findLinkedUser(googleIdentity.subject, googleIdentity.email);
+
+    if (!user) {
+      throw new NotFoundException(`No active Capris user is linked to ${googleIdentity.email}.`);
+    }
+
+    if (!user.active) {
+      throw new UnauthorizedException(`User ${user.email} is inactive.`);
+    }
+
+    if (user.googleSubject && user.googleSubject !== googleIdentity.subject) {
+      throw new BadRequestException(`Google sign-in does not match the linked account for ${user.email}.`);
+    }
+
+    const linkedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        googleSubject: googleIdentity.subject,
+        avatarUrl: googleIdentity.avatarUrl,
+        lastLoginAt: new Date()
+      }
+    });
+
+    const sessionId = this.createId("session");
+    const tokens = this.tokenService.issueTokens({
+      userId: linkedUser.id,
+      organizationId: linkedUser.organizationId,
+      email: linkedUser.email,
+      role: linkedUser.role as "admin" | "supervisor" | "field_user",
+      locale: linkedUser.locale as "en" | "es",
+      name: linkedUser.name,
+      sessionId
+    });
+
+    const sessionRecord = await this.prisma.deviceSession.create({
+      data: {
+        id: sessionId,
+        organizationId: linkedUser.organizationId,
+        userId: linkedUser.id,
+        provider: "google",
+        deviceName: input.deviceName?.trim() || "Web browser",
+        refreshTokenHash: this.tokenService.hashToken(tokens.refreshToken),
+        expiresAt: new Date(tokens.refreshTokenExpiresAt),
+        lastUsedAt: new Date()
+      }
+    });
+
+    return {
+      user: toAuthenticatedUser(this.toUser(linkedUser)),
+      tokens,
+      session: {
+        id: sessionRecord.id,
+        provider: "google",
+        deviceName: sessionRecord.deviceName ?? undefined,
+        createdAt: sessionRecord.createdAt.toISOString(),
+        expiresAt: sessionRecord.expiresAt.toISOString()
+      }
+    };
+  }
+
+  async refreshSession(input: RefreshSessionInput): Promise<AuthResponse> {
+    const payload = this.tokenService.verifyRefreshToken(input.refreshToken);
+    const session = await this.prisma.deviceSession.findUnique({
+      where: { id: payload.sessionId },
+      include: { user: true }
+    });
+
+    if (!session || session.revokedAt || session.refreshTokenHash !== this.tokenService.hashToken(input.refreshToken)) {
+      throw new UnauthorizedException("Refresh session is invalid or revoked.");
+    }
+
+    if (session.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException("Refresh session has expired.");
+    }
+
+    if (!session.user.active) {
+      throw new UnauthorizedException("User is inactive.");
+    }
+
+    const tokens = this.tokenService.issueTokens({
+      userId: session.user.id,
+      organizationId: session.user.organizationId,
+      email: session.user.email,
+      role: session.user.role as "admin" | "supervisor" | "field_user",
+      locale: session.user.locale as "en" | "es",
+      name: session.user.name,
+      sessionId: session.id
+    });
+
+    const updatedSession = await this.prisma.deviceSession.update({
+      where: { id: session.id },
+      data: {
+        refreshTokenHash: this.tokenService.hashToken(tokens.refreshToken),
+        expiresAt: new Date(tokens.refreshTokenExpiresAt),
+        lastUsedAt: new Date()
+      }
+    });
+
+    return {
+      user: toAuthenticatedUser(this.toUser(session.user)),
+      tokens,
+      session: {
+        id: updatedSession.id,
+        provider: "google",
+        deviceName: updatedSession.deviceName ?? undefined,
+        createdAt: updatedSession.createdAt.toISOString(),
+        expiresAt: updatedSession.expiresAt.toISOString()
+      }
+    };
+  }
+
+  async signOut(input: SignOutInput) {
+    await this.prisma.deviceSession.updateMany({
+      where: {
+        refreshTokenHash: this.tokenService.hashToken(input.refreshToken),
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+
+    return {
+      success: true
+    };
+  }
+
+  async getProfile(userId: string, sessionId: string): Promise<AuthProfileResponse> {
+    const [user, session] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId } }),
+      this.prisma.deviceSession.findUnique({ where: { id: sessionId } })
+    ]);
+
+    if (!user) {
+      throw new NotFoundException(`User ${userId} was not found.`);
+    }
+
+    if (!session || session.revokedAt) {
+      throw new UnauthorizedException("Session is invalid or revoked.");
+    }
+
+    return {
+      user: toAuthenticatedUser(this.toUser(user)),
+      session: {
+        id: session.id,
+        provider: "google",
+        deviceName: session.deviceName ?? undefined,
+        createdAt: session.createdAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString()
+      }
+    };
+  }
+
+  getAccessProfile(role: "admin" | "supervisor" | "field_user") {
+    return {
+      permissions: getPermissionsForRole(role),
+      roleDefinition: ROLE_DEFINITIONS.find((definition) => definition.id === role)
+    };
+  }
+
+  private async findLinkedUser(googleSubject: string, email: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        active: true,
+        OR: [{ googleSubject }, { email }]
+      }
+    });
+  }
+
+  private toUser(user: {
+    id: string;
+    organizationId: string;
+    name: string;
+    email: string;
+    role: string;
+    locale: string;
+    active: boolean;
+    googleSubject: string | null;
+    avatarUrl: string | null;
+  }) {
+    return {
+      id: user.id,
+      organizationId: user.organizationId,
+      name: user.name,
+      email: user.email,
+      role: user.role as "admin" | "supervisor" | "field_user",
+      locale: user.locale as "en" | "es",
+      active: user.active,
+      googleSubject: user.googleSubject ?? undefined,
+      avatarUrl: user.avatarUrl ?? undefined
+    };
+  }
+
+  private createId(prefix: string) {
+    return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}

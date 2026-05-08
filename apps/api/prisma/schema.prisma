@@ -23,6 +23,14 @@ model Organization {
   activityTypes ActivityType[]
   taskTypes     TaskType[]
   workflowRules WorkflowRule[]
+  tasks         Task[]
+  visits        Visit[]
+  mediaAssets   MediaAsset[]
+  evidencePhotos EvidencePhoto[]
+  comments      Comment[]
+  observations  Observation[]
+  consignations Consignation[]
+  sessions      DeviceSession[]
 }
 
 model User {
@@ -33,9 +41,40 @@ model User {
   role           String
   locale         String
   active         Boolean           @default(true)
+  googleSubject  String?           @unique
+  avatarUrl      String?
+  lastLoginAt    DateTime?
   organization   Organization      @relation(fields: [organizationId], references: [id])
   leadingTeams   Team[]            @relation("TeamLead")
   scopes         SupervisorScope[]
+  requestedTasks Task[]            @relation("TaskRequester")
+  assignedTasks  Task[]            @relation("TaskAssignee")
+  visits         Visit[]
+  mediaAssets    MediaAsset[]
+  evidencePhotos EvidencePhoto[]
+  comments       Comment[]
+  observations   Observation[]
+  consignations  Consignation[]
+  sessions       DeviceSession[]
+}
+
+model DeviceSession {
+  id               String       @id
+  organizationId   String
+  userId           String
+  provider         String
+  deviceName       String?
+  refreshTokenHash String       @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  lastUsedAt       DateTime?
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  user             User         @relation(fields: [userId], references: [id])
+
+  @@index([userId, revokedAt])
+  @@index([organizationId, expiresAt])
 }
 
 model Team {
@@ -72,6 +111,8 @@ model Province {
   organization   Organization @relation(fields: [organizationId], references: [id])
   zones          Zone[]
   pointsOfSale   PointOfSale[]
+  tasks          Task[]
+  visits         Visit[]
 
   @@unique([organizationId, code])
 }
@@ -86,6 +127,8 @@ model Zone {
   organization   Organization @relation(fields: [organizationId], references: [id])
   province       Province     @relation(fields: [provinceId], references: [id])
   pointsOfSale   PointOfSale[]
+  tasks          Task[]
+  visits         Visit[]
 
   @@unique([organizationId, code])
 }
@@ -99,6 +142,7 @@ model Client {
   active         Boolean      @default(true)
   organization   Organization @relation(fields: [organizationId], references: [id])
   pointsOfSale   PointOfSale[]
+  tasks          Task[]
 
   @@unique([organizationId, code])
 }
@@ -119,6 +163,8 @@ model PointOfSale {
   province       Province     @relation(fields: [provinceId], references: [id])
   zone           Zone         @relation(fields: [zoneId], references: [id])
   client         Client       @relation(fields: [clientId], references: [id])
+  tasks          Task[]
+  visits         Visit[]
 
   @@unique([organizationId, code])
 }
@@ -131,6 +177,7 @@ model ActivityType {
   active         Boolean        @default(true)
   organization   Organization   @relation(fields: [organizationId], references: [id])
   workflowRules  WorkflowRule[]
+  tasks          Task[]
 
   @@unique([organizationId, code])
 }
@@ -143,6 +190,7 @@ model TaskType {
   active         Boolean        @default(true)
   organization   Organization   @relation(fields: [organizationId], references: [id])
   workflowRules  WorkflowRule[]
+  tasks          Task[]
 
   @@unique([organizationId, code])
 }
@@ -161,4 +209,178 @@ model WorkflowRule {
   organization               Organization  @relation(fields: [organizationId], references: [id])
   taskType                   TaskType?     @relation(fields: [taskTypeId], references: [id])
   activityType               ActivityType? @relation(fields: [activityTypeId], references: [id])
+}
+
+model Task {
+  id             String       @id
+  organizationId String
+  title          String
+  requesterId    String
+  assigneeId     String
+  scheduledFor   String
+  provinceId     String
+  zoneId         String
+  clientId       String?
+  pointOfSaleId  String?
+  activityTypeId String
+  taskTypeId     String
+  status         String
+  priority       String
+  difficulty     String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  requester      User         @relation("TaskRequester", fields: [requesterId], references: [id])
+  assignee       User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  province       Province     @relation(fields: [provinceId], references: [id])
+  zone           Zone         @relation(fields: [zoneId], references: [id])
+  client         Client?      @relation(fields: [clientId], references: [id])
+  pointOfSale    PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
+  activityType   ActivityType @relation(fields: [activityTypeId], references: [id])
+  taskType       TaskType     @relation(fields: [taskTypeId], references: [id])
+  visits         Visit[]
+  evidencePhotos EvidencePhoto[]
+  comments       Comment[]
+  observations   Observation[]
+  consignations  Consignation[]
+
+  @@index([organizationId, scheduledFor])
+  @@index([organizationId, assigneeId, status])
+}
+
+model Visit {
+  id                 String       @id
+  organizationId     String
+  taskId             String
+  assigneeId         String
+  scheduledFor       String
+  provinceId         String
+  zoneId             String
+  pointOfSaleId      String?
+  status             String
+  checkedInAt        String?
+  checkedInLatitude  Float?
+  checkedInLongitude Float?
+  checkedOutAt       String?
+  checkedOutLatitude Float?
+  checkedOutLongitude Float?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  organization        Organization  @relation(fields: [organizationId], references: [id])
+  task                Task          @relation(fields: [taskId], references: [id])
+  assignee            User          @relation(fields: [assigneeId], references: [id])
+  province            Province      @relation(fields: [provinceId], references: [id])
+  zone                Zone          @relation(fields: [zoneId], references: [id])
+  pointOfSale         PointOfSale?  @relation(fields: [pointOfSaleId], references: [id])
+  evidencePhotos      EvidencePhoto[]
+  consignations       Consignation[]
+
+  @@index([organizationId, scheduledFor])
+  @@index([assigneeId, status])
+}
+
+model MediaAsset {
+  id                   String        @id
+  organizationId       String
+  uploaderUserId       String
+  fileName             String
+  mimeType             String
+  originalStoragePath  String
+  thumbnailStoragePath String?
+  capturedAt           String
+  uploadStatus         String
+  syncState            String        @default("synced")
+  uploadSessionId      String?
+  uploadProgress       Float         @default(100)
+  retryCount           Int           @default(0)
+  lastError            String?
+  chunkCount           Int?
+  uploadedChunkCount   Int?
+  byteSize             Int?
+  width                Int?
+  height               Int?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  organization         Organization  @relation(fields: [organizationId], references: [id])
+  uploader             User          @relation(fields: [uploaderUserId], references: [id])
+  evidencePhotos       EvidencePhoto[]
+
+  @@index([organizationId, uploadStatus])
+}
+
+model EvidencePhoto {
+  id             String       @id
+  organizationId String
+  uploaderUserId String
+  taskId         String
+  visitId        String?
+  mediaAssetId   String
+  type           String
+  capturedAt     String
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  uploader       User         @relation(fields: [uploaderUserId], references: [id])
+  task           Task         @relation(fields: [taskId], references: [id])
+  visit          Visit?       @relation(fields: [visitId], references: [id])
+  mediaAsset     MediaAsset   @relation(fields: [mediaAssetId], references: [id])
+
+  @@index([taskId, type])
+  @@index([visitId])
+  @@index([organizationId, capturedAt])
+}
+
+model Comment {
+  id             String       @id
+  organizationId String
+  taskId         String
+  userId         String
+  body           String
+  createdAt      String
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  task           Task         @relation(fields: [taskId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+model Observation {
+  id             String       @id
+  organizationId String
+  taskId         String
+  userId         String
+  body           String
+  createdAt      String
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  task           Task         @relation(fields: [taskId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+model Consignation {
+  id             String       @id
+  organizationId String
+  taskId         String
+  userId         String
+  visitId        String?
+  note           String?
+  status         String
+  preparedAt     String
+  sentAt         String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  task           Task         @relation(fields: [taskId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  visit          Visit?       @relation(fields: [visitId], references: [id])
+
+  @@index([taskId, preparedAt])
+  @@index([organizationId, status])
 }

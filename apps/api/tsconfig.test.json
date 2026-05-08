@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "outDir": "dist-test",
+    "rootDir": ".",
+    "noEmit": false,
+    "paths": {
+      "@capris/shared": [
+        "../../packages/shared/dist/index.d.ts"
+      ],
+      "@capris/shared/*": [
+        "../../packages/shared/dist/*"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "tests"
+  ]
+}

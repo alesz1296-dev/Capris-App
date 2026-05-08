@@ -5,7 +5,11 @@ import {
   type Role,
   type SupervisorScopeType
 } from "@capris/shared";
+import { AuthPanel } from "./auth-panel";
 import { CatalogAdmin } from "./catalog-admin";
+import { EvidenceAdmin } from "./evidence-admin";
+import { TaskAdmin } from "./task-admin";
+import { VisitAdmin } from "./visit-admin";
 
 const metrics = [
   { label: "Task completion", value: "0%" },
@@ -38,6 +42,7 @@ export default function DashboardPage() {
           <a href="#dashboard">Dashboard</a>
           <a href="#tasks">Tasks</a>
           <a href="#routes">Routes</a>
+          <a href="#evidence">Evidence</a>
           <a href="#reports">Reports</a>
           <a href="#settings">Admin</a>
         </nav>
@@ -48,9 +53,12 @@ export default function DashboardPage() {
             <p className="eyebrow">Costa Rica operations</p>
             <h1>Supervisor dashboard</h1>
           </div>
-          <div className="languageSwitch" aria-label="Language preference">
-            <button>EN</button>
-            <button>ES</button>
+          <div className="topbarControls">
+            <AuthPanel />
+            <div className="languageSwitch" aria-label="Language preference">
+              <button>EN</button>
+              <button>ES</button>
+            </div>
           </div>
         </header>
 
@@ -115,6 +123,9 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        <VisitAdmin />
+        <EvidenceAdmin />
+        <TaskAdmin />
         <CatalogAdmin />
       </section>
     </main>

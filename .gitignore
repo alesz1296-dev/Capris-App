@@ -6,12 +6,20 @@ build/
 .turbo/
 coverage/
 *.log
+*.tsbuildinfo
 .env
 .env.*
 !.env.example
 apps/api/prisma/dev.db
 apps/api/prisma/dev.db-journal
+apps/api/dist-test/
 
 # Private project context and user guides.
 docs/
 guides/
+
+# Extra protection for confidential planning/architecture notes
+*architecture*.md
+*system-design*.md
+*implementation-plan*.md
+*private*.md

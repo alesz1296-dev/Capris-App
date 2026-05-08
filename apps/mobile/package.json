@@ -5,12 +5,20 @@
   "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
+    "start:dev-client": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@capris/shared": "*",
     "expo": "^53.0.0",
+    "expo-auth-session": "^55.0.15",
+    "expo-dev-client": "~5.2.4",
+    "expo-file-system": "^18.1.11",
+    "expo-image-picker": "^55.0.20",
     "expo-sqlite": "^15.0.0",
+    "expo-web-browser": "^55.0.15",
     "react": "^19.0.0",
     "react-native": "^0.79.0"
   },
@@ -19,4 +27,3 @@
     "typescript": "^5.8.0"
   }
 }
-

@@ -22,3 +22,80 @@ export interface SyncOperation {
   errorMessage?: string;
 }
 
+export interface TaskUpdateSyncPayload {
+  taskId: string;
+  patch: Record<string, unknown>;
+}
+
+export interface VisitCheckInSyncPayload {
+  visitId: string;
+  checkedInAt: string;
+  checkedInLatitude: number;
+  checkedInLongitude: number;
+}
+
+export interface VisitCheckOutSyncPayload {
+  visitId: string;
+  checkedOutAt: string;
+  checkedOutLatitude: number;
+  checkedOutLongitude: number;
+}
+
+export interface PhotoUploadSyncPayload {
+  uploadRequest: {
+    organizationId: string;
+    taskId: string;
+    visitId?: string;
+    uploaderUserId: string;
+    type: "before" | "after" | "supporting";
+    capturedAt: string;
+    latitude?: number;
+    longitude?: number;
+    fileName: string;
+    mimeType: string;
+    fileBase64: string;
+    captureSource: "camera" | "library" | "web_file";
+    byteSize?: number;
+    width?: number;
+    height?: number;
+  };
+  localEvidenceId: string;
+  localMediaAssetId: string;
+}
+
+export interface CommentCreateSyncPayload {
+  organizationId: string;
+  taskId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ObservationCreateSyncPayload {
+  organizationId: string;
+  taskId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ConsignationPrepareSyncPayload {
+  localConsignationId: string;
+  organizationId: string;
+  taskId: string;
+  userId: string;
+  visitId?: string;
+  note?: string;
+  preparedAt: string;
+}
+
+export interface ConsignationSendSyncPayload {
+  consignationId: string;
+  sentAt: string;
+  localConsignationId?: string;
+}
+
+export interface ReminderAcknowledgeSyncPayload {
+  reminderId: string;
+  acknowledgedAt: string;
+}
