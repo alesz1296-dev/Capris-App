@@ -111,7 +111,7 @@ The project is now Postgres-first.
 Default local connection target:
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/capris_app?schema=public
+DATABASE_URL=postgresql://<db_user>:<db_password>@<host>:5432/capris_app?schema=public
 ```
 
 Useful API database scripts:
