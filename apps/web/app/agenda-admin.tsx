@@ -280,6 +280,10 @@ export function AgendaAdmin() {
     [entries, selectedUserId]
   );
   const calendarDays = useMemo(() => buildCalendarDays(calendar?.window.startDate ?? anchorDate, calendar?.window.endDate ?? anchorDate), [anchorDate, calendar]);
+  const calendarMonthCells = useMemo(
+    () => buildMonthCalendarCells(calendar?.window.startDate ?? anchorDate, calendar?.window.endDate ?? anchorDate),
+    [anchorDate, calendar]
+  );
   const entriesByDate = useMemo(() => {
     const grouped = new Map<string, CalendarEntry[]>();
     for (const entry of visibleEntries) {
@@ -546,27 +550,79 @@ export function AgendaAdmin() {
             }}
           />
         </label>
-        <div className="calendarDayGrid">
-          {calendarDays.map((day) => {
-            const dayEntries = entriesByDate.get(day) ?? [];
-            return (
-              <button
-                aria-pressed={selectedDate === day}
-                className="calendarDayButton"
-                key={day}
-                type="button"
-                onClick={() => setSelectedDate(day)}
-              >
-                <span>{formatDayLabel(day)}</span>
-                <strong>{dayEntries.length}</strong>
-                <small>
-                  {dayEntries.slice(0, 2).map((entry) => entry.title).join(" / ") ||
-                    textByLocale(locale, "No work", "Sin trabajo")}
-                </small>
-              </button>
-            );
-          })}
-        </div>
+        {view === "month" ? (
+          <div className="calendarMonthBoard" aria-label={textByLocale(locale, "Monthly calendar", "Calendario mensual")}>
+            <div className="calendarMonthTitle">
+              <strong>{formatMonthTitle(calendar?.window.anchorDate ?? anchorDate, locale)}</strong>
+              <span>{textByLocale(locale, "Full month view", "Vista mensual completa")}</span>
+            </div>
+            <div className="calendarWeekdayGrid">
+              {getWeekdayLabels(locale).map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+            </div>
+            <div className="calendarMonthGrid">
+              {calendarMonthCells.map((cell) => {
+                const dayEntries = entriesByDate.get(cell.date) ?? [];
+                return (
+                  <button
+                    aria-pressed={selectedDate === cell.date}
+                    className={cell.inWindow ? "calendarMonthCell" : "calendarMonthCell calendarMonthCellMuted"}
+                    key={cell.date}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDate(cell.date);
+                      if (!cell.inWindow) {
+                        setAnchorDate(cell.date);
+                      }
+                    }}
+                  >
+                    <span className="calendarMonthCellDate">{formatDayNumber(cell.date)}</span>
+                    <span className="calendarMonthCellCount">
+                      {dayEntries.length
+                        ? textByLocale(locale, `${dayEntries.length} item${dayEntries.length === 1 ? "" : "s"}`, `${dayEntries.length} elemento${dayEntries.length === 1 ? "" : "s"}`)
+                        : textByLocale(locale, "Available", "Disponible")}
+                    </span>
+                    <span className="calendarMonthEventList">
+                      {dayEntries.slice(0, 3).map((entry) => (
+                        <i className={`calendarEventPill calendarEventPill-${entry.kind}`} key={entry.id}>
+                          {entry.title}
+                        </i>
+                      ))}
+                      {dayEntries.length > 3 ? (
+                        <i className="calendarEventMore">
+                          {textByLocale(locale, `+${dayEntries.length - 3} more`, `+${dayEntries.length - 3} mas`)}
+                        </i>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="calendarDayGrid">
+            {calendarDays.map((day) => {
+              const dayEntries = entriesByDate.get(day) ?? [];
+              return (
+                <button
+                  aria-pressed={selectedDate === day}
+                  className="calendarDayButton"
+                  key={day}
+                  type="button"
+                  onClick={() => setSelectedDate(day)}
+                >
+                  <span>{formatDayLabel(day, locale)}</span>
+                  <strong>{dayEntries.length}</strong>
+                  <small>
+                    {dayEntries.slice(0, 2).map((entry) => entry.title).join(" / ") ||
+                      textByLocale(locale, "No work", "Sin trabajo")}
+                  </small>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </article>
 
       <div className="taskAdminLayout">
@@ -949,11 +1005,61 @@ function buildCalendarDays(startDate: string, endDate: string) {
   return days;
 }
 
-function formatDayLabel(day: string) {
+function buildMonthCalendarCells(startDate: string, endDate: string) {
+  const days: Array<{ date: string; inWindow: boolean }> = [];
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  const cursor = new Date(start);
+  const mondayOffset = (cursor.getUTCDay() + 6) % 7;
+  cursor.setUTCDate(cursor.getUTCDate() - mondayOffset);
+
+  const final = new Date(end);
+  const sundayOffset = (7 - final.getUTCDay()) % 7;
+  final.setUTCDate(final.getUTCDate() + sundayOffset);
+
+  while (cursor.getTime() <= final.getTime()) {
+    days.push({
+      date: cursor.toISOString().slice(0, 10),
+      inWindow: cursor.getTime() >= start.getTime() && cursor.getTime() <= end.getTime()
+    });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return days;
+}
+
+function getWeekdayLabels(locale: "en" | "es") {
+  const base = new Date("2026-05-04T00:00:00.000Z");
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(base);
+    day.setUTCDate(base.getUTCDate() + index);
+    return day.toLocaleDateString(locale === "es" ? "es-CR" : "en-US", { weekday: "short", timeZone: "UTC" });
+  });
+}
+
+function formatMonthTitle(day: string, locale: "en" | "es") {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  return date.toLocaleDateString(locale === "es" ? "es-CR" : "en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  });
+}
+
+function formatDayNumber(day: string) {
   const date = new Date(`${day}T00:00:00.000Z`);
   return date.toLocaleDateString("es-CR", {
+    day: "numeric",
+    timeZone: "UTC"
+  });
+}
+
+function formatDayLabel(day: string, locale: "en" | "es") {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  return date.toLocaleDateString(locale === "es" ? "es-CR" : "en-US", {
     weekday: "short",
     month: "short",
-    day: "numeric"
+    day: "numeric",
+    timeZone: "UTC"
   });
 }
