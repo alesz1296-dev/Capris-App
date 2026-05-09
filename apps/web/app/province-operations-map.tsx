@@ -55,7 +55,23 @@ export function ProvinceOperationsMap({
   }
 
   if (error) {
-    return <p className="feedbackError">{error}</p>;
+    return (
+      <section className="catalogSection routeMapSection" aria-label={textByLocale(locale, "Province and zone route map", "Mapa de rutas por provincia y zona")}>
+        <div className="sectionHeading">
+          <p className="eyebrow">{textByLocale(locale, "Costa Rica > Province > Zone", "Costa Rica > Provincia > Zona")}</p>
+          <h2>{textByLocale(locale, "Province and zone route map", "Mapa de rutas por provincia y zona")}</h2>
+          <p className="sectionDescription">
+            {textByLocale(
+              locale,
+              "The base map is available. Operational route, zone, and GPS data will appear after the API data loads.",
+              "El mapa base esta disponible. Los datos operativos de rutas, zonas y GPS apareceran cuando carguen los datos de la API."
+            )}
+          </p>
+        </div>
+        <StaticCostaRicaMap locale={locale} />
+        <p className="feedbackError">{error}</p>
+      </section>
+    );
   }
 
   if (!visitBootstrap || provinces.length === 0) {
@@ -72,6 +88,7 @@ export function ProvinceOperationsMap({
             )}
           </p>
         </div>
+        <StaticCostaRicaMap locale={locale} />
         <div className="routeMapEmpty">
           <strong>{textByLocale(locale, "Map waiting for route geography", "Mapa esperando geografia de rutas")}</strong>
           <span>
@@ -244,6 +261,46 @@ export function ProvinceOperationsMap({
         })}
       </div>
     </section>
+  );
+}
+
+function StaticCostaRicaMap({ locale }: { locale: Locale }) {
+  const width = 760;
+  const height = 430;
+
+  return (
+    <article className="countryGeoMapCard">
+      <div className="provinceMapHeader">
+        <div>
+          <span className="routeHierarchyLabel">Costa Rica / {textByLocale(locale, "Base map", "Mapa base")}</span>
+          <h3>{textByLocale(locale, "Costa Rica provinces", "Provincias de Costa Rica")}</h3>
+          <p>
+            {textByLocale(
+              locale,
+              "This base layer renders even before route catalogs, zone assignments, or GPS captures are available.",
+              "Esta capa base se renderiza incluso antes de que existan catalogos de ruta, asignaciones de zona o capturas GPS."
+            )}
+          </p>
+        </div>
+      </div>
+      <svg className="countryGeoMap" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={textByLocale(locale, "Costa Rica province base map", "Mapa base de provincias de Costa Rica")}>
+        <rect className="countryGeoOcean" x="0" y="0" width={width} height={height} rx="24" />
+        {COSTA_RICA_PROVINCES.map((shape) => {
+          const label = projectCostaRicaPoint(shape.label[0], shape.label[1], width, height);
+          return (
+            <g key={shape.code}>
+              <polygon className="countryProvince countryProvince--active" points={projectPolygon(shape.polygon, width, height)} />
+              <text className="countryProvinceLabel" x={label.x} y={label.y}>
+                {shape.code}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="provinceMapLegend">
+        <span><i className="legendSwatch legendSwatch--province" />{textByLocale(locale, "Province boundary", "Limite provincial")}</span>
+      </div>
+    </article>
   );
 }
 

@@ -228,6 +228,61 @@ h1 {
   gap: 10px;
 }
 
+.authModeSwitch {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+}
+
+.authModeSwitch button {
+  background: #fffdfd;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  padding: 10px;
+}
+
+.authModeSwitch button[aria-pressed="true"] {
+  background: var(--brand);
+  color: white;
+  font-weight: 700;
+}
+
+.authEmailForm {
+  display: grid;
+  gap: 10px;
+}
+
+.authEmailForm label {
+  display: grid;
+  gap: 6px;
+}
+
+.authEmailForm span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.authEmailForm input {
+  background: #fffdfd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.authDivider {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 2px 0 0;
+  text-align: center;
+}
+
 .authFeedback {
   margin-top: 0;
 }

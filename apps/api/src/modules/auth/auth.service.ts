@@ -1,9 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   UnauthorizedException
 } from "@nestjs/common";
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import {
   ROLE_DEFINITIONS,
   hasPermission,
@@ -14,6 +17,8 @@ import {
   type DeviceSessionBootstrap,
   type DeviceSessionMutationResult,
   type DeviceSessionSummary,
+  type EmailRegisterInput,
+  type EmailSignInInput,
   type GoogleSignInInput,
   type RefreshSessionInput,
   type RevokeDeviceSessionInput,
@@ -25,6 +30,9 @@ import { AuthTokenService } from "./auth-token.service";
 import { GoogleIdentityService } from "./google-identity.service";
 import { IdentityAccessService } from "../identity-access/identity-access.service";
 
+const DEFAULT_REGISTRATION_ORGANIZATION_ID = process.env.DEFAULT_REGISTRATION_ORGANIZATION_ID ?? "org_capris";
+const scrypt = promisify(scryptCallback);
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -34,6 +42,59 @@ export class AuthService {
     private readonly identityAccessService: IdentityAccessService,
     private readonly auditService: AuditService
   ) {}
+
+  async signInWithEmail(input: EmailSignInInput): Promise<AuthResponse> {
+    const user = await this.prisma.user.findUnique({ where: { email: input.email } });
+
+    if (!user || !user.active || !user.passwordHash) {
+      throw new UnauthorizedException("Email or password is incorrect.");
+    }
+
+    if (!(await this.verifyPassword(input.password, user.passwordHash))) {
+      throw new UnauthorizedException("Email or password is incorrect.");
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    });
+
+    return this.createSession(updatedUser, "password", input.deviceName, "auth.password_sign_in");
+  }
+
+  async registerWithEmail(input: EmailRegisterInput): Promise<AuthResponse> {
+    const existingUser = await this.prisma.user.findUnique({ where: { email: input.email } });
+    if (existingUser) {
+      throw new ConflictException("An account already exists for this email.");
+    }
+
+    const organization = await this.prisma.organization.findFirst({
+      where: {
+        id: DEFAULT_REGISTRATION_ORGANIZATION_ID,
+        active: true
+      }
+    });
+
+    if (!organization) {
+      throw new NotFoundException(`Registration organization ${DEFAULT_REGISTRATION_ORGANIZATION_ID} was not found.`);
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
+        id: this.createId("user"),
+        organizationId: organization.id,
+        name: input.name,
+        email: input.email,
+        passwordHash: await this.hashPassword(input.password),
+        role: "field_user",
+        locale: input.locale,
+        active: true,
+        lastLoginAt: new Date()
+      }
+    });
+
+    return this.createSession(user, "password", input.deviceName, "auth.password_register");
+  }
 
   async signInWithGoogle(input: GoogleSignInInput): Promise<AuthResponse> {
     const googleIdentity = await this.googleIdentityService.verifyIdToken(input.idToken);
@@ -60,53 +121,7 @@ export class AuthService {
       }
     });
 
-    const sessionId = this.createId("session");
-    const tokens = this.tokenService.issueTokens({
-      userId: linkedUser.id,
-      organizationId: linkedUser.organizationId,
-      email: linkedUser.email,
-      role: linkedUser.role as "admin" | "supervisor" | "field_user",
-      locale: linkedUser.locale as "en" | "es",
-      name: linkedUser.name,
-      sessionId
-    });
-
-    const sessionRecord = await this.prisma.deviceSession.create({
-      data: {
-        id: sessionId,
-        organizationId: linkedUser.organizationId,
-        userId: linkedUser.id,
-        provider: "google",
-        deviceName: input.deviceName?.trim() || "Web browser",
-        refreshTokenHash: this.tokenService.hashToken(tokens.refreshToken),
-        expiresAt: new Date(tokens.refreshTokenExpiresAt),
-        lastUsedAt: new Date()
-      }
-    });
-
-    await this.auditService.recordAudit({
-      organizationId: linkedUser.organizationId,
-      actorUserId: linkedUser.id,
-      action: "auth.google_sign_in",
-      entityType: "device_session",
-      entityId: sessionRecord.id,
-      metadata: {
-        provider: "google",
-        deviceName: sessionRecord.deviceName ?? "Web browser"
-      }
-    });
-
-    return {
-      user: toAuthenticatedUser(this.toUser(linkedUser)),
-      tokens,
-      session: {
-        id: sessionRecord.id,
-        provider: "google",
-        deviceName: sessionRecord.deviceName ?? undefined,
-        createdAt: sessionRecord.createdAt.toISOString(),
-        expiresAt: sessionRecord.expiresAt.toISOString()
-      }
-    };
+    return this.createSession(linkedUser, "google", input.deviceName, "auth.google_sign_in");
   }
 
   async refreshSession(input: RefreshSessionInput): Promise<AuthResponse> {
@@ -163,7 +178,7 @@ export class AuthService {
       tokens,
       session: {
         id: updatedSession.id,
-        provider: "google",
+        provider: updatedSession.provider as "google" | "password",
         deviceName: updatedSession.deviceName ?? undefined,
         createdAt: updatedSession.createdAt.toISOString(),
         expiresAt: updatedSession.expiresAt.toISOString()
@@ -222,7 +237,7 @@ export class AuthService {
       user: toAuthenticatedUser(this.toUser(user)),
       session: {
         id: session.id,
-        provider: "google",
+        provider: session.provider as "google" | "password",
         deviceName: session.deviceName ?? undefined,
         createdAt: session.createdAt.toISOString(),
         expiresAt: session.expiresAt.toISOString()
@@ -309,6 +324,88 @@ export class AuthService {
         OR: [{ googleSubject }, { email }]
       }
     });
+  }
+
+  private async createSession(
+    user: {
+      id: string;
+      organizationId: string;
+      name: string;
+      email: string;
+      role: string;
+      locale: string;
+      active: boolean;
+      googleSubject: string | null;
+      avatarUrl: string | null;
+    },
+    provider: "google" | "password",
+    deviceName: string | undefined,
+    action: string
+  ): Promise<AuthResponse> {
+    const sessionId = this.createId("session");
+    const tokens = this.tokenService.issueTokens({
+      userId: user.id,
+      organizationId: user.organizationId,
+      email: user.email,
+      role: user.role as "admin" | "supervisor" | "field_user",
+      locale: user.locale as "en" | "es",
+      name: user.name,
+      sessionId
+    });
+
+    const sessionRecord = await this.prisma.deviceSession.create({
+      data: {
+        id: sessionId,
+        organizationId: user.organizationId,
+        userId: user.id,
+        provider,
+        deviceName: deviceName?.trim() || "Web browser",
+        refreshTokenHash: this.tokenService.hashToken(tokens.refreshToken),
+        expiresAt: new Date(tokens.refreshTokenExpiresAt),
+        lastUsedAt: new Date()
+      }
+    });
+
+    await this.auditService.recordAudit({
+      organizationId: user.organizationId,
+      actorUserId: user.id,
+      action,
+      entityType: "device_session",
+      entityId: sessionRecord.id,
+      metadata: {
+        provider,
+        deviceName: sessionRecord.deviceName ?? "Web browser"
+      }
+    });
+
+    return {
+      user: toAuthenticatedUser(this.toUser(user)),
+      tokens,
+      session: {
+        id: sessionRecord.id,
+        provider,
+        deviceName: sessionRecord.deviceName ?? undefined,
+        createdAt: sessionRecord.createdAt.toISOString(),
+        expiresAt: sessionRecord.expiresAt.toISOString()
+      }
+    };
+  }
+
+  private async hashPassword(password: string) {
+    const salt = randomBytes(16).toString("hex");
+    const key = (await scrypt(password, salt, 64)) as Buffer;
+    return `scrypt:${salt}:${key.toString("hex")}`;
+  }
+
+  private async verifyPassword(password: string, storedHash: string) {
+    const [algorithm, salt, hash] = storedHash.split(":");
+    if (algorithm !== "scrypt" || !salt || !hash) {
+      return false;
+    }
+
+    const expected = Buffer.from(hash, "hex");
+    const actual = (await scrypt(password, salt, expected.length)) as Buffer;
+    return expected.length === actual.length && timingSafeEqual(expected, actual);
   }
 
   private toUser(user: {

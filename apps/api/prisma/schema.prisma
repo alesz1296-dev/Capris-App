@@ -53,6 +53,7 @@ model User {
   role           String
   locale         String
   active         Boolean           @default(true)
+  passwordHash   String?
   googleSubject  String?           @unique
   avatarUrl      String?
   lastLoginAt    DateTime?

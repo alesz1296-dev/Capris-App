@@ -53,7 +53,7 @@ export function subscribeToAuthChanges(callback: () => void) {
 export async function authenticatedFetch(input: string, init: RequestInit = {}) {
   const tokens = loadStoredTokens();
   if (!tokens) {
-    throw new Error("Sign in with Google to access authenticated data.");
+    throw new Error("Sign in to access authenticated data.");
   }
 
   let response = await fetch(input, withAccessToken(init, tokens.accessToken));
