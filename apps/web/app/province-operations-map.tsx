@@ -264,7 +264,7 @@ export function ProvinceOperationsMap({
   );
 }
 
-function StaticCostaRicaMap({ locale }: { locale: Locale }) {
+export function StaticCostaRicaMap({ locale }: { locale: Locale }) {
   const width = 760;
   const height = 430;
 
