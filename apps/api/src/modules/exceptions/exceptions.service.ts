@@ -56,7 +56,7 @@ export class ExceptionsService {
 
     return {
       exceptions,
-      users: users.map(({ permissions, ...user }) => user),
+      users: users.map(({ permissions, ...user }: any) => user),
       tasks,
       visits,
       mediaAssets,

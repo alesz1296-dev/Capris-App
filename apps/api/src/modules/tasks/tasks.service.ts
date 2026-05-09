@@ -44,7 +44,7 @@ export class TasksService {
 
     return {
       tasks,
-      users: users.map(({ permissions, ...user }) => user),
+      users: users.map(({ permissions, ...user }: any) => user),
       provinces: catalogs.provinces,
       zones: catalogs.zones,
       clients: catalogs.clients,
@@ -59,7 +59,7 @@ export class TasksService {
     const tasks = await this.prisma.task.findMany({
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
     });
-    const normalized = tasks.map((task) => this.toTask(task));
+    const normalized = tasks.map((task: any) => this.toTask(task));
     return this.actorAccessService.filterReadable(actor, normalized, (task) => ({
       organizationId: task.organizationId,
       assigneeId: task.assigneeId,

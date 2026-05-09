@@ -42,7 +42,7 @@ export class VisitsService {
     return {
       visits,
       tasks,
-      users: users.map(({ permissions, ...user }) => user).filter((user) => userIds.has(user.id)),
+      users: users.map(({ permissions, ...user }: any) => user).filter((user: any) => userIds.has(user.id)),
       provinces: catalogs.provinces.filter((province) => provinceIds.has(province.id)),
       zones: catalogs.zones.filter((zone) => zoneIds.has(zone.id)),
       pointsOfSale: catalogs.pointsOfSale.filter((pointOfSale) => pointOfSaleIds.has(pointOfSale.id))
@@ -53,7 +53,7 @@ export class VisitsService {
     const visits = await this.prisma.visit.findMany({
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
     });
-    const normalized = visits.map((visit) => this.toVisit(visit));
+    const normalized = visits.map((visit: any) => this.toVisit(visit));
     return this.actorAccessService.filterReadable(actor, normalized, (visit) => ({
       organizationId: visit.organizationId,
       assigneeId: visit.assigneeId,

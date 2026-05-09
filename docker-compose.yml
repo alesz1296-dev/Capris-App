@@ -4,8 +4,8 @@ services:
     container_name: capris-postgres
     environment:
       POSTGRES_DB: capris_app
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: capris_local_user
+      POSTGRES_PASSWORD: change-me-local
     ports:
       - "5432:5432"
     volumes:
@@ -27,7 +27,7 @@ services:
     environment:
       NODE_ENV: development
       APP_TIMEZONE: America/Costa_Rica
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/capris_app?schema=public
+      DATABASE_URL: postgresql://capris_local_user:change-me-local@postgres:5432/capris_app?schema=public
       JWT_ACCESS_SECRET: local-access-secret
       JWT_REFRESH_SECRET: local-refresh-secret
       MEDIA_URL_SIGNING_SECRET: local-media-signing-secret

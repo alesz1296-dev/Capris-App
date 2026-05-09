@@ -49,7 +49,7 @@ export class CalendarService {
       prisma.team.findMany({ where: { active: true }, orderBy: [{ name: "asc" }] })
     ]);
 
-    const usersWithoutPermissions = users.map(({ permissions, ...user }) => user);
+    const usersWithoutPermissions = users.map(({ permissions, ...user }: any) => user);
     const entries = [
       ...agendaEvents.map((item: any) => this.toAgendaEntry(item)),
       ...tasks.filter((item: any) => this.isDateInWindow(item.scheduledFor, window)).map((item: any) => this.toTaskEntry(item)),

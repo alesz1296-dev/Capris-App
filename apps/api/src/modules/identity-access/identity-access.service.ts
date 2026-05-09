@@ -26,7 +26,7 @@ export class IdentityAccessService {
 
   async getOrganizations(): Promise<Organization[]> {
     const organizations = await this.prisma.organization.findMany({ orderBy: { name: "asc" } });
-    return organizations.map((organization) => ({
+    return organizations.map((organization: any) => ({
       id: organization.id,
       name: organization.name,
       defaultLocale: organization.defaultLocale as "en" | "es",
@@ -37,7 +37,7 @@ export class IdentityAccessService {
 
   async getTeams(): Promise<Team[]> {
     const teams = await this.prisma.team.findMany({ orderBy: { name: "asc" } });
-    return teams.map((team) => ({
+    return teams.map((team: any) => ({
       id: team.id,
       organizationId: team.organizationId,
       name: team.name,
@@ -48,7 +48,7 @@ export class IdentityAccessService {
 
   async getUsers() {
     const users = await this.prisma.user.findMany({ orderBy: { name: "asc" } });
-    return users.map((user) => ({
+    return users.map((user: any) => ({
       ...this.toUser(user),
       permissions: getPermissionsForRole(user.role as User["role"])
     }));
@@ -59,7 +59,7 @@ export class IdentityAccessService {
       orderBy: [{ type: "asc" }, { referenceName: "asc" }]
     });
 
-    return scopes.map((scope) => ({
+    return scopes.map((scope: any) => ({
       id: scope.id,
       organizationId: scope.organizationId,
       userId: scope.userId,
@@ -107,7 +107,7 @@ export class IdentityAccessService {
           active: teamRecord.active
         }
       : undefined;
-    const supervisorScopes = scopeRecords.map((scope) => ({
+    const supervisorScopes = scopeRecords.map((scope: any) => ({
       id: scope.id,
       organizationId: scope.organizationId,
       userId: scope.userId,

@@ -149,10 +149,10 @@ export class FieldOperationsService {
     const failedUploads = mediaAssets.filter((mediaAsset: any) => mediaAsset.uploadStatus === "failed" || mediaAsset.syncState === "sync_failed").length;
     const failedEmails = consignations.filter((item: any) => item.status === "failed").length;
 
-    const userLabelById = new Map(users.map(({ permissions, ...user }) => [user.id, user.name]));
-    const zoneLabelById = new Map(catalogs.zones.map((zone) => [zone.id, zone.name]));
-    const provinceLabelById = new Map(catalogs.provinces.map((province) => [province.id, province.name]));
-    const clientLabelById = new Map(catalogs.clients.map((client) => [client.id, client.name]));
+    const userLabelById = new Map<string, string>(users.map(({ permissions, ...user }: any) => [user.id, user.name]));
+    const zoneLabelById = new Map<string, string>(catalogs.zones.map((zone) => [zone.id, zone.name]));
+    const provinceLabelById = new Map<string, string>(catalogs.provinces.map((province) => [province.id, province.name]));
+    const clientLabelById = new Map<string, string>(catalogs.clients.map((client) => [client.id, client.name]));
 
     return {
       generatedAt: new Date().toISOString(),
@@ -199,7 +199,7 @@ export class FieldOperationsService {
     const visibleClientIds = new Set(context.tasks.map((task) => task.clientId).concat(context.requests.map((request: any) => request.clientId).filter(Boolean)).filter(Boolean));
 
     return {
-      users: users.map(({ permissions, ...user }) => user).filter((user) => visibleUserIds.has(user.id)),
+      users: users.map(({ permissions, ...user }: any) => user).filter((user: any) => visibleUserIds.has(user.id)),
       provinces: catalogs.provinces.filter((province) => visibleProvinceIds.has(province.id)),
       zones: catalogs.zones.filter((zone) => visibleZoneIds.has(zone.id)),
       clients: catalogs.clients.filter((client) => visibleClientIds.has(client.id)),
@@ -482,7 +482,7 @@ export class FieldOperationsService {
       activities: filteredActivities,
       exhibitions: filteredExhibitions,
       requests: filteredRequests,
-      users: users.map(({ permissions, ...user }) => user),
+      users: users.map(({ permissions, ...user }: any) => user),
       catalogs
     };
   }
@@ -493,10 +493,10 @@ export class FieldOperationsService {
     context: Awaited<ReturnType<FieldOperationsService["getReportingContext"]>>
   ) {
     const today = new Date().toISOString().slice(0, 10);
-    const userLabelById = new Map(context.users.map((user) => [user.id, user.name]));
-    const zoneLabelById = new Map(context.catalogs.zones.map((zone) => [zone.id, zone.name]));
-    const provinceLabelById = new Map(context.catalogs.provinces.map((province) => [province.id, province.name]));
-    const clientLabelById = new Map(context.catalogs.clients.map((client) => [client.id, client.name]));
+    const userLabelById = new Map<string, string>(context.users.map((user: any) => [user.id, user.name]));
+    const zoneLabelById = new Map<string, string>(context.catalogs.zones.map((zone) => [zone.id, zone.name]));
+    const provinceLabelById = new Map<string, string>(context.catalogs.provinces.map((province) => [province.id, province.name]));
+    const clientLabelById = new Map<string, string>(context.catalogs.clients.map((client) => [client.id, client.name]));
     const taskById = new Map(context.tasks.map((task) => [task.id, task]));
     const mediaStatusById = new Map<string, { uploadStatus: string; syncState?: string }>(
       context.mediaAssets.map((mediaAsset: any) => [mediaAsset.id, { uploadStatus: mediaAsset.uploadStatus, syncState: mediaAsset.syncState }])
