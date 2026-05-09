@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS "User" (
     "role" TEXT NOT NULL,
     "locale" TEXT NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "passwordHash" TEXT,
+    "googleSubject" TEXT,
+    "avatarUrl" TEXT,
+    "lastLoginAt" TIMESTAMP,
     CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 

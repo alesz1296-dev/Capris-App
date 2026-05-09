@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { t, type AuthProfileResponse, type AuthResponse } from "@capris/shared";
 import {
   API_BASE_URL,
@@ -40,6 +41,12 @@ export function AuthPanel() {
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [emailForm, setEmailForm] = useState({
+    name: "",
+    email: "",
+    password: ""
+  });
 
   useEffect(() => {
     const stored = loadStoredTokens();
@@ -154,6 +161,49 @@ export function AuthPanel() {
     }
   }
 
+  async function submitEmailAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus(authMode === "login" ? textByLocale(locale, "Signing in...", "Iniciando sesion...") : textByLocale(locale, "Creating account...", "Creando cuenta..."));
+    setError(null);
+
+    try {
+      const endpoint = authMode === "login" ? "login" : "register";
+      const response = await fetch(`${API_BASE_URL}/auth/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: authMode === "register" ? emailForm.name : undefined,
+          email: emailForm.email,
+          password: emailForm.password,
+          locale,
+          deviceName: "Capris Web"
+        })
+      });
+
+      const payload = (await response.json()) as AuthResponse & { message?: string };
+      if (!response.ok) {
+        throw new Error(payload.message ?? textByLocale(locale, "Email sign-in failed.", "Fallo el inicio de sesion con correo."));
+      }
+
+      const nextTokens = {
+        accessToken: payload.tokens.accessToken,
+        refreshToken: payload.tokens.refreshToken
+      };
+      persistTokens(nextTokens);
+      setTokens(nextTokens);
+      setProfile({
+        user: payload.user,
+        session: payload.session
+      });
+      persistPreferredLocale(payload.user.locale);
+      setEmailForm({ name: "", email: "", password: "" });
+      setStatus(authMode === "login" ? textByLocale(locale, "Signed in.", "Sesion iniciada.") : textByLocale(locale, "Account created.", "Cuenta creada."));
+    } catch (emailAuthError) {
+      setError(emailAuthError instanceof Error ? emailAuthError.message : textByLocale(locale, "Email sign-in failed.", "Fallo el inicio de sesion con correo."));
+      setStatus(null);
+    }
+  }
+
   async function loadProfile(accessToken: string, refreshToken: string) {
     setError(null);
 
@@ -241,13 +291,64 @@ export function AuthPanel() {
           </div>
           {profile.user.avatarUrl ? <img alt={profile.user.name} className="authAvatar" src={profile.user.avatarUrl} /> : null}
         </div>
-      ) : GOOGLE_CLIENT_ID ? (
-        <div className="authSignInBlock">
-          <p className="sectionDescription">{t(locale, "auth.loginRequired")}</p>
-          <div ref={googleButtonRef} />
-        </div>
       ) : (
-        <p className="sectionDescription">{t(locale, "auth.googleUnavailable")}</p>
+        <div className="authSignInBlock">
+          <p className="sectionDescription">
+            {textByLocale(locale, "Sign in with email or create a field user account.", "Inicia sesion con correo o crea una cuenta de usuario de campo.")}
+          </p>
+          <div className="authModeSwitch" aria-label={textByLocale(locale, "Authentication mode", "Modo de autenticacion")}>
+            <button aria-pressed={authMode === "login"} type="button" onClick={() => setAuthMode("login")}>
+              {textByLocale(locale, "Login", "Ingresar")}
+            </button>
+            <button aria-pressed={authMode === "register"} type="button" onClick={() => setAuthMode("register")}>
+              {textByLocale(locale, "Create account", "Crear cuenta")}
+            </button>
+          </div>
+          <form className="authEmailForm" onSubmit={(event) => void submitEmailAuth(event)}>
+            {authMode === "register" ? (
+              <label>
+                <span>{textByLocale(locale, "Name", "Nombre")}</span>
+                <input
+                  autoComplete="name"
+                  minLength={2}
+                  required
+                  value={emailForm.name}
+                  onChange={(event) => setEmailForm((current) => ({ ...current, name: event.target.value }))}
+                />
+              </label>
+            ) : null}
+            <label>
+              <span>{textByLocale(locale, "Email", "Correo")}</span>
+              <input
+                autoComplete="email"
+                required
+                type="email"
+                value={emailForm.email}
+                onChange={(event) => setEmailForm((current) => ({ ...current, email: event.target.value }))}
+              />
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Password", "Contrasena")}</span>
+              <input
+                autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                minLength={8}
+                required
+                type="password"
+                value={emailForm.password}
+                onChange={(event) => setEmailForm((current) => ({ ...current, password: event.target.value }))}
+              />
+            </label>
+            <button className="primaryAction" type="submit">
+              {authMode === "login" ? textByLocale(locale, "Sign in", "Ingresar") : textByLocale(locale, "Create account", "Crear cuenta")}
+            </button>
+          </form>
+          {GOOGLE_CLIENT_ID ? (
+            <>
+              <p className="authDivider">{textByLocale(locale, "or continue with Google", "o continua con Google")}</p>
+              <div ref={googleButtonRef} />
+            </>
+          ) : null}
+        </div>
       )}
 
       {status ? <p className="feedbackInfo authFeedback">{status}</p> : null}

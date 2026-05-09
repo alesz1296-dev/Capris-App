@@ -13,11 +13,15 @@ import {
 import { ZodError } from "zod";
 import {
   googleSignInSchema,
+  emailRegisterSchema,
+  emailSignInSchema,
   hasPermission,
   refreshSessionSchema,
   revokeDeviceSessionSchema,
   signOutSchema,
   type RevokeDeviceSessionInput,
+  type EmailRegisterInput,
+  type EmailSignInInput,
   type GoogleSignInInput,
   type RefreshSessionInput,
   type SignOutInput
@@ -35,6 +39,26 @@ export class AuthController {
   @Public()
   async signInWithGoogle(@Body() input: GoogleSignInInput) {
     const response = await this.service.signInWithGoogle(parseAuthInput(googleSignInSchema, input));
+    return {
+      ...response,
+      ...this.service.getAccessProfile(response.user.role)
+    };
+  }
+
+  @Post("login")
+  @Public()
+  async signInWithEmail(@Body() input: EmailSignInInput) {
+    const response = await this.service.signInWithEmail(parseAuthInput(emailSignInSchema, input));
+    return {
+      ...response,
+      ...this.service.getAccessProfile(response.user.role)
+    };
+  }
+
+  @Post("register")
+  @Public()
+  async registerWithEmail(@Body() input: EmailRegisterInput) {
+    const response = await this.service.registerWithEmail(parseAuthInput(emailRegisterSchema, input));
     return {
       ...response,
       ...this.service.getAccessProfile(response.user.role)
