@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import {
+  type AuthProfileResponse,
   ROLE_DEFINITIONS,
   getPermissionsForRole,
   t,
@@ -9,8 +10,9 @@ import {
   type Role,
   type SupervisorScopeType
 } from "@capris/shared";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AuthPanel } from "./auth-panel";
+import { API_BASE_URL, authenticatedFetch, clearStoredTokens, loadStoredTokens, subscribeToAuthChanges } from "./auth-client";
 import { persistPreferredLocale, textByLocale, useAppLocale } from "./locale-client";
 import { PwaInstall } from "./pwa-install";
 
@@ -29,7 +31,7 @@ const navigation = [
   { href: "/reports", en: "Reports", es: "Reportes" },
   { href: "/imports", en: "Imports", es: "Importaciones" },
   { href: "/catalogs", en: "Catalogs", es: "Catalogos" },
-  { href: "/access", en: "Access", es: "Acceso" }
+  { href: "/access", en: "Access", es: "Acceso", privileged: true }
 ] as const;
 
 type AppShellProps = {
@@ -42,13 +44,78 @@ type AppShellProps = {
 export function AppShell({ eyebrow, title, description, children }: AppShellProps) {
   const locale = useAppLocale();
   const pathname = usePathname();
+  const [authState, setAuthState] = useState<"checking" | "authorized">("checking");
+  const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function verifySession() {
+      const tokens = loadStoredTokens();
+      if (!tokens) {
+        redirectToLogin(pathname);
+        return;
+      }
+
+      try {
+        const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("Session is not active.");
+        }
+
+        const payload = (await response.json()) as AuthProfileResponse;
+        if (pathname === "/access" && !canUsePrivilegedNavigation(payload.user.role)) {
+          window.location.replace("/");
+          return;
+        }
+
+        if (!cancelled) {
+          setProfile(payload);
+          setAuthState("authorized");
+        }
+      } catch {
+        clearStoredTokens();
+        if (!cancelled) {
+          redirectToLogin(pathname);
+        }
+      }
+    }
+
+    void verifySession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    return subscribeToAuthChanges(() => {
+      if (!loadStoredTokens()) {
+        redirectToLogin(pathname);
+      }
+    });
+  }, [pathname]);
+
+  if (authState === "checking") {
+    return (
+      <main className="loginPage">
+        <section className="loginCard" aria-label={textByLocale(locale, "Checking session", "Verificando sesion")}>
+          <p className="eyebrow">Capris Costa Rica</p>
+          <h1>{textByLocale(locale, "Checking access", "Verificando acceso")}</h1>
+          <p className="pageLead">
+            {textByLocale(locale, "Confirming your session before loading the app.", "Confirmando tu sesion antes de cargar la app.")}
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="shell">
       <aside className="sidebar">
         <strong>{t(locale, "app.name")}</strong>
         <nav>
-          {navigation.map((item) => {
+          {navigation.filter((item) => !("privileged" in item) || canUsePrivilegedNavigation(profile?.user.role)).map((item) => {
             const active = pathname === item.href;
             return (
               <a
@@ -88,6 +155,20 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
       </section>
     </main>
   );
+}
+
+function redirectToLogin(pathname: string | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const nextPath = pathname && pathname !== "/login" ? pathname : "/";
+  const next = encodeURIComponent(`${nextPath}${window.location.search}`);
+  window.location.replace(`/login?next=${next}`);
+}
+
+function canUsePrivilegedNavigation(role: string | undefined) {
+  return role === "admin" || role === "supervisor" || role === "developer" || role === "dev";
 }
 
 export function AccessOverview() {
