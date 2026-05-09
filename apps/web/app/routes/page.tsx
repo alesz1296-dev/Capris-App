@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AppShell } from "../app-shell";
 import { StaticCostaRicaMap } from "../province-operations-map";
 import { VisitAdmin } from "../visit-admin";
@@ -37,9 +36,9 @@ export default function RoutesPage() {
             <h3>Capturar evidencia</h3>
             <p>Sube fotos, revisa coordenadas GPS, estado de carga y recuperacion de material capturado durante la ruta.</p>
             <div className="taskCardActions">
-              <Link className="secondaryAction routeWorkflowLink" href="/evidence">
+              <a className="secondaryAction routeWorkflowLink" href="/evidence">
                 Abrir evidencia
-              </Link>
+              </a>
             </div>
           </article>
           <article className="routeWorkflowCard">
@@ -47,9 +46,9 @@ export default function RoutesPage() {
             <h3>Resolver excepciones</h3>
             <p>Atiende bloqueos de campo, faltantes de GPS, revisiones y controles de acceso del dispositivo desde el contexto operativo.</p>
             <div className="taskCardActions">
-              <Link className="secondaryAction routeWorkflowLink" href="/exceptions">
+              <a className="secondaryAction routeWorkflowLink" href="/exceptions">
                 Abrir excepciones
-              </Link>
+              </a>
             </div>
           </article>
         </div>
