@@ -33,6 +33,39 @@ a {
   min-height: 100vh;
 }
 
+.loginPage {
+  align-items: center;
+  background:
+    radial-gradient(circle at top left, rgba(197, 51, 63, 0.14), transparent 30%),
+    linear-gradient(135deg, #fffdfd 0%, #fff1f3 100%);
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  min-height: 100vh;
+  padding: 32px;
+}
+
+.loginHero {
+  max-width: 680px;
+}
+
+.loginHero h1 {
+  font-size: clamp(38px, 8vw, 76px);
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+  margin-bottom: 18px;
+}
+
+.loginHero .secondaryAction {
+  display: inline-flex;
+  margin-top: 18px;
+}
+
+.loginCard .authPanel {
+  box-shadow: 0 24px 70px rgba(37, 27, 29, 0.12);
+  min-width: 0;
+}
+
 .sidebar {
   border-right: 1px solid var(--line);
   background: #fffdfd;
@@ -1125,6 +1158,16 @@ h1 {
 
   .workspace {
     padding: 20px;
+  }
+
+  .loginPage {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    padding: 22px;
+  }
+
+  .loginHero h1 {
+    font-size: 42px;
   }
 
   .topbar,
