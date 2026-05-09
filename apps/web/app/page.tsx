@@ -20,6 +20,7 @@ import { ReportsAdmin } from "./reports-admin";
 import { TaskAdmin } from "./task-admin";
 import { VisitAdmin } from "./visit-admin";
 import { persistPreferredLocale, textByLocale, useAppLocale } from "./locale-client";
+import { PwaInstall } from "./pwa-install";
 
 const scopeExamples: { type: SupervisorScopeType; referenceName: string }[] = [
   { type: "organization", referenceName: "Capris Costa Rica" },
@@ -70,6 +71,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </header>
+
+        <PwaInstall locale={locale} />
 
         <DashboardOverview />
 
