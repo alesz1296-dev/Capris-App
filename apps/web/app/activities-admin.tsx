@@ -43,6 +43,19 @@ const EMPTY_ACTIVITY_FORM: ActivityFormState = {
   note: ""
 };
 
+function consignationStatusCopy(locale: "en" | "es", status: Consignation["status"]) {
+  return textByLocale(
+    locale,
+    status.replaceAll("_", " "),
+    {
+      prepared: "preparada",
+      ready_to_send: "lista para enviar",
+      sent: "enviada",
+      failed: "fallida"
+    }[status]
+  );
+}
+
 export function ActivitiesAdmin() {
   const locale = useAppLocale();
   const [isPending, startTransition] = useTransition();
@@ -311,7 +324,7 @@ export function ActivitiesAdmin() {
                 <div className="taskCardHeader">
                   <div>
                     <h4>{consignation.id}</h4>
-                    <p>{t(locale, `consignation.status.${consignation.status}` as never)}</p>
+                    <p>{consignationStatusCopy(locale, consignation.status)}</p>
                   </div>
                   <span className="taskBadge">{consignation.taskId}</span>
                 </div>
@@ -411,7 +424,7 @@ function ActivityForm({
   return (
     <div className="formGrid">
       <label className="fullWidth">
-        <span>Task</span>
+        <span>{textByLocale(locale, "Task", "Tarea")}</span>
         <select
           value={form.taskId}
           onChange={(event) => {
@@ -433,9 +446,9 @@ function ActivityForm({
         </select>
       </label>
       <label>
-        <span>Visit</span>
+        <span>{textByLocale(locale, "Visit", "Visita")}</span>
         <select value={form.visitId} onChange={(event) => onChange({ ...form, visitId: event.target.value })}>
-          <option value="">No visit link</option>
+          <option value="">{textByLocale(locale, "No visit link", "Sin vinculacion de visita")}</option>
           {visits.map((visit) => (
             <option key={visit.id} value={visit.id}>
               {visit.id}
@@ -446,7 +459,7 @@ function ActivityForm({
       <label>
         <span>{t(locale, "tasks.pointOfSale")}</span>
         <select value={form.pointOfSaleId} onChange={(event) => onChange({ ...form, pointOfSaleId: event.target.value })}>
-          <option value="">No POS link</option>
+          <option value="">{textByLocale(locale, "No POS link", "Sin vinculacion de PDV")}</option>
           {pointsOfSale.map((pointOfSale) => (
             <option key={pointOfSale.id} value={pointOfSale.id}>
               {pointOfSale.name}
@@ -512,10 +525,10 @@ function buildReviewState(consignations: Consignation[]) {
       {
         id: consignation.id,
         recipientEmails: consignation.recipientEmails.join(", "),
-        emailSubject: consignation.emailSubject ?? `Consignation evidence for ${consignation.taskId}`,
+        emailSubject: consignation.emailSubject ?? `Evidencia de consignacion para ${consignation.taskId}`,
         emailBody:
           consignation.emailBody ??
-          `Attached are the before and after consignation photos for task ${consignation.taskId}.`,
+          `Se adjuntan las fotos antes y despues de la consignacion para la tarea ${consignation.taskId}.`,
         beforeEvidenceId: consignation.beforeEvidenceId ?? "",
         afterEvidenceId: consignation.afterEvidenceId ?? ""
       } satisfies ConsignationReviewState

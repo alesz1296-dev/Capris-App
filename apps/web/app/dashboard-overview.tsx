@@ -3,14 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { t, type DashboardResponse, type EvidenceBootstrap, type Locale, type ProductivitySummary, type VisitBootstrap } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
-import { textByLocale } from "./locale-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 import { ProvinceOperationsMap } from "./province-operations-map";
 
-type DashboardOverviewProps = {
-  locale?: Locale;
-};
-
-export function DashboardOverview({ locale = "en" }: DashboardOverviewProps) {
+export function DashboardOverview() {
+  const locale = useAppLocale();
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

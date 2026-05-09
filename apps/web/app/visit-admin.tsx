@@ -6,6 +6,7 @@ import type { CreateVisitInput } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
 import { formatCoordinates, resolveWebCoordinates } from "./location-client";
 import { textByLocale, useAppLocale } from "./locale-client";
+import { ProvinceOperationsMap } from "./province-operations-map";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -32,6 +33,7 @@ export function VisitAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [bootstrap, setBootstrap] = useState<VisitBootstrap | null>(null);
+  const [evidenceBootstrap, setEvidenceBootstrap] = useState<import("@capris/shared").EvidenceBootstrap | null>(null);
   const [visitForm, setVisitForm] = useState<VisitFormState>(DEFAULT_VISIT_FORM);
 
   const tasks = bootstrap?.tasks ?? [];
@@ -80,15 +82,25 @@ export function VisitAdmin() {
       setLoading(true);
       setError(null);
 
-      const response = await authenticatedFetch(`${API_BASE_URL}/visits/bootstrap`, {
-        cache: "no-store"
-      });
+      const [response, evidenceResponse] = await Promise.all([
+        authenticatedFetch(`${API_BASE_URL}/visits/bootstrap`, {
+          cache: "no-store"
+        }),
+        authenticatedFetch(`${API_BASE_URL}/evidence/bootstrap`, {
+          cache: "no-store"
+        })
+      ]);
 
       if (!response.ok) {
         throw new Error(await extractErrorMessage(response, loadFallback));
       }
 
       const payload = (await response.json()) as VisitBootstrap;
+      if (evidenceResponse.ok) {
+        setEvidenceBootstrap((await evidenceResponse.json()) as import("@capris/shared").EvidenceBootstrap);
+      } else {
+        setEvidenceBootstrap(null);
+      }
       setBootstrap(payload);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : loadFallback);
@@ -217,6 +229,15 @@ export function VisitAdmin() {
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
       </div>
+
+      <ProvinceOperationsMap
+        locale={locale}
+        visitBootstrap={bootstrap}
+        evidenceBootstrap={evidenceBootstrap}
+        loading={loading}
+        error={null}
+        variant="routes"
+      />
 
       <div className="taskAdminLayout">
         <article className="catalogManagerCard">

@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ROLE_DEFINITIONS,
   getPermissionsForRole,
@@ -45,6 +44,7 @@ type AppShellProps = {
 export function AppShell({ eyebrow, title, description, children }: AppShellProps) {
   const locale = useAppLocale();
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <main className="shell">
@@ -54,9 +54,15 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
           {navigation.map((item) => {
             const active = pathname === item.href;
             return (
-              <Link className={active ? "sidebarLink sidebarLinkActive" : "sidebarLink"} href={item.href} key={item.href}>
+              <button
+                aria-current={active ? "page" : undefined}
+                className={active ? "sidebarLink sidebarLinkActive" : "sidebarLink"}
+                key={item.href}
+                type="button"
+                onClick={() => router.push(item.href)}
+              >
                 {locale === "es" ? item.es : item.en}
-              </Link>
+              </button>
             );
           })}
         </nav>

@@ -225,7 +225,7 @@ export function EvidenceAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to upload evidence."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to upload evidence.", "No se pudo subir la evidencia.")));
       }
 
       setSelectedFile(null);
@@ -234,7 +234,7 @@ export function EvidenceAdmin() {
         void loadEvidence();
       });
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Unable to upload evidence.");
+      setError(uploadError instanceof Error ? uploadError.message : textByLocale(locale, "Unable to upload evidence.", "No se pudo subir la evidencia."));
     }
   }
 
@@ -631,7 +631,7 @@ function buildUploadStatusPayload(mediaAsset: MediaAsset, nextStatus: UploadStat
       retryCount: mediaAsset.retryCount,
       chunkCount,
       uploadedChunkCount: mediaAsset.uploadedChunkCount ?? 0,
-      lastError: "Upload interrupted while transferring thumbnail chunks."
+      lastError: "La carga se interrumpio mientras se transferian los bloques de miniatura."
     };
   }
 
@@ -651,7 +651,19 @@ function createThumbnailPreview(mediaAsset: MediaAsset | undefined, evidenceType
     return `${API_BASE_URL.replace("/api/v1", "")}${mediaAsset.thumbnailStoragePath}`;
   }
 
-  const label = `${evidenceType.toUpperCase()} / ${mediaAsset?.uploadStatus ?? "pending_upload"}`;
+  const evidenceLabel = {
+    before: "ANTES",
+    after: "DESPUES",
+    supporting: "SOPORTE"
+  }[evidenceType];
+  const uploadLabel =
+    {
+      pending_upload: "pendiente",
+      uploading: "subiendo",
+      uploaded: "cargada",
+      failed: "fallida"
+    }[mediaAsset?.uploadStatus ?? "pending_upload"];
+  const label = `${evidenceLabel} / ${uploadLabel}`;
   const background = mediaAsset?.uploadStatus === "uploaded" ? "#dff2e7" : mediaAsset?.uploadStatus === "failed" ? "#fde4e1" : "#edf6f1";
   const ink = mediaAsset?.uploadStatus === "failed" ? "#8a2f27" : "#15533e";
   const encoded = encodeURIComponent(`
@@ -659,9 +671,9 @@ function createThumbnailPreview(mediaAsset: MediaAsset | undefined, evidenceType
       <rect width="100%" height="100%" fill="${background}" rx="16" ry="16"/>
       <rect x="18" y="18" width="284" height="184" fill="white" opacity="0.72" rx="12" ry="12"/>
       <text x="24" y="54" font-family="Segoe UI, sans-serif" font-size="18" font-weight="700" fill="${ink}">${label}</text>
-      <text x="24" y="92" font-family="Segoe UI, sans-serif" font-size="14" fill="${ink}">${mediaAsset?.fileName ?? "pending-capture.jpg"}</text>
-      <text x="24" y="128" font-family="Segoe UI, sans-serif" font-size="14" fill="${ink}">Progress ${Math.round(mediaAsset?.uploadProgress ?? 0)}%</text>
-      <text x="24" y="164" font-family="Segoe UI, sans-serif" font-size="13" fill="${ink}">Ref ${mediaAsset?.uploadSessionId ?? "pending"}</text>
+      <text x="24" y="92" font-family="Segoe UI, sans-serif" font-size="14" fill="${ink}">${mediaAsset?.fileName ?? "captura-pendiente.jpg"}</text>
+      <text x="24" y="128" font-family="Segoe UI, sans-serif" font-size="14" fill="${ink}">Progreso ${Math.round(mediaAsset?.uploadProgress ?? 0)}%</text>
+      <text x="24" y="164" font-family="Segoe UI, sans-serif" font-size="13" fill="${ink}">Ref ${mediaAsset?.uploadSessionId ?? "pendiente"}</text>
     </svg>
   `);
 

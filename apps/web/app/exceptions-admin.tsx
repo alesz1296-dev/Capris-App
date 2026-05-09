@@ -44,6 +44,19 @@ function reviewStatusLabel(locale: "en" | "es", status: Extract<ExceptionStatus,
   );
 }
 
+function exceptionStatusLabel(locale: "en" | "es", status: ExceptionStatus) {
+  return textByLocale(
+    locale,
+    status.replaceAll("_", " "),
+    {
+      submitted: "enviada",
+      approved: "aprobada",
+      rejected: "rechazada",
+      needs_correction: "requiere correccion"
+    }[status]
+  );
+}
+
 type ExceptionFormState = {
   type: ExceptionType;
   title: string;
@@ -167,7 +180,7 @@ export function ExceptionsAdmin() {
         reviewNote: reviewNotes[item.id] || undefined,
         reviewedAt: new Date().toISOString()
       },
-      textByLocale(locale, `Exception ${item.id} reviewed as ${status}.`, `Excepcion ${item.id} revisada como ${status}.`),
+      textByLocale(locale, `Exception ${item.id} reviewed as ${status}.`, `Excepcion ${item.id} revisada como ${exceptionStatusLabel(locale, status)}.`),
       "PATCH"
     );
   }
@@ -294,7 +307,7 @@ export function ExceptionsAdmin() {
                   .filter((visit) => !form.taskId || visit.taskId === form.taskId)
                   .map((visit) => (
                     <option key={visit.id} value={visit.id}>
-                      {visit.id} / {visit.status}
+                      {visit.id} / {textByLocale(locale, visit.status, visit.status === "planned" ? "planificada" : visit.status === "in_progress" ? "en progreso" : visit.status === "completed" ? "completada" : "cancelada")}
                     </option>
                   ))}
               </select>
@@ -318,7 +331,7 @@ export function ExceptionsAdmin() {
                   .filter((consignation) => !form.taskId || consignation.taskId === form.taskId)
                   .map((consignation) => (
                     <option key={consignation.id} value={consignation.id}>
-                      {consignation.id} / {consignation.status}
+                      {consignation.id} / {textByLocale(locale, consignation.status, consignation.status === "prepared" ? "preparada" : consignation.status === "ready_to_send" ? "lista para enviar" : consignation.status === "sent" ? "enviada" : "fallida")}
                     </option>
                   ))}
               </select>
@@ -345,10 +358,10 @@ export function ExceptionsAdmin() {
                   <div>
                     <h4>{item.title}</h4>
                     <p>
-                      {item.type} / {textByLocale(locale, "submitted", "enviada")} {item.submittedAt}
+                      {t(locale, `exceptions.type.${item.type}` as never)} / {textByLocale(locale, "submitted", "enviada")} {item.submittedAt}
                     </p>
                   </div>
-                  <span className="taskBadge">{item.status}</span>
+                  <span className="taskBadge">{exceptionStatusLabel(locale, item.status)}</span>
                 </div>
                 {item.description ? <p>{item.description}</p> : null}
                 <p>

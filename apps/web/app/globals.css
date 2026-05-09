@@ -49,17 +49,26 @@ a {
   gap: 8px;
 }
 
-.sidebar a {
+.sidebar a,
+.sidebar button {
   border-radius: 6px;
   padding: 10px 12px;
 }
 
-.sidebar a:hover {
+.sidebar a:hover,
+.sidebar button:hover {
   background: #f9eaed;
 }
 
 .sidebarLink {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
   display: block;
+  font: inherit;
+  text-align: left;
+  width: 100%;
 }
 
 .sidebarLinkActive {
@@ -163,6 +172,7 @@ h1 {
 }
 
 .sidebar a:focus-visible,
+.sidebar button:focus-visible,
 .languageSwitch button:focus-visible,
 .secondaryAction:focus-visible {
   outline: 2px solid var(--brand);
@@ -326,6 +336,41 @@ h1 {
   margin-bottom: 28px;
 }
 
+.routeMapSection {
+  margin-top: 0;
+}
+
+.countryRouteSummary {
+  background: #fffdfd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.countryRouteSummary div {
+  background: #fff8f8;
+  display: grid;
+  gap: 6px;
+  min-height: 82px;
+  padding: 14px;
+}
+
+.countryRouteSummary span,
+.routeHierarchyLabel {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.countryRouteSummary strong {
+  font-size: 18px;
+}
+
 .provinceMapCard {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -424,6 +469,61 @@ h1 {
 
 .provinceMapMeta {
   margin-top: 0;
+}
+
+.provinceZonePanel {
+  display: grid;
+  gap: 10px;
+}
+
+.provinceZonePanel strong {
+  font-size: 14px;
+}
+
+.provinceZoneList {
+  display: grid;
+  gap: 10px;
+}
+
+.provinceZoneItem {
+  background: #fffafb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.provinceZoneItem span {
+  font-weight: 700;
+}
+
+.provinceZoneItem small {
+  color: var(--muted);
+}
+
+.provinceZoneItem dl {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.provinceZoneItem dl div {
+  background: #fffdfd;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.provinceZoneItem dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.provinceZoneItem dd {
+  margin: 3px 0 0;
 }
 
 .accessGrid,
@@ -835,6 +935,10 @@ h1 {
     padding: 18px 20px;
   }
 
+  .sidebar nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .workspace {
     padding: 20px;
   }
@@ -858,6 +962,7 @@ h1 {
   .operations,
   .accessGrid,
   .catalogGrid,
+  .countryRouteSummary,
   .evidenceOpsSummary,
   .taskAdminLayout,
   .formGrid,
@@ -873,5 +978,9 @@ h1 {
 
   .evidencePreviewLayout {
     grid-template-columns: 1fr;
+  }
+
+  .provinceZoneItem dl {
+    grid-template-columns: 1fr 1fr;
   }
 }

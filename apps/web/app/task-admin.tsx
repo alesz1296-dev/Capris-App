@@ -383,7 +383,7 @@ export function TaskAdmin() {
               <input
                 value={taskForm.title}
                 onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder={textByLocale(locale, "Install launch display and capture before/after evidence", "Instalar exhibicion de lanzamiento y capturar evidencia antes y despues")}
+                placeholder={textByLocale(locale, "Install launch display and capture before/after evidence", "Instalar material de lanzamiento y capturar evidencia antes y despues")}
               />
             </label>
             <label>

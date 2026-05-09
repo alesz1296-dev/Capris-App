@@ -453,20 +453,20 @@ export function CatalogAdmin() {
       {profile && profile.user.role !== "admin" ? null : <div className="catalogAdminLayout">
         <CatalogPanel
           locale={locale}
-          title="Provinces"
-          description="Maintain Costa Rica province records used by zones, visits, and routing."
+          title={catalogText(locale, "Provinces", "Provincias")}
+          description={catalogText(locale, "Maintain Costa Rica province records used by zones, visits, and routing.", "Mantiene el catalogo de provincias usado por zonas, visitas y rutas.")}
           form={
             <FormGrid>
               <label>
-                <span>Name</span>
+                <span>{catalogText(locale, "Name", "Nombre")}</span>
                 <input
                   value={provinceForm.name}
                   onChange={(event) => setProvinceForm((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="Heredia"
+                  placeholder={catalogText(locale, "Heredia", "Heredia")}
                 />
               </label>
               <label>
-                <span>Code</span>
+                <span>{catalogText(locale, "Code", "Codigo")}</span>
                 <input
                   value={provinceForm.code}
                   onChange={(event) => setProvinceForm((current) => ({ ...current, code: event.target.value }))}
@@ -494,12 +494,12 @@ export function CatalogAdmin() {
 
         <CatalogPanel
           locale={locale}
-          title="Zones"
-          description="Group points of sale into operational route territories."
+          title={catalogText(locale, "Zones", "Zonas")}
+          description={catalogText(locale, "Group points of sale into operational route territories.", "Agrupa puntos de venta en territorios operativos de ruta.")}
           form={
             <FormGrid>
               <label>
-                <span>Province</span>
+                <span>{catalogText(locale, "Province", "Provincia")}</span>
                 <select
                   value={zoneForm.provinceId}
                   onChange={(event) => setZoneForm((current) => ({ ...current, provinceId: event.target.value }))}
@@ -512,15 +512,15 @@ export function CatalogAdmin() {
                 </select>
               </label>
               <label>
-                <span>Name</span>
+                <span>{catalogText(locale, "Name", "Nombre")}</span>
                 <input
                   value={zoneForm.name}
                   onChange={(event) => setZoneForm((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="East"
+                  placeholder={catalogText(locale, "East", "Este")}
                 />
               </label>
               <label>
-                <span>Code</span>
+                <span>{catalogText(locale, "Code", "Codigo")}</span>
                 <input
                   value={zoneForm.code}
                   onChange={(event) => setZoneForm((current) => ({ ...current, code: event.target.value }))}
@@ -543,12 +543,12 @@ export function CatalogAdmin() {
 
         <CatalogPanel
           locale={locale}
-          title="Clients"
-          description="Track retail clients and their operational contact points."
+          title={catalogText(locale, "Clients", "Clientes")}
+          description={catalogText(locale, "Track retail clients and their operational contact points.", "Da seguimiento a clientes y sus puntos de contacto operativos.")}
           form={
             <FormGrid>
               <label>
-                <span>Name</span>
+                <span>{catalogText(locale, "Name", "Nombre")}</span>
                 <input
                   value={clientForm.name}
                   onChange={(event) => setClientForm((current) => ({ ...current, name: event.target.value }))}
@@ -556,7 +556,7 @@ export function CatalogAdmin() {
                 />
               </label>
               <label>
-                <span>Code</span>
+                <span>{catalogText(locale, "Code", "Codigo")}</span>
                 <input
                   value={clientForm.code}
                   onChange={(event) => setClientForm((current) => ({ ...current, code: event.target.value }))}
@@ -564,7 +564,7 @@ export function CatalogAdmin() {
                 />
               </label>
               <label className="fullWidth">
-                <span>Contact email</span>
+                <span>{catalogText(locale, "Contact email", "Correo de contacto")}</span>
                 <input
                   value={clientForm.contactEmail}
                   onChange={(event) =>
@@ -589,12 +589,12 @@ export function CatalogAdmin() {
 
         <CatalogPanel
           locale={locale}
-          title="Points of sale"
-          description="Set the stores the field team will visit, report on, and validate by zone."
+          title={catalogText(locale, "Points of sale", "Puntos de venta")}
+          description={catalogText(locale, "Set the stores the field team will visit, report on, and validate by zone.", "Define las tiendas que el equipo de campo visitara, reportara y validara por zona.")}
           form={
             <FormGrid>
               <label>
-                <span>Province</span>
+                <span>{catalogText(locale, "Province", "Provincia")}</span>
                 <select
                   value={pointOfSaleForm.provinceId}
                   onChange={(event) =>
@@ -609,7 +609,7 @@ export function CatalogAdmin() {
                 </select>
               </label>
               <label>
-                <span>Zone</span>
+                <span>{catalogText(locale, "Zone", "Zona")}</span>
                 <select
                   value={pointOfSaleForm.zoneId}
                   onChange={(event) =>
@@ -624,7 +624,7 @@ export function CatalogAdmin() {
                 </select>
               </label>
               <label>
-                <span>Client</span>
+                <span>{catalogText(locale, "Client", "Cliente")}</span>
                 <select
                   value={pointOfSaleForm.clientId}
                   onChange={(event) =>
@@ -639,7 +639,7 @@ export function CatalogAdmin() {
                 </select>
               </label>
               <label>
-                <span>Name</span>
+                <span>{catalogText(locale, "Name", "Nombre")}</span>
                 <input
                   value={pointOfSaleForm.name}
                   onChange={(event) => setPointOfSaleForm((current) => ({ ...current, name: event.target.value }))}
@@ -647,7 +647,7 @@ export function CatalogAdmin() {
                 />
               </label>
               <label>
-                <span>Code</span>
+                <span>{catalogText(locale, "Code", "Codigo")}</span>
                 <input
                   value={pointOfSaleForm.code}
                   onChange={(event) => setPointOfSaleForm((current) => ({ ...current, code: event.target.value }))}
@@ -655,7 +655,7 @@ export function CatalogAdmin() {
                 />
               </label>
               <label className="fullWidth">
-                <span>Address</span>
+                <span>{catalogText(locale, "Address", "Direccion")}</span>
                 <input
                   value={pointOfSaleForm.address}
                   onChange={(event) =>
@@ -685,12 +685,12 @@ export function CatalogAdmin() {
 
         <CatalogPanel
           locale={locale}
-          title="Activity types"
-          description="Define the kind of field work being carried out at the point of sale."
+          title={catalogText(locale, "Activity types", "Tipos de actividad")}
+          description={catalogText(locale, "Define the kind of field work being carried out at the point of sale.", "Define el tipo de trabajo de campo que se realiza en el punto de venta.")}
           form={
             <FormGrid>
               <label>
-                <span>Name</span>
+                <span>{catalogText(locale, "Name", "Nombre")}</span>
                 <input
                   value={activityTypeForm.name}
                   onChange={(event) =>
@@ -700,7 +700,7 @@ export function CatalogAdmin() {
                 />
               </label>
               <label>
-                <span>Code</span>
+                <span>{catalogText(locale, "Code", "Codigo")}</span>
                 <input
                   value={activityTypeForm.code}
                   onChange={(event) =>
@@ -730,12 +730,12 @@ export function CatalogAdmin() {
 
         <CatalogPanel
           locale={locale}
-          title="Task types"
-          description="Define the assignment container supervisors schedule and field users execute."
+          title={catalogText(locale, "Task types", "Tipos de tarea")}
+          description={catalogText(locale, "Define the assignment container supervisors schedule and field users execute.", "Define el contenedor de asignacion que los supervisores programan y el equipo de campo ejecuta.")}
           form={
             <FormGrid>
               <label>
-                <span>Name</span>
+                <span>{catalogText(locale, "Name", "Nombre")}</span>
                 <input
                   value={taskTypeForm.name}
                   onChange={(event) => setTaskTypeForm((current) => ({ ...current, name: event.target.value }))}
@@ -743,7 +743,7 @@ export function CatalogAdmin() {
                 />
               </label>
               <label>
-                <span>Code</span>
+                <span>{catalogText(locale, "Code", "Codigo")}</span>
                 <input
                   value={taskTypeForm.code}
                   onChange={(event) => setTaskTypeForm((current) => ({ ...current, code: event.target.value }))}
@@ -766,13 +766,13 @@ export function CatalogAdmin() {
 
         <CatalogPanel
           locale={locale}
-          title="Workflow rules"
-          description="Configure evidence, GPS, comments, approvals, and consignation email behavior per execution combination."
+          title={catalogText(locale, "Workflow rules", "Reglas de flujo")}
+          description={catalogText(locale, "Configure evidence, GPS, comments, approvals, and consignation email behavior per execution combination.", "Configura evidencia, GPS, comentarios, aprobaciones y comportamiento del correo de consignacion por combinacion de ejecucion.")}
           form={
             <div className="workflowForm">
               <FormGrid>
                 <label>
-                  <span>Task type</span>
+                  <span>{catalogText(locale, "Task type", "Tipo de tarea")}</span>
                   <select
                     value={workflowForm.taskTypeId}
                     onChange={(event) =>
@@ -787,7 +787,7 @@ export function CatalogAdmin() {
                   </select>
                 </label>
                 <label>
-                  <span>Activity type</span>
+                  <span>{catalogText(locale, "Activity type", "Tipo de actividad")}</span>
                   <select
                     value={workflowForm.activityTypeId}
                     onChange={(event) =>
@@ -804,12 +804,12 @@ export function CatalogAdmin() {
               </FormGrid>
               <div className="toggleGrid">
                 <CheckboxRow
-                  label="Before photo"
+                  label={catalogText(locale, "Before photo", "Foto antes")}
                   checked={workflowForm.requiresBeforePhoto}
                   onChange={(checked) => setWorkflowForm((current) => ({ ...current, requiresBeforePhoto: checked }))}
                 />
                 <CheckboxRow
-                  label="After photo"
+                  label={catalogText(locale, "After photo", "Foto despues")}
                   checked={workflowForm.requiresAfterPhoto}
                   onChange={(checked) => setWorkflowForm((current) => ({ ...current, requiresAfterPhoto: checked }))}
                 />
@@ -819,19 +819,19 @@ export function CatalogAdmin() {
                   onChange={(checked) => setWorkflowForm((current) => ({ ...current, requiresGps: checked }))}
                 />
                 <CheckboxRow
-                  label="Comment"
+                  label={catalogText(locale, "Comment", "Comentario")}
                   checked={workflowForm.requiresComment}
                   onChange={(checked) => setWorkflowForm((current) => ({ ...current, requiresComment: checked }))}
                 />
                 <CheckboxRow
-                  label="Supervisor approval"
+                  label={catalogText(locale, "Supervisor approval", "Aprobacion de supervisor")}
                   checked={workflowForm.requiresSupervisorApproval}
                   onChange={(checked) =>
                     setWorkflowForm((current) => ({ ...current, requiresSupervisorApproval: checked }))
                   }
                 />
                 <CheckboxRow
-                  label="Consignation email"
+                  label={catalogText(locale, "Consignation email", "Correo de consignacion")}
                   checked={workflowForm.requiresConsignationEmail}
                   onChange={(checked) =>
                     setWorkflowForm((current) => ({ ...current, requiresConsignationEmail: checked }))
@@ -850,13 +850,13 @@ export function CatalogAdmin() {
           }
           actionDisabled={actionDisabled}
           items={workflowRules.map((rule) => {
-            const taskType = taskTypes.find((item) => item.id === rule.taskTypeId)?.name ?? "Any task";
+            const taskType = taskTypes.find((item) => item.id === rule.taskTypeId)?.name ?? catalogText(locale, "Any task", "Cualquier tarea");
             const activityType =
-              activityTypes.find((item) => item.id === rule.activityTypeId)?.name ?? "Any activity";
+              activityTypes.find((item) => item.id === rule.activityTypeId)?.name ?? catalogText(locale, "Any activity", "Cualquier actividad");
 
             return {
               id: rule.id,
-              label: `${taskType} / ${activityType} - photos:${rule.requiresBeforePhoto && rule.requiresAfterPhoto ? "required" : "partial"} gps:${rule.requiresGps ? "yes" : "no"}`,
+              label: `${taskType} / ${activityType} - ${catalogText(locale, "photos", "fotos")}:${rule.requiresBeforePhoto && rule.requiresAfterPhoto ? catalogText(locale, "required", "requeridas") : catalogText(locale, "partial", "parcial")} gps:${rule.requiresGps ? catalogText(locale, "yes", "si") : catalogText(locale, "no", "no")}`,
               onArchive: () => void archiveItem("workflow-rules", rule.id)
             };
           })}
