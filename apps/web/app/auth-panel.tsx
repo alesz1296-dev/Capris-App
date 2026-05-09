@@ -125,7 +125,7 @@ export function AuthPanel() {
   }, []);
 
   async function signInWithGoogle(idToken: string) {
-    setStatus(t(locale, "auth.signIn"));
+    setStatus(textByLocale(locale, "Signing in with Google...", "Iniciando sesión con Google..."));
     setError(null);
 
     try {
@@ -140,7 +140,7 @@ export function AuthPanel() {
 
       const payload = (await response.json()) as AuthResponse & { message?: string };
       if (!response.ok) {
-        throw new Error(payload.message ?? textByLocale(locale, "Google sign-in failed.", "Fallo el inicio de sesion con Google."));
+        throw new Error(payload.message ?? textByLocale(locale, "Google sign-in failed.", "Falló el inicio de sesión con Google."));
       }
 
       const nextTokens = {
@@ -154,17 +154,17 @@ export function AuthPanel() {
         session: payload.session
       });
       persistPreferredLocale(payload.user.locale);
-      setStatus(textByLocale(locale, "Signed in.", "Sesion iniciada."));
+      setStatus(textByLocale(locale, "Signed in.", "Sesión iniciada."));
       redirectFromLoginPage();
     } catch (signInError) {
-      setError(signInError instanceof Error ? signInError.message : textByLocale(locale, "Google sign-in failed.", "Fallo el inicio de sesion con Google."));
+      setError(formatAuthError(signInError, locale, textByLocale(locale, "Google sign-in failed.", "Falló el inicio de sesión con Google.")));
       setStatus(null);
     }
   }
 
   async function submitEmailAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus(authMode === "login" ? textByLocale(locale, "Signing in...", "Iniciando sesion...") : textByLocale(locale, "Creating account...", "Creando cuenta..."));
+    setStatus(authMode === "login" ? textByLocale(locale, "Signing in...", "Iniciando sesión...") : textByLocale(locale, "Creating account...", "Creando cuenta..."));
     setError(null);
 
     try {
@@ -183,7 +183,7 @@ export function AuthPanel() {
 
       const payload = (await response.json()) as AuthResponse & { message?: string };
       if (!response.ok) {
-        throw new Error(payload.message ?? textByLocale(locale, "Email sign-in failed.", "Fallo el inicio de sesion con correo."));
+        throw new Error(payload.message ?? textByLocale(locale, "Email sign-in failed.", "Falló el inicio de sesión con correo."));
       }
 
       const nextTokens = {
@@ -198,10 +198,10 @@ export function AuthPanel() {
       });
       persistPreferredLocale(payload.user.locale);
       setEmailForm({ name: "", email: "", password: "" });
-      setStatus(authMode === "login" ? textByLocale(locale, "Signed in.", "Sesion iniciada.") : textByLocale(locale, "Account created.", "Cuenta creada."));
+      setStatus(authMode === "login" ? textByLocale(locale, "Signed in.", "Sesión iniciada.") : textByLocale(locale, "Account created.", "Cuenta creada."));
       redirectFromLoginPage();
     } catch (emailAuthError) {
-      setError(emailAuthError instanceof Error ? emailAuthError.message : textByLocale(locale, "Email sign-in failed.", "Fallo el inicio de sesion con correo."));
+      setError(formatAuthError(emailAuthError, locale, textByLocale(locale, "Email sign-in failed.", "Falló el inicio de sesión con correo.")));
       setStatus(null);
     }
   }
@@ -237,7 +237,7 @@ export function AuthPanel() {
 
       setProfile(payload);
       persistPreferredLocale(payload.user.locale);
-      setStatus(textByLocale(locale, "Signed in and active.", "Sesion activa."));
+      setStatus(textByLocale(locale, "Signed in and active.", "Sesión activa."));
     } catch (profileError) {
       setError(profileError instanceof Error ? profileError.message : textByLocale(locale, "Unable to load profile.", "No se pudo cargar el perfil."));
     }
@@ -246,7 +246,7 @@ export function AuthPanel() {
   async function signOut() {
     const currentTokens = tokens;
     clearSessionState();
-    setStatus(textByLocale(locale, "Signed out.", "Sesion cerrada."));
+    setStatus(textByLocale(locale, "Signed out.", "Sesión cerrada."));
 
     if (!currentTokens) {
       return;
@@ -296,9 +296,9 @@ export function AuthPanel() {
       ) : (
         <div className="authSignInBlock">
           <p className="sectionDescription">
-            {textByLocale(locale, "Sign in with email or create a field user account.", "Inicia sesion con correo o crea una cuenta de usuario de campo.")}
+            {textByLocale(locale, "Sign in with email or create a field user account.", "Inicia sesión con correo o crea una cuenta de usuario de campo.")}
           </p>
-          <div className="authModeSwitch" aria-label={textByLocale(locale, "Authentication mode", "Modo de autenticacion")}>
+          <div className="authModeSwitch" aria-label={textByLocale(locale, "Authentication mode", "Modo de autenticación")}>
             <button aria-pressed={authMode === "login"} type="button" onClick={() => setAuthMode("login")}>
               {textByLocale(locale, "Login", "Ingresar")}
             </button>
@@ -330,7 +330,7 @@ export function AuthPanel() {
               />
             </label>
             <label>
-              <span>{textByLocale(locale, "Password", "Contrasena")}</span>
+              <span>{textByLocale(locale, "Password", "Contraseña")}</span>
               <input
                 autoComplete={authMode === "login" ? "current-password" : "new-password"}
                 minLength={8}
@@ -368,5 +368,17 @@ function redirectFromLoginPage() {
   const next = params.get("next");
   const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
   window.location.replace(target);
+}
+
+function formatAuthError(error: unknown, locale: "en" | "es", fallback: string) {
+  if (error instanceof TypeError && /fetch/i.test(error.message)) {
+    return textByLocale(
+      locale,
+      `Could not reach the API at ${API_BASE_URL}. Check NEXT_PUBLIC_API_BASE_URL on the Railway web service and confirm the API is deployed.`,
+      `No se pudo conectar con la API en ${API_BASE_URL}. Revisa NEXT_PUBLIC_API_BASE_URL en el servicio web de Railway y confirma que la API esté desplegada.`
+    );
+  }
+
+  return error instanceof Error ? error.message : fallback;
 }
 

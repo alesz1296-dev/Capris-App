@@ -198,7 +198,7 @@ export function CatalogAdmin() {
 
       const profileResponse = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" });
       if (!profileResponse.ok) {
-        throw new Error(textByLocale(locale, `Auth profile failed with status ${profileResponse.status}.`, `El perfil de autenticacion fallo con estado ${profileResponse.status}.`));
+        throw new Error(textByLocale(locale, `Auth profile failed with status ${profileResponse.status}.`, `El perfil de autenticación falló con estado ${profileResponse.status}.`));
       }
 
       const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
@@ -430,8 +430,8 @@ export function CatalogAdmin() {
   return (
     <section className="catalogSection" id="routes">
       <div className="sectionHeading">
-        <p className="eyebrow">{textByLocale(locale, "Catalogs", "Catalogos")}</p>
-        <h2>{textByLocale(locale, "Catalog admin forms for geography, customers, and execution rules", "Formularios de catalogos para geografia, clientes y reglas de ejecucion")}</h2>
+        <p className="eyebrow">{textByLocale(locale, "Catalogs", "Catálogos")}</p>
+        <h2>{textByLocale(locale, "Catalog admin forms for geography, customers, and execution rules", "Formularios de catálogos para geografía, clientes y reglas de ejecución")}</h2>
         <p className="sectionDescription">
           {textByLocale(locale, "This surface now uses the live catalog API. Create and archive actions refresh from durable backend data.", "Esta pantalla usa la API real de catalogos. Las acciones de crear y archivar se actualizan desde datos persistentes del backend.")}
         </p>

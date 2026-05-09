@@ -216,11 +216,11 @@ export const en = {
   "adminConfig.retentionPhotoDays": "Photo retention (days)",
   "adminConfig.retentionGpsDays": "GPS retention (days)",
   "adminConfig.retentionAuditDays": "Audit retention (days)",
-  "auth.signIn": "Sign in with Google",
+  "auth.signIn": "Sign in to Capris",
   "auth.signOut": "Sign out",
   "auth.signedInAs": "Signed in as",
   "auth.sessionActive": "Session active",
-  "auth.loginRequired": "Google sign-in is required to access authenticated features.",
+  "auth.loginRequired": "Sign-in is required to access authenticated features.",
   "auth.googleUnavailable": "Google sign-in is not configured for this environment.",
   "auth.refreshSession": "Refresh session"
 } as const;
