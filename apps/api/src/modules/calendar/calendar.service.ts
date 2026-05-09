@@ -33,23 +33,57 @@ export class CalendarService {
     private readonly identityAccessService: IdentityAccessService
   ) {}
 
-  async getCalendarBootstrap(query: CalendarQueryInput): Promise<CalendarBootstrap> {
+  async getCalendarBootstrap(query: CalendarQueryInput, actor?: AuthJwtPayload): Promise<CalendarBootstrap> {
     const window = this.buildWindow(query);
     const prisma = this.prisma as unknown as CalendarPrisma;
+    const organizationId = actor?.organizationId;
+    const isPersonalCalendar = actor?.role === "field_user";
 
     const [agendaEvents, tasks, visits, clientRequests, users, teams] = await Promise.all([
       prisma.agendaEvent.findMany({
-        where: { startAt: { gte: window.startDate, lte: window.endDate } },
+        where: {
+          organizationId,
+          startAt: { gte: window.startDate, lte: window.endDate },
+          ...(isPersonalCalendar
+            ? {
+                OR: [
+                  { ownerUserId: actor.sub },
+                  { scopeType: "user", scopeReferenceId: actor.sub }
+                ]
+              }
+            : {})
+        },
         orderBy: [{ startAt: "asc" }, { createdAt: "asc" }]
       }),
-      prisma.task.findMany({ orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }] }),
-      prisma.visit.findMany({ orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }] }),
-      prisma.clientRequest.findMany({ orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }] }),
+      prisma.task.findMany({
+        where: {
+          organizationId,
+          ...(isPersonalCalendar ? { assigneeId: actor.sub } : {})
+        },
+        orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
+      }),
+      prisma.visit.findMany({
+        where: {
+          organizationId,
+          ...(isPersonalCalendar ? { assigneeId: actor.sub } : {})
+        },
+        orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
+      }),
+      prisma.clientRequest.findMany({
+        where: {
+          organizationId,
+          ...(isPersonalCalendar ? { ownerUserId: actor.sub } : {})
+        },
+        orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }]
+      }),
       this.identityAccessService.getUsers(),
-      prisma.team.findMany({ where: { active: true }, orderBy: [{ name: "asc" }] })
+      prisma.team.findMany({ where: { organizationId, active: true }, orderBy: [{ name: "asc" }] })
     ]);
 
-    const usersWithoutPermissions = users.map(({ permissions, ...user }: any) => user);
+    const usersWithoutPermissions = users
+      .map(({ permissions, ...user }: any) => user)
+      .filter((user: any) => !organizationId || user.organizationId === organizationId)
+      .filter((user: any) => !isPersonalCalendar || user.id === actor.sub);
     const entries = [
       ...agendaEvents.map((item: any) => this.toAgendaEntry(item)),
       ...tasks.filter((item: any) => this.isDateInWindow(item.scheduledFor, window)).map((item: any) => this.toTaskEntry(item)),

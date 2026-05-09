@@ -22,8 +22,8 @@ export class CalendarController {
 
   @Get("bootstrap")
   @RequirePermissions("calendar.view")
-  getBootstrap(@Query() query: CalendarQueryInput) {
-    return this.service.getCalendarBootstrap(parseInput(calendarQuerySchema, query));
+  getBootstrap(@Query() query: CalendarQueryInput, @Req() request: AuthenticatedRequest) {
+    return this.service.getCalendarBootstrap(parseInput(calendarQuerySchema, query), this.actorAccessService.getActor(request));
   }
 
   @Get("agenda-events")
