@@ -19,6 +19,7 @@ body {
   background: var(--surface);
   color: var(--ink);
   font-family: "Aptos", "Segoe UI", sans-serif;
+  min-height: 100vh;
 }
 
 a {
@@ -76,6 +77,29 @@ a {
   display: grid;
   gap: 12px;
   justify-items: end;
+}
+
+.installPrompt {
+  align-items: center;
+  background: linear-gradient(90deg, rgba(197, 51, 63, 0.08) 0%, rgba(255, 255, 255, 0.95) 100%);
+  border: 1px solid #efccd2;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin: 18px 0 0;
+  padding: 14px 16px;
+}
+
+.installPromptTitle {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.installPromptCopy {
+  color: var(--muted);
+  margin-bottom: 0;
 }
 
 .eyebrow {
@@ -684,6 +708,26 @@ h1 {
   .sidebar {
     border-bottom: 1px solid var(--line);
     border-right: 0;
+    padding: 18px 20px;
+  }
+
+  .workspace {
+    padding: 20px;
+  }
+
+  .topbar,
+  .installPrompt,
+  .authIdentity {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbarControls {
+    justify-items: stretch;
+  }
+
+  .authPanel {
+    min-width: 0;
   }
 
   .metrics,
