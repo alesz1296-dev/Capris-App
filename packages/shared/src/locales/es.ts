@@ -14,7 +14,7 @@ export const es = {
   "role.supervisor": "Supervisor",
   "role.supervisor.description": "Supervision por alcance, asignaciones, revision de evidencia y manejo de excepciones.",
   "role.field_user": "Usuario de Campo",
-  "role.field_user.description": "Ejecucion en campo asignada, seguimiento de visitas, captura de evidencia y revision de consignaciones.",
+  "role.field_user.description": "Ejecucion en campo asignada, seguimiento de visitas, captura de evidencia y actualizaciones de ruta.",
   "status.pending": "Pendiente",
   "status.in_progress": "En proceso",
   "status.completed": "Finalizado",

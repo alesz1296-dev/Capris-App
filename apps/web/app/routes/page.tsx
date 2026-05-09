@@ -1,4 +1,6 @@
 import { AppShell } from "../app-shell";
+import { EvidenceAdmin } from "../evidence-admin";
+import { ExceptionsAdmin } from "../exceptions-admin";
 import { StaticCostaRicaMap } from "../province-operations-map";
 import { SupervisorRouteWorkspace } from "../supervisor-route-workspace";
 import { VisitAdmin } from "../visit-admin";
@@ -13,6 +15,22 @@ export default function RoutesPage() {
         es: "Ejecuta paradas de ruta, entradas, salidas y trazas GPS sin mezclarlas con todo el panel principal."
       }}
     >
+      <section className="routeCommandCenter">
+        <div>
+          <p className="eyebrow">Ruta diaria</p>
+          <h2>Mapa, visitas, evidencia, excepciones y GPS en un solo lugar</h2>
+          <p>
+            Esta pagina es la base operativa para usuarios de campo. Supervisores y admins tambien ven herramientas de planeacion cuando su rol lo permite.
+          </p>
+        </div>
+        <nav aria-label="Herramientas de ruta">
+          <a href="#route-map">Mapa</a>
+          <a href="#routes">Visitas y GPS</a>
+          <a href="#route-evidence">Evidencia</a>
+          <a href="#route-exceptions">Excepciones</a>
+        </nav>
+      </section>
+
       <section className="catalogSection routeWorkflowSection">
         <div className="sectionHeading">
           <p className="eyebrow">Flujo diario de ruta</p>
@@ -37,7 +55,7 @@ export default function RoutesPage() {
             <h3>Capturar evidencia</h3>
             <p>Sube fotos, revisa coordenadas GPS, estado de carga y recuperacion de material capturado durante la ruta.</p>
             <div className="taskCardActions">
-              <a className="secondaryAction routeWorkflowLink" href="/evidence">
+              <a className="secondaryAction routeWorkflowLink" href="#route-evidence">
                 Abrir evidencia
               </a>
             </div>
@@ -47,14 +65,14 @@ export default function RoutesPage() {
             <h3>Resolver excepciones</h3>
             <p>Atiende bloqueos de campo, faltantes de GPS, revisiones y controles de acceso del dispositivo desde el contexto operativo.</p>
             <div className="taskCardActions">
-              <a className="secondaryAction routeWorkflowLink" href="/exceptions">
+              <a className="secondaryAction routeWorkflowLink" href="#route-exceptions">
                 Abrir excepciones
               </a>
             </div>
           </article>
         </div>
       </section>
-      <section className="catalogSection routeMapSection">
+      <section className="catalogSection routeMapSection" id="route-map">
         <div className="sectionHeading">
           <p className="eyebrow">Costa Rica &gt; Provincia &gt; Zona</p>
           <h2>Mapa base de rutas</h2>
@@ -66,6 +84,24 @@ export default function RoutesPage() {
       </section>
       <SupervisorRouteWorkspace />
       <VisitAdmin />
+      <section className="routeEmbeddedWorkspace" id="route-evidence">
+        <details open>
+          <summary>
+            <span>Evidencia de ruta</span>
+            <small>Fotos, GPS, estado de carga y recuperacion</small>
+          </summary>
+          <EvidenceAdmin />
+        </details>
+      </section>
+      <section className="routeEmbeddedWorkspace" id="route-exceptions">
+        <details>
+          <summary>
+            <span>Excepciones de ruta</span>
+            <small>GPS faltante, tienda cerrada, carga fallida y bloqueos</small>
+          </summary>
+          <ExceptionsAdmin />
+        </details>
+      </section>
     </AppShell>
   );
 }

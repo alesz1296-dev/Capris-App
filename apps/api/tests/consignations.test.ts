@@ -86,6 +86,76 @@ async function testPrepareReferenceValidation() {
   );
 }
 
+async function testPrepareDefaultsToTaskAssignee() {
+  const service = new ConsignationsService(
+    {
+      task: {
+        findFirst: async () => ({
+          id: "task_launch_display",
+          organizationId: "org_capris",
+          assigneeId: "user_field_001",
+          provinceId: "province_san_jose",
+          zoneId: "zone_central",
+          clientId: "client_capris"
+        })
+      },
+      user: {
+        findFirst: async () => {
+          throw new Error("Explicit user lookup should not run when userId is omitted.");
+        }
+      },
+      visit: {
+        findFirst: async () => null
+      },
+      consignation: {
+        create: async ({ data }: { data: Record<string, unknown> }) => ({
+          id: "consignation_created",
+          organizationId: data.organizationId,
+          taskId: data.taskId,
+          userId: data.userId,
+          visitId: null,
+          note: data.note ?? null,
+          status: data.status,
+          preparedAt: data.preparedAt,
+          reviewedAt: null,
+          recipientEmails: "",
+          emailSubject: null,
+          emailBody: null,
+          beforeEvidenceId: null,
+          afterEvidenceId: null,
+          sendFailureReason: null,
+          failedAt: null,
+          sentAt: null
+        })
+      }
+    } as never,
+    {
+      assertOperationAccess: async () => undefined
+    } as never,
+    auditServiceStub as never,
+    emailServiceStub as never,
+    objectStorageStub as never,
+    replayProtectionStub as never
+  );
+
+  const result = await service.prepareConsignation(
+    {
+      organizationId: "org_capris",
+      taskId: "task_launch_display",
+      preparedAt: "2026-05-08T18:00:00.000Z"
+    },
+    {
+      organizationId: "org_capris",
+      sub: "user_supervisor_001",
+      email: "supervisor@example.com",
+      role: "supervisor",
+      locale: "es"
+    } as never
+  );
+
+  assert.equal(result.item.userId, "user_field_001");
+}
+
 async function testSendAlreadySentValidation() {
   const service = new ConsignationsService(
     {
@@ -318,6 +388,7 @@ async function testSendConsignationMarksSentWhenProviderSucceeds() {
 async function main() {
   await testPrepareValidation();
   await testPrepareReferenceValidation();
+  await testPrepareDefaultsToTaskAssignee();
   await testSendAlreadySentValidation();
   await testReviewRequiresUploadedBeforeEvidence();
   await testFailSentConsignationValidation();

@@ -24,8 +24,8 @@ export class ConsignationsController {
 
   @Get()
   @RequirePermissions("consignations.view")
-  getConsignations() {
-    return this.service.getConsignations();
+  getConsignations(@Req() request: AuthenticatedRequest) {
+    return this.service.getConsignations(this.actorAccessService.getActor(request));
   }
 
   @Post("prepare")
@@ -35,8 +35,7 @@ export class ConsignationsController {
     return this.service.prepareConsignation(
       parseInput(prepareConsignationSchema, {
         ...input,
-        organizationId: actor.organizationId,
-        userId: actor.sub
+        organizationId: actor.organizationId
       }),
       actor
     );

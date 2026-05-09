@@ -94,7 +94,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "notes.view",
     "notes.manage",
     "consignations.view",
-    "consignations.review_send",
     "activities.view",
     "activities.manage",
     "exhibitions.view",

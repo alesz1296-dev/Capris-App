@@ -38,6 +38,8 @@ async function testSupervisorScopeAccess() {
   assert.equal(allowed, true);
   assert.equal(denied, false);
   assert.equal(hasPermission("field_user", "catalogs.manage"), false);
+  assert.equal(hasPermission("field_user", "consignations.review_send"), false);
+  assert.equal(hasPermission("supervisor", "consignations.review_send"), true);
 }
 
 async function main() {

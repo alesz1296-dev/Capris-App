@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { REQUIRED_PERMISSIONS_KEY } from "../src/modules/auth/require-permission.decorator";
 import { ActivitiesController } from "../src/modules/activations/activations.controller";
 import { CalendarController } from "../src/modules/calendar/calendar.controller";
+import { CatalogsController } from "../src/modules/catalogs/catalogs.controller";
 import { ClientRequestsController } from "../src/modules/client-requests/client-requests.controller";
 import { ConsignationsController } from "../src/modules/consignations/consignations.controller";
 import { EvidenceController } from "../src/modules/evidence/evidence.controller";
@@ -50,7 +51,12 @@ const protectedDomainRoutes: ControllerMethod[] = [
   { controller: CalendarController, method: "getBootstrap", permissions: ["calendar.view"] },
   { controller: CalendarController, method: "getAgendaEvents", permissions: ["calendar.view"] },
   { controller: CalendarController, method: "createAgendaEvent", permissions: ["calendar.manage"] },
-  { controller: CalendarController, method: "updateAgendaEvent", permissions: ["calendar.manage"] }
+  { controller: CalendarController, method: "updateAgendaEvent", permissions: ["calendar.manage"] },
+  { controller: CatalogsController, method: "getPointsOfSale", permissions: ["tasks.assign"] },
+  { controller: CatalogsController, method: "getPointOfSale", permissions: ["tasks.assign"] },
+  { controller: CatalogsController, method: "createPointOfSale", permissions: ["tasks.assign"] },
+  { controller: CatalogsController, method: "updatePointOfSale", permissions: ["tasks.assign"] },
+  { controller: CatalogsController, method: "archivePointOfSale", permissions: ["tasks.assign"] }
 ];
 
 function readRequiredPermissions(route: ControllerMethod) {

@@ -194,6 +194,17 @@ export function AgendaAdmin() {
   const activityTypes = taskBootstrap?.activityTypes ?? [];
   const taskTypes = taskBootstrap?.taskTypes ?? [];
   const tasks = taskBootstrap?.tasks ?? requestBootstrap?.tasks ?? [];
+  const routePointOfSaleOptions = useMemo(
+    () =>
+      pointsOfSale.filter(
+        (pointOfSale) =>
+          pointOfSale.active &&
+          pointOfSale.provinceId === quickTaskForm.provinceId &&
+          pointOfSale.zoneId === quickTaskForm.zoneId &&
+          (!quickTaskForm.clientId || pointOfSale.clientId === quickTaskForm.clientId)
+      ),
+    [pointsOfSale, quickTaskForm.clientId, quickTaskForm.provinceId, quickTaskForm.zoneId]
+  );
 
   useEffect(() => {
     void loadAgendaData();
@@ -290,36 +301,38 @@ export function AgendaAdmin() {
 
   async function loadAgendaData() {
     const calendarFallback = textByLocale(locale, "Unable to load calendar data.", "No se pudieron cargar los datos del calendario.");
-    const requestFallback = textByLocale(locale, "Unable to load client requests.", "No se pudieron cargar las solicitudes de cliente.");
     const sessionFallback = textByLocale(locale, "Unable to load agenda data.", "No se pudieron cargar los datos de agenda.");
     try {
       setLoading(true);
       setError(null);
 
-      const [profileResponse, calendarResponse, requestsResponse, tasksResponse] = await Promise.all([
-        authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" }),
-        authenticatedFetch(`${API_BASE_URL}/calendar/bootstrap?view=${view}&date=${anchorDate}`, { cache: "no-store" }),
-        authenticatedFetch(`${API_BASE_URL}/client-requests/bootstrap`, { cache: "no-store" }),
-        authenticatedFetch(`${API_BASE_URL}/tasks/bootstrap`, { cache: "no-store" })
-      ]);
-
+      const profileResponse = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" });
       if (!profileResponse.ok) {
         throw new Error(await extractErrorMessage(profileResponse, sessionFallback));
       }
+
+      const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
+      const planner = profilePayload.user.role === "admin" || profilePayload.user.role === "supervisor";
+
+      const [calendarResponse, requestsResponse, tasksResponse] = await Promise.all([
+        authenticatedFetch(`${API_BASE_URL}/calendar/bootstrap?view=${view}&date=${anchorDate}`, { cache: "no-store" }),
+        planner ? authenticatedFetch(`${API_BASE_URL}/client-requests/bootstrap`, { cache: "no-store" }) : Promise.resolve(null),
+        authenticatedFetch(`${API_BASE_URL}/tasks/bootstrap`, { cache: "no-store" })
+      ]);
+
       if (!calendarResponse.ok) {
         throw new Error(await extractErrorMessage(calendarResponse, calendarFallback));
       }
-      if (!requestsResponse.ok) {
-        throw new Error(await extractErrorMessage(requestsResponse, requestFallback));
+      if (requestsResponse && !requestsResponse.ok) {
+        throw new Error(await extractErrorMessage(requestsResponse, textByLocale(locale, "Unable to load client requests.", "No se pudieron cargar las solicitudes de cliente.")));
       }
       if (!tasksResponse.ok) {
         throw new Error(await extractErrorMessage(tasksResponse, sessionFallback));
       }
 
-      const [profilePayload, calendarPayload, requestsPayload, tasksPayload] = await Promise.all([
-        profileResponse.json() as Promise<AuthProfileResponse>,
+      const [calendarPayload, requestsPayload, tasksPayload] = await Promise.all([
         calendarResponse.json() as Promise<CalendarBootstrap>,
-        requestsResponse.json() as Promise<ClientRequestBootstrap>,
+        requestsResponse ? (requestsResponse.json() as Promise<ClientRequestBootstrap>) : Promise.resolve(null),
         tasksResponse.json() as Promise<TaskBootstrap>
       ]);
 
@@ -364,7 +377,7 @@ export function AgendaAdmin() {
       provinceId: quickTaskForm.provinceId,
       zoneId: quickTaskForm.zoneId,
       clientId: quickTaskForm.clientId || undefined,
-      pointOfSaleId: quickTaskForm.pointOfSaleId || undefined,
+      pointOfSaleId: quickTaskForm.pointOfSaleId,
       activityTypeId: quickTaskForm.activityTypeId,
       taskTypeId: quickTaskForm.taskTypeId,
       priority: quickTaskForm.priority,
@@ -604,12 +617,13 @@ export function AgendaAdmin() {
             <label>
               <span>{textByLocale(locale, "Point of sale", "Punto de venta")}</span>
               <select value={quickTaskForm.pointOfSaleId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, pointOfSaleId: event.target.value }))}>
-                {pointsOfSale
-                  .filter((pointOfSale) => pointOfSale.active && pointOfSale.provinceId === quickTaskForm.provinceId && pointOfSale.zoneId === quickTaskForm.zoneId)
-                  .map((pointOfSale) => (
+                {routePointOfSaleOptions.map((pointOfSale) => (
                     <option key={pointOfSale.id} value={pointOfSale.id}>{pointOfSale.name}</option>
                   ))}
               </select>
+              {!routePointOfSaleOptions.length ? (
+                <small className="fieldHint">{textByLocale(locale, "Add a route stop first before assigning this work.", "Primero agrega una parada de ruta antes de asignar este trabajo.")}</small>
+              ) : null}
             </label>
             <label>
               <span>{textByLocale(locale, "Client", "Cliente")}</span>
@@ -637,7 +651,7 @@ export function AgendaAdmin() {
             </label>
           </div>
           <div className="taskFormActions">
-            <button className="primaryAction" disabled={loading || isPending || !quickTaskForm.title || !quickTaskForm.assigneeId || !quickTaskForm.zoneId || !quickTaskForm.activityTypeId || !quickTaskForm.taskTypeId} type="button" onClick={() => void createQuickTask()}>
+            <button className="primaryAction" disabled={loading || isPending || !quickTaskForm.title || !quickTaskForm.assigneeId || !quickTaskForm.zoneId || !quickTaskForm.pointOfSaleId || !quickTaskForm.activityTypeId || !quickTaskForm.taskTypeId} type="button" onClick={() => void createQuickTask()}>
               {textByLocale(locale, "Assign work", "Asignar trabajo")}
             </button>
           </div>

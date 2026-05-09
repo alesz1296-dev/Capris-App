@@ -1,84 +1,87 @@
 # Capris App
 
-Bilingual field operations platform for Costa Rica, built for field teams, supervisors, and admins.
+Bilingual field-operations platform for Costa Rica, built for field users, supervisors, and admins.
 
-Capris combines a mobile field workflow with a web operations console for task execution, visits, evidence capture, consignations, client follow-up, dashboards, reports, imports, and operational controls.
+Capris combines a Railway-deployable Next.js PWA with a NestJS API for task assignment, route execution, visits, GPS-backed evidence, activities, exhibitions, consignations, client follow-up, dashboards, reports, imports, and access control.
 
 ## Overview
 
-Capris is designed for teams that need to manage field work across provinces, zones, clients, and points of sale with:
+Capris is designed for teams that manage field work across Costa Rican provinces, operational zones, clients, and points of sale.
 
-- English and Spanish support
-- online and offline field execution
-- mandatory evidence workflows
-- visit check-in/check-out
-- activities and exhibitions tracking
-- consignation review and delivery flow
-- supervisor/admin dashboards and reporting
-- imports, retention settings, reminder rules, and system-health visibility
+- Field users execute assigned route work, visits, GPS check-ins/check-outs, evidence capture, activities, and exhibitions.
+- Supervisors plan route work by person and date, add shared route stops/stores, prepare consignations, create agenda events, and review assigned operational progress.
+- Admins manage full platform access, reports, imports, configuration, and organization-wide operations.
 
-## Current Repo Status
+## Current Functionality
 
-This repo already includes a substantial working foundation across API, web, mobile, offline, auth, permissions, reporting, and admin tooling.
-
-Implemented at a high level:
-
-- Google sign-in layered over JWT sessions
-- global JWT enforcement plus permission-based backend protection
-- organization, role, and supervisor-scope model
-- task, visit, evidence, activity, exhibition, consignation, exception, agenda, and client-request flows
-- offline mobile queue with encrypted payload handling
-- signed media delivery
-- dashboards, CSV exports, and immutable report snapshots
-- CSV imports and admin configuration
-- audit, email, notification, and replay-protection foundations
-- Docker for local Postgres + API + web
-- Railway as the default backend staging target
+- Email/password login and account creation backed by JWT access/refresh sessions.
+- Optional Google auth placeholders remain available for a later Google OAuth rollout.
+- Protected web app shell: users must authenticate before entering the app.
+- Role-aware navigation: privileged access/admin surfaces are hidden from field users.
+- Task assignment by supervisor/admin with required province, zone, and point-of-sale/store linkage.
+- Personal calendar for field users and shared/team calendar planning for supervisors/admins.
+- Route page with Costa Rica province map, route tools, shared route stop creation, consignation preparation, and visit execution.
+- Consignation review/send/fail is restricted to supervisor/admin permissions.
+- Field users can view their scoped consignations but cannot approve/send them.
+- PostgreSQL + Prisma persistence with Railway as the main staging/deployment path.
+- Spanish-first UX pass is in progress across the web app.
 
 ## Monorepo Structure
 
-- `apps/api`: NestJS backend
-- `apps/web`: Next.js admin/supervisor console
-- `apps/mobile`: Expo React Native field app
-- `packages/shared`: shared contracts, enums, permissions, sync types, validation, and i18n resources
+- `apps/api`: NestJS backend, Prisma schema, API modules, tests, Railway API config.
+- `apps/web`: Next.js PWA for admin/supervisor/field web workflows.
+- `apps/mobile`: Expo React Native field app prototype and offline workflow foundation.
+- `packages/shared`: shared contracts, enums, permissions, validation, sync types, and i18n resources.
 
 ## Tech Stack
 
-- Mobile: React Native + Expo
-- Web: Next.js
+- Web/PWA: Next.js 15
 - API: NestJS
 - Database: PostgreSQL + Prisma
-- Mobile offline store: SQLite
-- Storage: local adapter + S3-compatible object storage
-- Auth: Google sign-in + JWT access/refresh sessions
-- Email: Postmark or SendGrid
-- Maps: Mapbox
-- Notifications: Firebase Cloud Messaging
+- Auth: JWT access/refresh sessions, email/password login, future Google OAuth support
+- Mobile prototype: React Native + Expo
+- Offline foundation: SQLite/mobile queue contracts
+- Storage: local adapter plus S3-compatible object storage hooks
+- Email: Postmark or SendGrid hooks
+- Maps/GPS: Costa Rica province geometry in web routes, GPS capture support in field flows, Mapbox token reserved for future tile/polygon layers
 - Containers: Docker + Docker Compose
-- Staging: Railway
+- Deployment: Railway
 
 ## Architecture Summary
 
-Capris follows a monorepo architecture with a shared domain package.
+`packages/shared` is the contract layer used by the API, web app, and mobile app. The API remains the source of truth for permissions, actor scope, persistence, audit logs, replay protection, signed media, reporting, and database access.
 
-- `packages/shared` defines the canonical contracts used across API, web, and mobile.
-- `apps/api` is the system source of truth for permissions, scope checks, persistence, auditability, signed media, reporting, and replay-safe offline mutation handling.
-- `apps/web` focuses on supervisor/admin operations: catalogs, tasks, visits, evidence review, activities, exceptions, reports, imports, admin config, and dashboards.
-- `apps/mobile` focuses on route-day execution: sign-in, task/visit flows, evidence capture, activities, exhibitions, consignations, and offline sync.
+The web app is currently the primary deployed field/admin experience. It supports authenticated PWA access from desktop and mobile browsers through Railway. The Expo mobile app remains useful as a prototype/offline reference, but the current deployment path favors the Railway-hosted PWA.
 
-## Authentication And Security
+## Roles And Permissions
 
-The current auth/security model includes:
+- `admin`: full organization-level platform control.
+- `supervisor`: scoped planning and operational control, including task assignment, calendar management, route stop creation, consignation review/send, evidence visibility, reports, and exceptions.
+- `field_user`: personal route execution, visit performance, evidence upload, notes, activities, exhibitions, calendar visibility, and scoped consignation visibility.
 
-- Google identity exchange into Capris JWT sessions
-- refresh-token-backed device sessions
-- global JWT route protection by default
-- permission-based controller protection
-- actor-derived ownership and scope checks
-- supervisor read-side scope filtering
-- signed media URLs for protected media access
-- durable audit, email, and notification logs
-- encrypted mobile offline payload handling
+Important security behavior:
+
+- The web app requires a valid JWT before loading protected pages.
+- The API derives organization ownership from the authenticated actor where possible.
+- Field users only see their personal calendar and scoped operational records.
+- Field users no longer have `consignations.review_send`; consignation approval/delivery is supervisor/admin-only.
+
+## Route And Agenda Workflow
+
+Supervisor/admin planning flow:
+
+1. Add or select a shared point of sale/store under `Rutas`.
+2. Assign work to a specific user and day from `Agenda` or the task assignment surface.
+3. Each route task must include province, zone, and point of sale/store.
+4. Prepare consignations from assigned route tasks when needed.
+5. Use shared calendar events for team meetings, activation windows, blockers, and follow-up.
+
+Field-user flow:
+
+1. Log in with email/password.
+2. Open the assigned work calendar or route page.
+3. Execute visits, GPS check-in/check-out, evidence capture, activities, and exhibitions.
+4. View scoped consignations prepared for their assigned work.
 
 ## Local Development
 
@@ -88,7 +91,7 @@ Install dependencies from the repo root:
 npm install
 ```
 
-Run the local apps:
+Run local apps:
 
 ```bash
 npm run dev:api
@@ -96,31 +99,39 @@ npm run dev:web
 npm run dev:mobile
 ```
 
-Default local API target:
+Default local URLs:
 
-- `http://localhost:4000/api/v1`
-
-Default local web target:
-
-- `http://localhost:3000`
+- API: `http://localhost:4000/api/v1`
+- Web: `http://localhost:3000`
 
 ## Database
 
-The project is now Postgres-first.
+The project is PostgreSQL-first.
 
-Default local connection target:
+Local example:
 
 ```env
-DATABASE_URL=postgresql://<db_user>:<db_password>@<host>:5432/capris_app?schema=public
+DATABASE_URL=postgresql://<db_user>:<db_password>@localhost:5432/capris_app?schema=public
 ```
 
-Useful API database scripts:
+Useful API database commands:
 
 ```bash
 npm --workspace apps/api run db:generate
 npm --workspace apps/api run db:push
 npm --workspace apps/api run db:seed
+npm --workspace apps/api run db:seed:roles
 ```
+
+For Railway, use the Postgres service connection string from the same Railway project/environment. The internal Railway URL works from Railway services only; use the public database URL only from local tools if Railway exposes one.
+
+`db:seed:roles` upserts three QA users for role verification:
+
+- Admin: `maria.solis@capris.example`
+- Supervisor: `daniel.rojas@capris.example`
+- Field user: `lucia.vargas@capris.example`
+
+Set `CAPRIS_QA_PASSWORD` before running the role fixture script in staging. If no password is provided outside production, the local-only default is `CaprisLocal123!`.
 
 ## Docker
 
@@ -144,86 +155,72 @@ This starts:
 - API on `4000`
 - web on `3000`
 
-Important note:
+Docker note:
 
-<<<<<<< HEAD
-- Mobile is not containerized for normal development.
-- The official mobile testing path remains Expo development builds.
-=======
-- The API is now configured for PostgreSQL by default.
-- A local helper compose file exists at `docker-compose.postgres.yml`.
-- API env defaults point to `postgresql://<db_user>:<db_password>@localhost:5432/capris_app?schema=public`.
->>>>>>> 2c8020f (fix: TS any errors)
+- The PWA/web app and API can be containerized.
+- The Expo mobile app is not containerized for normal development.
 
-## Railway Staging
+## Railway Deployment
 
-Railway is the default shared backend staging path.
+Railway service split:
 
-Relevant files:
+- API service: `apps/api`
+- Web/PWA service: `apps/web`
+- Postgres service: Railway PostgreSQL plugin/service in the same project and environment
 
-- `apps/api/railway.json`
-- `docs/railway-staging.md` (private, ignored from Git)
+API health check:
 
-Current staging flow:
+```text
+/api/v1/system-health
+```
 
-- deploy API to Railway
-- attach Railway Postgres
-- configure staging env vars
-- seed if needed
-- point local web and Expo dev builds at the Railway API
+Important Railway variables:
 
-## Environment Variables
+- API: `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `MEDIA_URL_SIGNING_SECRET`, `NODE_ENV`, optional email/storage/map tokens.
+- Web/PWA: `NEXT_PUBLIC_API_BASE_URL=https://<api-service-domain>/api/v1`.
 
-Example env values live in:
-
-- `.env.example`
-
-Important variables include:
-
-- `DATABASE_URL`
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `MEDIA_URL_SIGNING_SECRET`
-- `GOOGLE_CLIENT_ID`
-- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
-- `EXPO_PUBLIC_GOOGLE_CLIENT_ID`
-- `NEXT_PUBLIC_API_BASE_URL`
-- `EXPO_PUBLIC_API_BASE_URL`
-- `POSTMARK_TOKEN` or `SENDGRID_API_KEY`
+Do not commit real secrets. Keep Railway secrets in Railway variables only.
 
 ## Validation Workflow
 
-The working local validation rule is:
-
-- every meaningful code slice: `npm.cmd run typecheck` and `npm.cmd test`
-- every frontend or shared-contract change: `npm.cmd --workspace apps/web run build`
-- every schema change: `npm.cmd --workspace apps/api run db:push`
-- every workflow milestone: run the affected app in `dev` mode for manual validation
-
-Useful commands:
+Recommended checks before pushing:
 
 ```bash
+npm --workspace apps/api run build
+npm --workspace apps/web run build
 npm run typecheck
 npm test
-npm --workspace apps/web run build
+```
+
+Schema changes also require:
+
+```bash
+npm --workspace apps/api run db:push
 ```
 
 ## Testing Paths
 
-- Local browser/admin testing: `apps/web`
+- Local browser/PWA testing: `apps/web`
 - Local API testing: `apps/api`
-- Mobile testing: Expo development builds
-- Shared backend staging: Railway
+- Shared backend staging: Railway API + Railway Postgres
+- Mobile-browser testing: Railway-hosted PWA URL
+- Expo testing: optional prototype path for native/offline behavior
 - Local container QA: Docker Compose
 
-## Working Model
+## Role And Route QA Checklist
 
-The repo is being built in visible implementation sessions rather than one large opaque batch.
+1. Run `npm --workspace apps/api run db:seed:roles` against the target database.
+2. Log in as admin and confirm `Acceso`, reports, imports, and admin-only surfaces are visible.
+3. Log in as supervisor and open `Rutas`.
+4. Add a shared point of sale/store under the supervisor route workspace.
+5. Open `Agenda`, select a day, assign route work to the field user, and confirm province, zone, and point of sale/store are required.
+6. Return to `Rutas` as supervisor and prepare a consignation for the assigned task.
+7. Log in as the field user and confirm `Rutas` is the main daily workspace with map, visits/GPS, evidence, and exceptions.
+8. Confirm the field user can see scoped work and execute route actions, but cannot review, send, or fail consignations.
 
-Project rule summary:
+## Near-Term Enhancements
 
-- private `docs/` and `guides/` files are the implementation source of truth
-- features should move in this order whenever practical:
-  spec, shared contract, validation, implementation, tests, doc update
-
-Those private docs are intentionally ignored by Git and are not part of the public repository context.
+- Replace the current province map layer with Mapbox/Leaflet tiles and official province/zone polygons.
+- Add live route tracking/background location mode if required by field operations.
+- Add Redis for near-term caching, job coordination, rate limiting, health smoothing, and queue support. Redis has not been implemented yet because the current priority is correctness of auth, Postgres persistence, Railway deployment, and core route workflows.
+- Continue Spanish-first UI cleanup across secondary surfaces.

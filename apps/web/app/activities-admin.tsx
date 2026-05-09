@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition, type Dispatch, type SetSta
 import {
   t,
   type Activity,
+  type AuthProfileResponse,
   type Consignation,
   type CreateActivityInput,
   type CreateExhibitionInstallationInput,
@@ -63,6 +64,7 @@ export function ActivitiesAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [bootstrap, setBootstrap] = useState<EvidenceBootstrap | null>(null);
+  const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [exhibitions, setExhibitions] = useState<ExhibitionInstallation[]>([]);
   const [activityForm, setActivityForm] = useState<ActivityFormState>(EMPTY_ACTIVITY_FORM);
@@ -76,6 +78,7 @@ export function ActivitiesAdmin() {
   const consignations = bootstrap?.consignations ?? [];
   const evidence = bootstrap?.evidence ?? [];
   const actionDisabled = loading || isPending;
+  const canReviewConsignations = profile?.user.role === "admin" || profile?.user.role === "supervisor";
 
   const activityVisits = useMemo(() => visits.filter((visit) => visit.taskId === activityForm.taskId), [activityForm.taskId, visits]);
   const exhibitionVisits = useMemo(() => visits.filter((visit) => visit.taskId === exhibitionForm.taskId), [exhibitionForm.taskId, visits]);
@@ -116,12 +119,16 @@ export function ActivitiesAdmin() {
     try {
       setLoading(true);
       setError(null);
-      const [evidenceResponse, activitiesResponse, exhibitionsResponse] = await Promise.all([
+      const [profileResponse, evidenceResponse, activitiesResponse, exhibitionsResponse] = await Promise.all([
+        authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" }),
         authenticatedFetch(`${API_BASE_URL}/evidence/bootstrap`, { cache: "no-store" }),
         authenticatedFetch(`${API_BASE_URL}/activities`, { cache: "no-store" }),
         authenticatedFetch(`${API_BASE_URL}/exhibitions`, { cache: "no-store" })
       ]);
 
+      if (!profileResponse.ok) {
+        throw new Error(await extractErrorMessage(profileResponse, loadContextFallback));
+      }
       if (!evidenceResponse.ok) {
         throw new Error(await extractErrorMessage(evidenceResponse, loadContextFallback));
       }
@@ -132,12 +139,14 @@ export function ActivitiesAdmin() {
         throw new Error(await extractErrorMessage(exhibitionsResponse, loadExhibitionsFallback));
       }
 
-      const [bootstrapPayload, activityPayload, exhibitionPayload] = await Promise.all([
+      const [profilePayload, bootstrapPayload, activityPayload, exhibitionPayload] = await Promise.all([
+        profileResponse.json() as Promise<AuthProfileResponse>,
         evidenceResponse.json() as Promise<EvidenceBootstrap>,
         activitiesResponse.json() as Promise<Activity[]>,
         exhibitionsResponse.json() as Promise<ExhibitionInstallation[]>
       ]);
 
+      setProfile(profilePayload);
       setBootstrap(bootstrapPayload);
       setActivities(activityPayload);
       setExhibitions(exhibitionPayload);
@@ -307,7 +316,7 @@ export function ActivitiesAdmin() {
         </article>
       </div>
 
-      <article className="catalogManagerCard">
+      {canReviewConsignations ? <article className="catalogManagerCard">
         <div className="catalogManagerHeader">
           <div>
             <h3>{t(locale, "consignation.reviewSend")}</h3>
@@ -400,7 +409,7 @@ export function ActivitiesAdmin() {
             );
           })}
         </div>
-      </article>
+      </article> : null}
     </section>
   );
 }
