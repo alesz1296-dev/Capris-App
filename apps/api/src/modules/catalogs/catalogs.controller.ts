@@ -106,26 +106,31 @@ export class CatalogsController {
   }
 
   @Get("points-of-sale")
+  @RequirePermissions("tasks.assign")
   getPointsOfSale() {
     return this.service.getPointsOfSale();
   }
 
   @Get("points-of-sale/:id")
+  @RequirePermissions("tasks.assign")
   getPointOfSale(@Param("id") id: string) {
     return this.service.getPointOfSale(id);
   }
 
   @Post("points-of-sale")
+  @RequirePermissions("tasks.assign")
   createPointOfSale(@Body() input: CreatePointOfSaleInput) {
     return this.service.createPointOfSale(input);
   }
 
   @Patch("points-of-sale/:id")
+  @RequirePermissions("tasks.assign")
   updatePointOfSale(@Param("id") id: string, @Body() input: UpdatePointOfSaleInput) {
     return this.service.updatePointOfSale(id, input);
   }
 
   @Delete("points-of-sale/:id")
+  @RequirePermissions("tasks.assign")
   archivePointOfSale(@Param("id") id: string) {
     return this.service.archivePointOfSale(id);
   }

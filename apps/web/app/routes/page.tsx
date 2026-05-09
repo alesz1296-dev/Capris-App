@@ -1,5 +1,6 @@
 import { AppShell } from "../app-shell";
 import { StaticCostaRicaMap } from "../province-operations-map";
+import { SupervisorRouteWorkspace } from "../supervisor-route-workspace";
 import { VisitAdmin } from "../visit-admin";
 
 export default function RoutesPage() {
@@ -63,6 +64,7 @@ export default function RoutesPage() {
         </div>
         <StaticCostaRicaMap locale="es" />
       </section>
+      <SupervisorRouteWorkspace />
       <VisitAdmin />
     </AppShell>
   );

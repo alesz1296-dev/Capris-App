@@ -30,7 +30,6 @@ const navigation = [
   { href: "/activities", en: "Activities", es: "Actividades" },
   { href: "/reports", en: "Reports", es: "Reportes" },
   { href: "/imports", en: "Imports", es: "Importaciones" },
-  { href: "/catalogs", en: "Catalogs", es: "Catálogos" },
   { href: "/access", en: "Access", es: "Acceso", privileged: true }
 ] as const;
 
