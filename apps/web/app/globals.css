@@ -881,6 +881,145 @@ a {
   line-height: 1.35;
 }
 
+.calendarMonthBoard {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.calendarMonthTitle {
+  align-items: flex-end;
+  background: linear-gradient(135deg, #fff7f8, #fffdfc);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+
+.calendarMonthTitle strong {
+  color: var(--ink);
+  font-size: 1.25rem;
+  text-transform: capitalize;
+}
+
+.calendarMonthTitle span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.calendarWeekdayGrid,
+.calendarMonthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendarWeekdayGrid {
+  background: #fbf5f6;
+  border-bottom: 1px solid var(--line);
+}
+
+.calendarWeekdayGrid span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 10px 12px;
+  text-transform: uppercase;
+}
+
+.calendarMonthCell {
+  align-content: start;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  min-height: 132px;
+  padding: 10px;
+  text-align: left;
+}
+
+.calendarMonthCell:nth-child(7n) {
+  border-right: 0;
+}
+
+.calendarMonthCell[aria-pressed="true"] {
+  background: #fff4f5;
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
+.calendarMonthCellMuted {
+  background: #fbf7f7;
+  color: #a19094;
+}
+
+.calendarMonthCellDate {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  font-weight: 900;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.calendarMonthCellCount {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.calendarMonthEventList {
+  display: grid;
+  gap: 5px;
+}
+
+.calendarEventPill,
+.calendarEventMore {
+  border-radius: 7px;
+  display: block;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow: hidden;
+  padding: 5px 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendarEventPill-agenda_event {
+  background: #fff0c8;
+  color: #654800;
+}
+
+.calendarEventPill-task {
+  background: #ffe1e5;
+  color: #8f1628;
+}
+
+.calendarEventPill-visit {
+  background: #dff4ed;
+  color: #155944;
+}
+
+.calendarEventPill-client_request {
+  background: #e7edff;
+  color: #253f87;
+}
+
+.calendarEventMore {
+  background: #f4eeee;
+  color: var(--muted);
+}
+
 .fieldHint {
   color: #8a6f28;
   display: block;
@@ -1398,6 +1537,15 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .calendarMonthBoard {
+    overflow-x: auto;
+  }
+
+  .calendarWeekdayGrid,
+  .calendarMonthGrid {
+    min-width: 760px;
+  }
+
   .taskCardHeader {
     flex-direction: column;
   }
@@ -1462,6 +1610,12 @@ a {
 
   .calendarDayButton {
     min-height: 88px;
+  }
+
+  .calendarMonthTitle {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .routeCommandCenter {
