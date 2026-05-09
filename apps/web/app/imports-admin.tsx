@@ -11,6 +11,7 @@ import type {
   UpdateAdminSettingsInput
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { textByLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -33,6 +34,46 @@ const EVENT_TYPES: ReminderRule["eventType"][] = [
 ];
 
 const CHANNELS: ReminderRule["channel"][] = ["push", "email"];
+
+function getImportEntityLabel(locale: Locale, entityType: ImportEntityType) {
+  return textByLocale(
+    locale,
+    entityType.replaceAll("_", " "),
+    {
+      users: "usuarios",
+      clients: "clientes",
+      provinces: "provincias",
+      zones: "zonas",
+      points_of_sale: "puntos de venta",
+      activity_types: "tipos de actividad",
+      task_types: "tipos de tarea"
+    }[entityType]
+  );
+}
+
+function getReminderEventLabel(locale: Locale, eventType: ReminderRule["eventType"]) {
+  return textByLocale(
+    locale,
+    {
+      task_due: "task due",
+      task_overdue: "task overdue",
+      missing_evidence: "missing evidence",
+      client_request_due: "client request due",
+      client_request_overdue: "client request overdue"
+    }[eventType],
+    {
+      task_due: "tarea por vencer",
+      task_overdue: "tarea vencida",
+      missing_evidence: "evidencia faltante",
+      client_request_due: "solicitud por vencer",
+      client_request_overdue: "solicitud vencida"
+    }[eventType]
+  );
+}
+
+function getReminderChannelLabel(locale: Locale, channel: ReminderRule["channel"]) {
+  return textByLocale(locale, channel, channel === "push" ? "push" : "correo");
+}
 
 export function ImportsAdmin({ locale = "en" as Locale }) {
   const [loading, setLoading] = useState(true);
@@ -95,7 +136,7 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
         retentionAuditDays: String(payload.settings.retentionAuditDays)
       });
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load admin configuration.");
+      setError(loadError instanceof Error ? loadError.message : textByLocale(locale, "Unable to load admin configuration.", "No se pudo cargar la configuracion administrativa."));
     } finally {
       setLoading(false);
     }
@@ -121,9 +162,9 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
 
       const payload = (await response.json()) as ImportResult;
       setLastImportResult(payload);
-      setStatusMessage(`Import completed for ${payload.entityType}.`);
+      setStatusMessage(textByLocale(locale, `Import completed for ${payload.entityType}.`, `Importacion completada para ${payload.entityType}.`));
     } catch (importError) {
-      setError(importError instanceof Error ? importError.message : "Unable to run import.");
+      setError(importError instanceof Error ? importError.message : textByLocale(locale, "Unable to run import.", "No se pudo ejecutar la importacion."));
     }
   }
 
@@ -154,12 +195,12 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
         channel: "push",
         offsetMinutes: "60"
       });
-      setStatusMessage("Reminder rule created.");
+      setStatusMessage(textByLocale(locale, "Reminder rule created.", "Regla de recordatorio creada."));
       startTransition(() => {
         void loadAdminConfig();
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to create reminder rule.");
+      setError(saveError instanceof Error ? saveError.message : textByLocale(locale, "Unable to create reminder rule.", "No se pudo crear la regla de recordatorio."));
     }
   }
 
@@ -186,32 +227,36 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
         throw new Error(await extractErrorMessage(response, "Unable to save admin settings."));
       }
 
-      setStatusMessage("Admin settings updated.");
+      setStatusMessage(textByLocale(locale, "Admin settings updated.", "Configuracion administrativa actualizada."));
       startTransition(() => {
         void loadAdminConfig();
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save admin settings.");
+      setError(saveError instanceof Error ? saveError.message : textByLocale(locale, "Unable to save admin settings.", "No se pudo guardar la configuracion administrativa."));
     }
   }
 
   return (
     <section className="catalogSection" id="admin-config">
       <div className="sectionHeading">
-        <p className="eyebrow">Session 16</p>
-        <h2>Imports and admin configuration</h2>
+        <p className="eyebrow">{textByLocale(locale, "Admin setup", "Configuracion administrativa")}</p>
+        <h2>{textByLocale(locale, "Imports and admin configuration", "Importaciones y configuracion administrativa")}</h2>
         <p className="sectionDescription">
-          Load setup data by CSV, manage reminder rules, and configure default recipients and retention windows without touching code.
+          {textByLocale(
+            locale,
+            "Load setup data by CSV, manage reminder rules, and configure default recipients and retention windows without touching code.",
+            "Carga datos de configuracion por CSV, administra reglas de recordatorio y ajusta destinatarios y retencion sin tocar codigo."
+          )}
         </p>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading import and admin settings...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing admin configuration...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading import and admin settings...", "Cargando importaciones y configuracion administrativa...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing admin configuration...", "Actualizando configuracion administrativa...")}</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
         {profile && profile.user.role !== "admin" ? (
-          <p className="feedbackInfo">Imports and admin configuration are limited to admin users.</p>
+          <p className="feedbackInfo">{textByLocale(locale, "Imports and admin configuration are limited to admin users.", "Las importaciones y la configuracion administrativa estan limitadas a usuarios administradores.")}</p>
         ) : null}
       </div>
 
@@ -219,29 +264,29 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>CSV imports</h3>
-              <p>Paste CSV content for the selected entity. Imports upsert by unique business keys and return row-level failures.</p>
+              <h3>{textByLocale(locale, "CSV imports", "Importaciones CSV")}</h3>
+              <p>{textByLocale(locale, "Paste CSV content for the selected entity. Imports upsert by unique business keys and return row-level failures.", "Pega el contenido CSV para la entidad seleccionada. Las importaciones actualizan por llaves de negocio unicas y devuelven fallos por fila.")}</p>
             </div>
           </div>
           <div className="formGrid">
             <label>
-              <span>Entity type</span>
+              <span>{textByLocale(locale, "Entity type", "Tipo de entidad")}</span>
               <select value={importEntityType} onChange={(event) => setImportEntityType(event.target.value as ImportEntityType)}>
                 {IMPORT_ENTITY_TYPES.map((entityType) => (
                   <option key={entityType} value={entityType}>
-                    {entityType}
+                    {getImportEntityLabel(locale, entityType)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="fullWidth">
-              <span>CSV content</span>
+              <span>{textByLocale(locale, "CSV content", "Contenido CSV")}</span>
               <textarea className="csvPreview" value={csvContent} onChange={(event) => setCsvContent(event.target.value)} />
             </label>
           </div>
           <div className="taskFormActions">
             <button className="primaryAction" type="button" onClick={() => void runImport()}>
-              Run import
+              {textByLocale(locale, "Run import", "Ejecutar importacion")}
             </button>
           </div>
           {lastImportResult ? (
@@ -250,12 +295,12 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
                 <div className="taskCardHeader">
                   <div>
                     <h4>{lastImportResult.entityType}</h4>
-                    <p>Created {lastImportResult.createdCount}, updated {lastImportResult.updatedCount}, failed {lastImportResult.failedCount}</p>
+                    <p>{textByLocale(locale, `Created ${lastImportResult.createdCount}, updated ${lastImportResult.updatedCount}, failed ${lastImportResult.failedCount}`, `Creados ${lastImportResult.createdCount}, actualizados ${lastImportResult.updatedCount}, fallidos ${lastImportResult.failedCount}`)}</p>
                   </div>
-                  <span className="taskBadge">{lastImportResult.failedCount ? "review" : "ok"}</span>
+                  <span className="taskBadge">{lastImportResult.failedCount ? textByLocale(locale, "review", "revisar") : textByLocale(locale, "ok", "ok")}</span>
                 </div>
                 {lastImportResult.failures.map((failure) => (
-                  <p key={`${failure.rowNumber}-${failure.reason}`}>Row {failure.rowNumber}: {failure.reason}</p>
+                  <p key={`${failure.rowNumber}-${failure.reason}`}>{textByLocale(locale, `Row ${failure.rowNumber}: ${failure.reason}`, `Fila ${failure.rowNumber}: ${failure.reason}`)}</p>
                 ))}
               </article>
             </div>
@@ -265,43 +310,43 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>Reminder rules</h3>
-              <p>Configure reminder timing and channel for due tasks, overdue tasks, missing evidence, and client-request follow-up.</p>
+              <h3>{textByLocale(locale, "Reminder rules", "Reglas de recordatorio")}</h3>
+              <p>{textByLocale(locale, "Configure reminder timing and channel for due tasks, overdue tasks, missing evidence, and client-request follow-up.", "Configura el momento y el canal de recordatorio para tareas por vencer, tareas vencidas, evidencia faltante y seguimiento de solicitudes de cliente.")}</p>
             </div>
           </div>
           <div className="formGrid">
             <label>
-              <span>Name</span>
+              <span>{textByLocale(locale, "Name", "Nombre")}</span>
               <input value={reminderForm.name} onChange={(event) => setReminderForm((current) => ({ ...current, name: event.target.value }))} />
             </label>
             <label>
-              <span>Event type</span>
+              <span>{textByLocale(locale, "Event type", "Tipo de evento")}</span>
               <select value={reminderForm.eventType} onChange={(event) => setReminderForm((current) => ({ ...current, eventType: event.target.value as ReminderRule["eventType"] }))}>
                 {EVENT_TYPES.map((eventType) => (
                   <option key={eventType} value={eventType}>
-                    {eventType}
+                    {getReminderEventLabel(locale, eventType)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              <span>Channel</span>
+              <span>{textByLocale(locale, "Channel", "Canal")}</span>
               <select value={reminderForm.channel} onChange={(event) => setReminderForm((current) => ({ ...current, channel: event.target.value as ReminderRule["channel"] }))}>
                 {CHANNELS.map((channel) => (
                   <option key={channel} value={channel}>
-                    {channel}
+                    {getReminderChannelLabel(locale, channel)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              <span>Offset minutes</span>
+              <span>{textByLocale(locale, "Offset minutes", "Minutos de anticipacion")}</span>
               <input value={reminderForm.offsetMinutes} onChange={(event) => setReminderForm((current) => ({ ...current, offsetMinutes: event.target.value }))} />
             </label>
           </div>
           <div className="taskFormActions">
             <button className="primaryAction" type="button" onClick={() => void createReminderRule()}>
-              Add reminder rule
+              {textByLocale(locale, "Add reminder rule", "Agregar regla de recordatorio")}
             </button>
           </div>
           <div className="taskList">
@@ -310,7 +355,7 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
                 <div className="taskCardHeader">
                   <div>
                     <h4>{rule.name}</h4>
-                    <p>{rule.eventType} / {rule.channel}</p>
+                    <p>{getReminderEventLabel(locale, rule.eventType)} / {getReminderChannelLabel(locale, rule.channel)}</p>
                   </div>
                   <span className="taskBadge">{rule.offsetMinutes}m</span>
                 </div>
@@ -321,37 +366,37 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
       </div>}
 
       {profile && profile.user.role !== "admin" ? null : <article className="catalogManagerCard">
-        <div className="catalogManagerHeader">
-          <div>
-            <h3>Recipients and retention</h3>
-            <p>Default recipients and retention windows are persisted centrally so operations can be configured without code edits.</p>
+          <div className="catalogManagerHeader">
+            <div>
+            <h3>{textByLocale(locale, "Recipients and retention", "Destinatarios y retencion")}</h3>
+            <p>{textByLocale(locale, "Default recipients and retention windows are persisted centrally so operations can be configured without code edits.", "Los destinatarios predeterminados y las ventanas de retencion se guardan de forma centralizada para configurar operaciones sin editar codigo.")}</p>
           </div>
         </div>
         <div className="formGrid">
           <label className="fullWidth">
-            <span>Default recipients</span>
+            <span>{textByLocale(locale, "Default recipients", "Destinatarios predeterminados")}</span>
             <input value={settingsForm.defaultRecipientEmails} onChange={(event) => setSettingsForm((current) => ({ ...current, defaultRecipientEmails: event.target.value }))} />
           </label>
           <label>
-            <span>Photo retention days</span>
+            <span>{textByLocale(locale, "Photo retention days", "Dias de retencion de fotos")}</span>
             <input value={settingsForm.retentionPhotoDays} onChange={(event) => setSettingsForm((current) => ({ ...current, retentionPhotoDays: event.target.value }))} />
           </label>
           <label>
-            <span>GPS retention days</span>
+            <span>{textByLocale(locale, "GPS retention days", "Dias de retencion de GPS")}</span>
             <input value={settingsForm.retentionGpsDays} onChange={(event) => setSettingsForm((current) => ({ ...current, retentionGpsDays: event.target.value }))} />
           </label>
           <label>
-            <span>Audit retention days</span>
+            <span>{textByLocale(locale, "Audit retention days", "Dias de retencion de auditoria")}</span>
             <input value={settingsForm.retentionAuditDays} onChange={(event) => setSettingsForm((current) => ({ ...current, retentionAuditDays: event.target.value }))} />
           </label>
         </div>
         <div className="taskFormActions">
           <button className="primaryAction" type="button" onClick={() => void saveSettings()}>
-            Save settings
+            {textByLocale(locale, "Save settings", "Guardar configuracion")}
           </button>
         </div>
         <p className="sectionDescription">
-          Workflow rules continue to be managed in the existing catalog admin section, so a full operational setup now combines catalogs, workflow rules, imports, reminders, recipients, and retention from the web admin shell alone.
+          {textByLocale(locale, "Workflow rules continue to be managed in the existing catalog admin section, so a full operational setup now combines catalogs, workflow rules, imports, reminders, recipients, and retention from the web admin shell alone.", "Las reglas de flujo siguen administrandose en la seccion actual de catalogos, asi que la configuracion operativa completa ahora combina catalogos, reglas de flujo, importaciones, recordatorios, destinatarios y retencion desde el panel web.")}
         </p>
       </article>}
     </section>

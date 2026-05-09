@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { t, type DashboardResponse, type Locale, type ProductivitySummary } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { textByLocale } from "./locale-client";
 
 type DashboardOverviewProps = {
   locale?: Locale;
@@ -22,18 +23,19 @@ export function DashboardOverview({ locale = "en" }: DashboardOverviewProps) {
   }, [locale]);
 
   async function loadDashboard() {
+    const loadErrorFallback = textByLocale(locale, "Unable to load dashboard metrics.", "No se pudieron cargar las metricas del panel.");
     try {
       setLoading(true);
       setError(null);
       const response = await authenticatedFetch(`${API_BASE_URL}/dashboard?locale=${locale}`, { cache: "no-store" });
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to load dashboard metrics."));
+        throw new Error(await extractErrorMessage(response, loadErrorFallback));
       }
 
       const payload = (await response.json()) as DashboardResponse;
       setDashboard(payload);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load dashboard metrics.");
+      setError(loadError instanceof Error ? loadError.message : loadErrorFallback);
     } finally {
       setLoading(false);
     }
@@ -44,20 +46,23 @@ export function DashboardOverview({ locale = "en" }: DashboardOverviewProps) {
   return (
     <section className="catalogSection" id="dashboard">
       <div className="sectionHeading">
-        <p className="eyebrow">Session 13</p>
-        <h2>Dashboard and productivity</h2>
+        <h2>{textByLocale(locale, "Dashboard and productivity", "Panel y productividad")}</h2>
         <p className="sectionDescription">
-          Completion, overdue work, route coverage, missing evidence, activity counts, and grouped productivity now come from live operational data.
+          {textByLocale(
+            locale,
+            "Completion, overdue work, route coverage, missing evidence, activity counts, and grouped productivity now come from live operational data.",
+            "Finalizacion, trabajo vencido, cobertura de ruta, evidencia faltante, conteos de actividad y productividad agrupada ahora vienen de datos operativos en vivo."
+          )}
         </p>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading live dashboard data...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing dashboard...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading live dashboard data...", "Cargando datos en vivo del panel...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing dashboard...", "Actualizando panel...")}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
       </div>
 
-      <div className="metrics" aria-label="Operational metrics">
+      <div className="metrics" aria-label={textByLocale(locale, "Operational metrics", "Metricas operativas")}>
         <MetricCard label={t(locale, "dashboard.taskCompletion")} value={`${summary?.completionRate ?? 0}%`} />
         <MetricCard label={t(locale, "dashboard.pendingTasks")} value={`${summary?.pendingTasks ?? 0}`} />
         <MetricCard label={t(locale, "dashboard.overdueTasks")} value={`${summary?.overdueTasks ?? 0}`} />
@@ -75,11 +80,11 @@ export function DashboardOverview({ locale = "en" }: DashboardOverviewProps) {
             {t(locale, "dashboard.byFieldUser")} / {t(locale, "dashboard.byZone")} / {t(locale, "dashboard.byProvince")} / {t(locale, "dashboard.byClient")}
           </p>
           <button className="secondaryAction" type="button" onClick={() => startTransition(() => void loadDashboard())}>
-            Refresh dashboard
+            {textByLocale(locale, "Refresh dashboard", "Actualizar panel")}
           </button>
         </div>
         <div>
-          <h2>Operational health</h2>
+          <h2>{textByLocale(locale, "Operational health", "Salud operativa")}</h2>
           <p>
             {t(locale, "dashboard.failedUploads")}: {summary?.failedUploads ?? 0}
           </p>
@@ -129,7 +134,7 @@ function ProductivityPanel({
       <div className="catalogManagerHeader">
         <div>
           <h3>{title}</h3>
-          <p>{rows.length ? `${rows.length} rows` : "No productivity data yet."}</p>
+          <p>{rows.length ? textByLocale(locale, `${rows.length} rows`, `${rows.length} filas`) : textByLocale(locale, "No productivity data yet.", "Todavia no hay datos de productividad.")}</p>
         </div>
       </div>
       <div className="taskList">

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { t, type Locale, type ReportBootstrap, type ReportFilters, type ReportName } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { textByLocale } from "./locale-client";
 
 const REPORT_NAMES: ReportName[] = ["summary", "productivity", "tasks", "client_requests"];
 
@@ -49,18 +50,19 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
   }, [filters, locale]);
 
   async function loadReports() {
+    const loadFallback = textByLocale(locale, "Unable to load reporting data.", "No se pudieron cargar los datos de reportes.");
     try {
       setLoading(true);
       setError(null);
       const response = await authenticatedFetch(`${API_BASE_URL}/reports/bootstrap?locale=${locale}`, { cache: "no-store" });
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to load reporting data."));
+        throw new Error(await extractErrorMessage(response, loadFallback));
       }
 
       const payload = (await response.json()) as ReportBootstrap;
       setBootstrap(payload);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load reporting data.");
+      setError(loadError instanceof Error ? loadError.message : loadFallback);
     } finally {
       setLoading(false);
     }
@@ -74,13 +76,13 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
         cache: "no-store"
       });
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to generate CSV preview."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to generate CSV preview.", "No se pudo generar la vista previa CSV.")));
       }
 
       setCsvPreview(await response.text());
-      setStatusMessage("CSV preview refreshed.");
+      setStatusMessage(textByLocale(locale, "CSV preview refreshed.", "Vista previa CSV actualizada."));
     } catch (previewError) {
-      setError(previewError instanceof Error ? previewError.message : "Unable to preview CSV.");
+      setError(previewError instanceof Error ? previewError.message : textByLocale(locale, "Unable to preview CSV.", "No se pudo previsualizar el CSV."));
     }
   }
 
@@ -99,31 +101,30 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to create report snapshot."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to create report snapshot.", "No se pudo crear la instantanea del reporte.")));
       }
 
-      setStatusMessage("Report snapshot created.");
+      setStatusMessage(textByLocale(locale, "Report snapshot created.", "Instantanea del reporte creada."));
       startTransition(() => {
         void loadReports();
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to create report snapshot.");
+      setError(saveError instanceof Error ? saveError.message : textByLocale(locale, "Unable to create report snapshot.", "No se pudo crear la instantanea del reporte."));
     }
   }
 
   return (
     <section className="catalogSection" id="reports">
       <div className="sectionHeading">
-        <p className="eyebrow">Session 15</p>
         <h2>{t(locale, "reports.title")}</h2>
         <p className="sectionDescription">
-          Generate localized CSV exports, filter them by operational scope, and create immutable report snapshots for formal reporting.
+          {textByLocale(locale, "Generate localized CSV exports, filter them by operational scope, and create immutable report snapshots for formal reporting.", "Genera exportaciones CSV localizadas, filtralas por alcance operativo y crea instantaneas inmutables para reportes formales.")}
         </p>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading reporting data...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing reporting state...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading reporting data...", "Cargando datos de reportes...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing reporting state...", "Actualizando estado de reportes...")}</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
       </div>
@@ -133,12 +134,12 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
           <div className="catalogManagerHeader">
             <div>
               <h3>{t(locale, "reports.filters")}</h3>
-              <p>Select a report, apply filters, preview the CSV output, then store an immutable snapshot when needed.</p>
+              <p>{textByLocale(locale, "Select a report, apply filters, preview the CSV output, then store an immutable snapshot when needed.", "Selecciona un reporte, aplica filtros, previsualiza la salida CSV y luego guarda una instantanea inmutable cuando haga falta.")}</p>
             </div>
           </div>
           <div className="formGrid">
             <label>
-              <span>Report</span>
+              <span>{textByLocale(locale, "Report", "Reporte")}</span>
               <select value={reportName} onChange={(event) => setReportName(event.target.value as ReportName)}>
                 {REPORT_NAMES.map((name) => (
                   <option key={name} value={name}>
@@ -150,7 +151,7 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
             <label>
               <span>{t(locale, "reports.user")}</span>
               <select value={filters.userId} onChange={(event) => setFilters((current) => ({ ...current, userId: event.target.value }))}>
-                <option value="">All</option>
+                <option value="">{textByLocale(locale, "All", "Todos")}</option>
                 {bootstrap?.users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name}
@@ -161,7 +162,7 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
             <label>
               <span>{t(locale, "reports.province")}</span>
               <select value={filters.provinceId} onChange={(event) => setFilters((current) => ({ ...current, provinceId: event.target.value, zoneId: "" }))}>
-                <option value="">All</option>
+                <option value="">{textByLocale(locale, "All", "Todos")}</option>
                 {bootstrap?.provinces.map((province) => (
                   <option key={province.id} value={province.id}>
                     {province.name}
@@ -172,7 +173,7 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
             <label>
               <span>{t(locale, "reports.zone")}</span>
               <select value={filters.zoneId} onChange={(event) => setFilters((current) => ({ ...current, zoneId: event.target.value }))}>
-                <option value="">All</option>
+                <option value="">{textByLocale(locale, "All", "Todos")}</option>
                 {bootstrap?.zones
                   .filter((zone) => !filters.provinceId || zone.provinceId === filters.provinceId)
                   .map((zone) => (
@@ -185,7 +186,7 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
             <label>
               <span>{t(locale, "reports.client")}</span>
               <select value={filters.clientId} onChange={(event) => setFilters((current) => ({ ...current, clientId: event.target.value }))}>
-                <option value="">All</option>
+                <option value="">{textByLocale(locale, "All", "Todos")}</option>
                 {bootstrap?.clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
@@ -211,7 +212,7 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
             </button>
           </div>
           <label className="fullWidth">
-            <span>CSV preview</span>
+            <span>{textByLocale(locale, "CSV preview", "Vista previa CSV")}</span>
             <textarea className="csvPreview" readOnly value={csvPreview} />
           </label>
         </article>
@@ -220,7 +221,7 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
           <div className="catalogManagerHeader">
             <div>
               <h3>{t(locale, "reports.snapshotHistory")}</h3>
-              <p>Snapshots stay immutable so formal exports keep their original filters and generated content.</p>
+              <p>{textByLocale(locale, "Snapshots stay immutable so formal exports keep their original filters and generated content.", "Las instantaneas se mantienen inmutables para que los exportes formales conserven sus filtros y contenido original generado.")}</p>
             </div>
           </div>
           <div className="taskList">
@@ -239,7 +240,7 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
                 <p>
                   {t(locale, "reports.rowCount")}: {snapshot.rowCount}
                 </p>
-                <p>Filters: {JSON.stringify(snapshot.filters)}</p>
+                <p>{textByLocale(locale, "Filters", "Filtros")}: {JSON.stringify(snapshot.filters)}</p>
               </article>
             ))}
           </div>

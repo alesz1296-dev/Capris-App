@@ -54,7 +54,7 @@ export default function DashboardPage() {
           <a href="#exceptions">{textByLocale(locale, "Exceptions", "Excepciones")}</a>
           <a href="#reports">{textByLocale(locale, "Reports", "Reportes")}</a>
           <a href="#admin-config">{textByLocale(locale, "Config", "Configuracion")}</a>
-          <a href="#settings">{textByLocale(locale, "Admin", "Admin")}</a>
+          <a href="#settings">{textByLocale(locale, "Access", "Acceso")}</a>
         </nav>
       </aside>
       <section className="workspace">
