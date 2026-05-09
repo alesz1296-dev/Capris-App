@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { t, type Visit, type VisitBootstrap, type VisitStatus } from "@capris/shared";
 import type { CreateVisitInput } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
 import { formatCoordinates, resolveWebCoordinates } from "./location-client";
 import { textByLocale, useAppLocale } from "./locale-client";
-import { ProvinceOperationsMap } from "./province-operations-map";
+import { ProvinceOperationsMap, type LiveLocation } from "./province-operations-map";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -32,6 +32,9 @@ export function VisitAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [liveLocation, setLiveLocation] = useState<LiveLocation | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<string | null>(null);
+  const gpsWatchId = useRef<number | null>(null);
   const [bootstrap, setBootstrap] = useState<VisitBootstrap | null>(null);
   const [evidenceBootstrap, setEvidenceBootstrap] = useState<import("@capris/shared").EvidenceBootstrap | null>(null);
   const [visitForm, setVisitForm] = useState<VisitFormState>(DEFAULT_VISIT_FORM);
@@ -64,6 +67,14 @@ export function VisitAdmin() {
     return subscribeToAuthChanges(() => {
       void loadVisits();
     });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (gpsWatchId.current !== null && typeof navigator !== "undefined" && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(gpsWatchId.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -212,6 +223,46 @@ export function VisitAdmin() {
     }
   }
 
+  function startLiveGps() {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setGpsStatus(textByLocale(locale, "This browser does not expose GPS.", "Este navegador no expone GPS."));
+      return;
+    }
+
+    if (gpsWatchId.current !== null) {
+      navigator.geolocation.clearWatch(gpsWatchId.current);
+    }
+
+    setGpsStatus(textByLocale(locale, "Waiting for device GPS permission...", "Esperando permiso de GPS del dispositivo..."));
+    gpsWatchId.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setLiveLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracyMeters: position.coords.accuracy,
+          capturedAt: new Date().toISOString()
+        });
+        setGpsStatus(textByLocale(locale, "Live GPS active on this page.", "GPS en vivo activo en esta pagina."));
+      },
+      () => {
+        setGpsStatus(textByLocale(locale, "GPS permission was denied or the device could not resolve a position.", "El permiso de GPS fue denegado o el dispositivo no pudo resolver una posicion."));
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 15000
+      }
+    );
+  }
+
+  function stopLiveGps() {
+    if (gpsWatchId.current !== null && typeof navigator !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.clearWatch(gpsWatchId.current);
+      gpsWatchId.current = null;
+    }
+    setGpsStatus(textByLocale(locale, "Live GPS stopped.", "GPS en vivo detenido."));
+  }
+
   return (
     <section className="catalogSection" id="routes">
       <div className="sectionHeading">
@@ -235,9 +286,47 @@ export function VisitAdmin() {
         visitBootstrap={bootstrap}
         evidenceBootstrap={evidenceBootstrap}
         loading={loading}
-        error={null}
+        error={error}
         variant="routes"
+        liveLocation={liveLocation}
       />
+
+      <article className="liveGpsPanel">
+        <div>
+          <p className="eyebrow">{textByLocale(locale, "Device GPS", "GPS del dispositivo")}</p>
+          <h3>{textByLocale(locale, "Live route tracking", "Seguimiento de ruta en vivo")}</h3>
+          <p>
+            {textByLocale(
+              locale,
+              "Runs only while this page is open. Check-in, check-out, and evidence still persist their own GPS captures.",
+              "Funciona solo mientras esta pagina esta abierta. Entrada, salida y evidencia siguen guardando sus propias capturas GPS."
+            )}
+          </p>
+        </div>
+        <dl className="taskMetaGrid">
+          <div>
+            <dt>{textByLocale(locale, "Current coordinates", "Coordenadas actuales")}</dt>
+            <dd>{liveLocation ? formatCoordinates(liveLocation.latitude, liveLocation.longitude) : "--"}</dd>
+          </div>
+          <div>
+            <dt>{textByLocale(locale, "Accuracy", "Precision")}</dt>
+            <dd>{liveLocation?.accuracyMeters ? `${Math.round(liveLocation.accuracyMeters)} m` : "--"}</dd>
+          </div>
+          <div>
+            <dt>{textByLocale(locale, "Captured at", "Capturado en")}</dt>
+            <dd>{liveLocation?.capturedAt ?? "--"}</dd>
+          </div>
+        </dl>
+        <div className="taskCardActions">
+          <button className="primaryAction" type="button" onClick={startLiveGps}>
+            {textByLocale(locale, "Start live GPS", "Iniciar GPS en vivo")}
+          </button>
+          <button className="secondaryAction" type="button" onClick={stopLiveGps}>
+            {textByLocale(locale, "Stop live GPS", "Detener GPS")}
+          </button>
+        </div>
+        {gpsStatus ? <p className="feedbackInfo">{gpsStatus}</p> : null}
+      </article>
 
       <div className="taskAdminLayout">
         <article className="catalogManagerCard">
