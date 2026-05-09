@@ -12,7 +12,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "npm --workspace apps/web run start",
+    "startCommand": "npm --workspace apps/web run railway:start",
     "healthcheckPath": "/",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
