@@ -12,7 +12,7 @@ import {
   subscribeToAuthChanges,
   type StoredTokens
 } from "./auth-client";
-import { persistPreferredLocale, useAppLocale } from "./locale-client";
+import { persistPreferredLocale, textByLocale, useAppLocale } from "./locale-client";
 
 declare global {
   interface Window {
@@ -133,7 +133,7 @@ export function AuthPanel() {
 
       const payload = (await response.json()) as AuthResponse & { message?: string };
       if (!response.ok) {
-        throw new Error(payload.message ?? (locale === "es" ? "Fallo el inicio de sesion con Google." : "Google sign-in failed."));
+        throw new Error(payload.message ?? textByLocale(locale, "Google sign-in failed.", "Fallo el inicio de sesion con Google."));
       }
 
       const nextTokens = {
@@ -147,9 +147,9 @@ export function AuthPanel() {
         session: payload.session
       });
       persistPreferredLocale(payload.user.locale);
-      setStatus(locale === "es" ? "Sesion iniciada." : "Signed in.");
+      setStatus(textByLocale(locale, "Signed in.", "Sesion iniciada."));
     } catch (signInError) {
-      setError(signInError instanceof Error ? signInError.message : locale === "es" ? "Fallo el inicio de sesion con Google." : "Google sign-in failed.");
+      setError(signInError instanceof Error ? signInError.message : textByLocale(locale, "Google sign-in failed.", "Fallo el inicio de sesion con Google."));
       setStatus(null);
     }
   }
@@ -180,21 +180,21 @@ export function AuthPanel() {
 
       const payload = (await response.json()) as AuthProfileResponse & { message?: string };
       if (!response.ok) {
-        throw new Error(payload.message ?? (locale === "es" ? "No se pudo cargar el perfil." : "Unable to load profile."));
+        throw new Error(payload.message ?? textByLocale(locale, "Unable to load profile.", "No se pudo cargar el perfil."));
       }
 
       setProfile(payload);
       persistPreferredLocale(payload.user.locale);
-      setStatus(locale === "es" ? "Sesion activa." : "Session active.");
+      setStatus(textByLocale(locale, "Signed in and active.", "Sesion activa."));
     } catch (profileError) {
-      setError(profileError instanceof Error ? profileError.message : locale === "es" ? "No se pudo cargar el perfil." : "Unable to load profile.");
+      setError(profileError instanceof Error ? profileError.message : textByLocale(locale, "Unable to load profile.", "No se pudo cargar el perfil."));
     }
   }
 
   async function signOut() {
     const currentTokens = tokens;
     clearSessionState();
-    setStatus(locale === "es" ? "Sesion cerrada." : "Signed out.");
+    setStatus(textByLocale(locale, "Signed out.", "Sesion cerrada."));
 
     if (!currentTokens) {
       return;
@@ -236,7 +236,7 @@ export function AuthPanel() {
               {profile.user.name} / {profile.user.email}
             </p>
             <p className="authMeta">
-              {profile.user.role} / {profile.session.provider} / {profile.session.deviceName ?? (locale === "es" ? "Navegador" : "Browser")}
+              {profile.user.role} / {profile.session.provider} / {profile.session.deviceName ?? textByLocale(locale, "Browser", "Navegador")}
             </p>
           </div>
           {profile.user.avatarUrl ? <img alt={profile.user.name} className="authAvatar" src={profile.user.avatarUrl} /> : null}

@@ -93,9 +93,9 @@ export function AgendaAdmin() {
   const [requestForm, setRequestForm] = useState<ClientRequestFormState>(EMPTY_REQUEST_FORM);
 
   useEffect(() => {
-    void loadSession12();
+    void loadAgendaData();
     return subscribeToAuthChanges(() => {
-      void loadSession12();
+      void loadAgendaData();
     });
   }, [view, anchorDate]);
 
@@ -136,7 +136,7 @@ export function AgendaAdmin() {
     [entries]
   );
 
-  async function loadSession12() {
+  async function loadAgendaData() {
     const calendarFallback = textByLocale(locale, "Unable to load calendar data.", "No se pudieron cargar los datos del calendario.");
     const requestFallback = textByLocale(locale, "Unable to load client requests.", "No se pudieron cargar las solicitudes de cliente.");
     const sessionFallback = textByLocale(locale, "Unable to load agenda data.", "No se pudieron cargar los datos de agenda.");
@@ -243,7 +243,7 @@ export function AgendaAdmin() {
 
       setStatusMessage(successMessage);
       startTransition(() => {
-        void loadSession12();
+        void loadAgendaData();
       });
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : saveFallback);
@@ -332,43 +332,43 @@ export function AgendaAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>Create agenda event</h3>
-              <p>Use shared events for team meetings, special activations, holiday blockers, and supervisor follow-up windows.</p>
+              <h3>{textByLocale(locale, "Create agenda event", "Crear evento de agenda")}</h3>
+              <p>{textByLocale(locale, "Use shared events for team meetings, special activations, holiday blockers, and supervisor follow-up windows.", "Usa eventos compartidos para reuniones de equipo, activaciones especiales, bloqueos por feriados y ventanas de seguimiento de supervision.")}</p>
             </div>
           </div>
           <div className="formGrid">
             <label className="fullWidth">
-              <span>Title</span>
+              <span>{textByLocale(locale, "Title", "Titulo")}</span>
               <input value={agendaForm.title} onChange={(event) => setAgendaForm((current) => ({ ...current, title: event.target.value }))} />
             </label>
             <label className="fullWidth">
-              <span>Description</span>
+              <span>{textByLocale(locale, "Description", "Descripcion")}</span>
               <textarea value={agendaForm.description} onChange={(event) => setAgendaForm((current) => ({ ...current, description: event.target.value }))} />
             </label>
             <label>
-              <span>Start</span>
+              <span>{textByLocale(locale, "Start", "Inicio")}</span>
               <input value={agendaForm.startAt} onChange={(event) => setAgendaForm((current) => ({ ...current, startAt: event.target.value }))} />
             </label>
             <label>
-              <span>End</span>
+              <span>{textByLocale(locale, "End", "Fin")}</span>
               <input value={agendaForm.endAt} onChange={(event) => setAgendaForm((current) => ({ ...current, endAt: event.target.value }))} />
             </label>
             <label>
-              <span>Scope</span>
+              <span>{textByLocale(locale, "Scope", "Alcance")}</span>
               <select value={agendaForm.scopeType} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeType: event.target.value as AgendaFormState["scopeType"] }))}>
-                <option value="organization">organization</option>
-                <option value="team">team</option>
-                <option value="user">user</option>
+                <option value="organization">{textByLocale(locale, "organization", "organizacion")}</option>
+                <option value="team">{textByLocale(locale, "team", "equipo")}</option>
+                <option value="user">{textByLocale(locale, "user", "usuario")}</option>
               </select>
             </label>
             <label>
-              <span>Scope reference</span>
+              <span>{textByLocale(locale, "Scope reference", "Referencia de alcance")}</span>
               <input value={agendaForm.scopeReferenceId} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeReferenceId: event.target.value }))} />
             </label>
             <label>
-              <span>Owner</span>
+              <span>{textByLocale(locale, "Owner", "Responsable")}</span>
               <select value={agendaForm.ownerUserId} onChange={(event) => setAgendaForm((current) => ({ ...current, ownerUserId: event.target.value }))}>
-                <option value="">No owner</option>
+                <option value="">{textByLocale(locale, "No owner", "Sin responsable")}</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name}
@@ -377,9 +377,9 @@ export function AgendaAdmin() {
               </select>
             </label>
             <label>
-              <span>Team</span>
+              <span>{textByLocale(locale, "Team", "Equipo")}</span>
               <select value={agendaForm.teamId} onChange={(event) => setAgendaForm((current) => ({ ...current, teamId: event.target.value }))}>
-                <option value="">No team</option>
+                <option value="">{textByLocale(locale, "No team", "Sin equipo")}</option>
                 {teams.map((team) => (
                   <option key={team.id} value={team.id}>
                     {team.name}
@@ -388,13 +388,13 @@ export function AgendaAdmin() {
               </select>
             </label>
             <label>
-              <span>Color token</span>
+              <span>{textByLocale(locale, "Color token", "Color de agenda")}</span>
               <input value={agendaForm.colorToken} onChange={(event) => setAgendaForm((current) => ({ ...current, colorToken: event.target.value }))} />
             </label>
           </div>
           <div className="taskFormActions">
             <button className="primaryAction" disabled={loading || isPending} type="button" onClick={() => void createAgendaEvent()}>
-              Create agenda event
+              {textByLocale(locale, "Create agenda event", "Crear evento de agenda")}
             </button>
           </div>
           <div className="taskList">
@@ -402,12 +402,12 @@ export function AgendaAdmin() {
               <article className="taskCard" key={item.id}>
                 <div className="taskCardHeader">
                   <div>
-                    <h4>{item.title}</h4>
-                    <p>
-                      {item.startAt} to {item.endAt}
-                    </p>
-                  </div>
-                  <span className="taskBadge">{item.scopeType}</span>
+                  <h4>{item.title}</h4>
+                  <p>
+                    {item.startAt} {textByLocale(locale, "to", "a")} {item.endAt}
+                  </p>
+                </div>
+                <span className="taskBadge">{item.scopeType}</span>
                 </div>
                 {item.description ? <p>{item.description}</p> : null}
               </article>
@@ -419,29 +419,29 @@ export function AgendaAdmin() {
       <article className="catalogManagerCard" id="requests">
         <div className="catalogManagerHeader">
           <div>
-            <h3>Client request follow-up</h3>
-            <p>Track requester expectations, ownership, aging, and overdue risk from one supervisor/admin view.</p>
+            <h3>{textByLocale(locale, "Client request follow-up", "Seguimiento de solicitudes de cliente")}</h3>
+            <p>{textByLocale(locale, "Track requester expectations, ownership, aging, and overdue risk from one supervisor/admin view.", "Da seguimiento a expectativas del solicitante, responsables, antiguedad y riesgo de vencimiento desde una sola vista de supervision.")}</p>
           </div>
         </div>
         <div className="formGrid">
           <label className="fullWidth">
-            <span>Title</span>
+            <span>{textByLocale(locale, "Title", "Titulo")}</span>
             <input value={requestForm.title} onChange={(event) => setRequestForm((current) => ({ ...current, title: event.target.value }))} />
           </label>
           <label className="fullWidth">
-            <span>Description</span>
+            <span>{textByLocale(locale, "Description", "Descripcion")}</span>
             <textarea value={requestForm.description} onChange={(event) => setRequestForm((current) => ({ ...current, description: event.target.value }))} />
           </label>
           <label>
-            <span>Requester</span>
+            <span>{textByLocale(locale, "Requester", "Solicitante")}</span>
             <input value={requestForm.requesterName} onChange={(event) => setRequestForm((current) => ({ ...current, requesterName: event.target.value }))} />
           </label>
           <label>
-            <span>Requester email</span>
+            <span>{textByLocale(locale, "Requester email", "Correo del solicitante")}</span>
             <input value={requestForm.requesterEmail} onChange={(event) => setRequestForm((current) => ({ ...current, requesterEmail: event.target.value }))} />
           </label>
           <label>
-            <span>Owner</span>
+            <span>{textByLocale(locale, "Owner", "Responsable")}</span>
             <select value={requestForm.ownerUserId} onChange={(event) => setRequestForm((current) => ({ ...current, ownerUserId: event.target.value }))}>
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
@@ -451,22 +451,22 @@ export function AgendaAdmin() {
             </select>
           </label>
           <label>
-            <span>Due date</span>
+            <span>{textByLocale(locale, "Due date", "Fecha limite")}</span>
             <input type="date" value={requestForm.dueDate} onChange={(event) => setRequestForm((current) => ({ ...current, dueDate: event.target.value }))} />
           </label>
           <label>
-            <span>Priority</span>
+            <span>{textByLocale(locale, "Priority", "Prioridad")}</span>
             <select value={requestForm.priority} onChange={(event) => setRequestForm((current) => ({ ...current, priority: event.target.value as ClientRequestFormState["priority"] }))}>
-              <option value="low">low</option>
-              <option value="medium">medium</option>
-              <option value="high">high</option>
-              <option value="urgent">urgent</option>
+              <option value="low">{textByLocale(locale, "low", "baja")}</option>
+              <option value="medium">{textByLocale(locale, "medium", "media")}</option>
+              <option value="high">{textByLocale(locale, "high", "alta")}</option>
+              <option value="urgent">{textByLocale(locale, "urgent", "urgente")}</option>
             </select>
           </label>
           <label>
-            <span>Client</span>
+            <span>{textByLocale(locale, "Client", "Cliente")}</span>
             <select value={requestForm.clientId} onChange={(event) => setRequestForm((current) => ({ ...current, clientId: event.target.value }))}>
-              <option value="">No client</option>
+              <option value="">{textByLocale(locale, "No client", "Sin cliente")}</option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.name}
@@ -475,9 +475,9 @@ export function AgendaAdmin() {
             </select>
           </label>
           <label>
-            <span>Province</span>
+            <span>{textByLocale(locale, "Province", "Provincia")}</span>
             <select value={requestForm.provinceId} onChange={(event) => setRequestForm((current) => ({ ...current, provinceId: event.target.value }))}>
-              <option value="">No province</option>
+              <option value="">{textByLocale(locale, "No province", "Sin provincia")}</option>
               {provinces.map((province) => (
                 <option key={province.id} value={province.id}>
                   {province.name}
@@ -486,9 +486,9 @@ export function AgendaAdmin() {
             </select>
           </label>
           <label>
-            <span>Zone</span>
+            <span>{textByLocale(locale, "Zone", "Zona")}</span>
             <select value={requestForm.zoneId} onChange={(event) => setRequestForm((current) => ({ ...current, zoneId: event.target.value }))}>
-              <option value="">No zone</option>
+              <option value="">{textByLocale(locale, "No zone", "Sin zona")}</option>
               {zones
                 .filter((zone) => !requestForm.provinceId || zone.provinceId === requestForm.provinceId)
                 .map((zone) => (
@@ -499,9 +499,9 @@ export function AgendaAdmin() {
             </select>
           </label>
           <label>
-            <span>Point of sale</span>
+            <span>{textByLocale(locale, "Point of sale", "Punto de venta")}</span>
             <select value={requestForm.pointOfSaleId} onChange={(event) => setRequestForm((current) => ({ ...current, pointOfSaleId: event.target.value }))}>
-              <option value="">No POS</option>
+              <option value="">{textByLocale(locale, "No POS", "Sin PDV")}</option>
               {pointsOfSale
                 .filter((pointOfSale) => (!requestForm.clientId || pointOfSale.clientId === requestForm.clientId) && (!requestForm.zoneId || pointOfSale.zoneId === requestForm.zoneId))
                 .map((pointOfSale) => (
@@ -512,9 +512,9 @@ export function AgendaAdmin() {
             </select>
           </label>
           <label className="fullWidth">
-            <span>Linked task</span>
+            <span>{textByLocale(locale, "Linked task", "Tarea vinculada")}</span>
             <select value={requestForm.taskId} onChange={(event) => setRequestForm((current) => ({ ...current, taskId: event.target.value }))}>
-              <option value="">No task</option>
+              <option value="">{textByLocale(locale, "No task", "Sin tarea")}</option>
               {tasks.map((task) => (
                 <option key={task.id} value={task.id}>
                   {task.title}
@@ -525,7 +525,7 @@ export function AgendaAdmin() {
         </div>
         <div className="taskFormActions">
           <button className="primaryAction" disabled={loading || isPending} type="button" onClick={() => void createClientRequest()}>
-            Create client request
+            {textByLocale(locale, "Create client request", "Crear solicitud de cliente")}
           </button>
         </div>
         <div className="taskList">
@@ -535,17 +535,17 @@ export function AgendaAdmin() {
                 <div>
                   <h4>{request.title}</h4>
                   <p>
-                    {request.requesterName} / due {request.dueDate}
+                    {request.requesterName} / {textByLocale(locale, "due", "vence")} {request.dueDate}
                   </p>
                 </div>
                 <span className="taskBadge">{request.status}</span>
               </div>
               {request.description ? <p>{request.description}</p> : null}
               <p>
-                Aging {request.agingDays} days {request.overdue ? "/ overdue" : ""}
+                {textByLocale(locale, "Age", "Antiguedad")} {request.agingDays} {textByLocale(locale, "days", "dias")} {request.overdue ? `/ ${textByLocale(locale, "overdue", "vencida")}` : ""}
               </p>
               <p>
-                Owner: {users.find((user) => user.id === request.ownerUserId)?.name ?? request.ownerUserId} / Priority: {request.priority}
+                {textByLocale(locale, "Owner", "Responsable")}: {users.find((user) => user.id === request.ownerUserId)?.name ?? request.ownerUserId} / {textByLocale(locale, "Priority", "Prioridad")}: {request.priority}
               </p>
               <div className="taskStatusActions">
                 {REQUEST_STATUSES.filter((status) => status !== request.status).map((status) => (

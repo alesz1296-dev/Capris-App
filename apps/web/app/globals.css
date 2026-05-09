@@ -58,6 +58,16 @@ a {
   background: #f9eaed;
 }
 
+.sidebarLink {
+  display: block;
+}
+
+.sidebarLinkActive {
+  background: #f3d8dc;
+  color: var(--brand-strong);
+  font-weight: 700;
+}
+
 .workspace {
   padding: 28px;
   background:
@@ -119,6 +129,13 @@ p {
 h1 {
   font-size: 30px;
   margin-bottom: 0;
+}
+
+.pageLead {
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: 10px;
+  max-width: 72ch;
 }
 
 .languageSwitch {
@@ -300,6 +317,113 @@ h1 {
 .taskAdminLayout {
   display: grid;
   gap: 18px;
+}
+
+.provinceMapGrid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-bottom: 28px;
+}
+
+.provinceMapCard {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.provinceMapHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.provinceMapHeader p {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.provinceMapCanvas {
+  background: linear-gradient(180deg, #fff7f8 0%, #fffdfd 100%);
+  border: 1px solid #f0d9dd;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.provinceMapCanvas svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.provinceMapBackground {
+  fill: #fffafb;
+}
+
+.provinceMapGridLines line {
+  stroke: #f2d9dd;
+  stroke-dasharray: 4 6;
+}
+
+.provinceMarker--point {
+  fill: #c5333f;
+}
+
+.provinceMarker--check_in {
+  fill: #0f766e;
+}
+
+.provinceMarker--check_out {
+  fill: #2563eb;
+}
+
+.provinceMarker--evidence {
+  fill: #f97316;
+}
+
+.provinceMapLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.provinceMapLegend span {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.legendSwatch {
+  border-radius: 999px;
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
+.legendSwatch--point {
+  background: #c5333f;
+}
+
+.legendSwatch--check-in {
+  background: #0f766e;
+}
+
+.legendSwatch--check-out {
+  background: #2563eb;
+}
+
+.legendSwatch--evidence {
+  background: #f97316;
+}
+
+.provinceMapMeta {
+  margin-top: 0;
 }
 
 .accessGrid,

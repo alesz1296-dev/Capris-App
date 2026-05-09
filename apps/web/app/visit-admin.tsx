@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { t, type Visit, type VisitBootstrap, type VisitStatus } from "@capris/shared";
 import type { CreateVisitInput } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { formatCoordinates, resolveWebCoordinates } from "./location-client";
 import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
-const FALLBACK_LATITUDE = 9.9186;
-const FALLBACK_LONGITUDE = -84.1397;
 
 type VisitFormState = {
   taskId: string;
@@ -144,20 +143,19 @@ export function VisitAdmin() {
 
   async function transitionVisit(visit: Visit, action: "check_in" | "check_out") {
     const linkedPointOfSale = pointsOfSale.find((pointOfSale) => pointOfSale.id === visit.pointOfSaleId);
-    const latitude = linkedPointOfSale?.latitude ?? FALLBACK_LATITUDE;
-    const longitude = linkedPointOfSale?.longitude ?? FALLBACK_LONGITUDE;
+    const location = await resolveWebCoordinates(locale, linkedPointOfSale);
     const endpoint = action === "check_in" ? "check-in" : "check-out";
     const payload =
       action === "check_in"
         ? {
             checkedInAt: new Date().toISOString(),
-            checkedInLatitude: latitude,
-            checkedInLongitude: longitude
+            checkedInLatitude: location.latitude,
+            checkedInLongitude: location.longitude
           }
         : {
             checkedOutAt: new Date().toISOString(),
-            checkedOutLatitude: latitude,
-            checkedOutLongitude: longitude
+            checkedOutLatitude: location.latitude,
+            checkedOutLongitude: location.longitude
           };
 
     try {
@@ -224,7 +222,6 @@ export function VisitAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>Create task-linked visit</h3>
               <h3>{textByLocale(locale, "Create task-linked visit", "Crear visita vinculada a tarea")}</h3>
               <p>{textByLocale(locale, "Visits inherit assignee and route scope from the selected task so route execution stays aligned with the task plan.", "Las visitas heredan responsable y alcance de ruta de la tarea seleccionada para que la ejecucion se mantenga alineada con el plan.")}</p>
             </div>
@@ -357,7 +354,8 @@ function VisitCard({
   const assignee = users.find((user) => user.id === visit.assigneeId)?.name ?? visit.assigneeId;
   const province = provinces.find((item) => item.id === visit.provinceId)?.name ?? visit.provinceId;
   const zone = zones.find((item) => item.id === visit.zoneId)?.name ?? visit.zoneId;
-  const pointOfSale = pointsOfSale.find((item) => item.id === visit.pointOfSaleId)?.name ?? textByLocale(locale, "Route stop not linked", "Parada de ruta no vinculada");
+  const linkedPointOfSale = pointsOfSale.find((item) => item.id === visit.pointOfSaleId);
+  const pointOfSale = linkedPointOfSale?.name ?? textByLocale(locale, "Route stop not linked", "Parada de ruta no vinculada");
 
   return (
     <article className="taskCard">
@@ -397,8 +395,10 @@ function VisitCard({
         <div>
           <dt>GPS</dt>
           <dd>
-            {visit.checkedOutLatitude ?? visit.checkedInLatitude ?? FALLBACK_LATITUDE},{" "}
-            {visit.checkedOutLongitude ?? visit.checkedInLongitude ?? FALLBACK_LONGITUDE}
+            {formatCoordinates(
+              visit.checkedOutLatitude ?? visit.checkedInLatitude ?? linkedPointOfSale?.latitude,
+              visit.checkedOutLongitude ?? visit.checkedInLongitude ?? linkedPointOfSale?.longitude
+            )}
           </dd>
         </div>
       </dl>
@@ -437,4 +437,3 @@ async function extractErrorMessage(response: Response, fallback: string) {
   const text = await response.text();
   return text || fallback;
 }
-
