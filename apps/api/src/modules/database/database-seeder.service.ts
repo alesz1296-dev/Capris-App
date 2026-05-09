@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { DEFAULT_COUNTRY, DEFAULT_FIELD_WORKFLOW_RULE, DEFAULT_TIMEZONE } from "@capris/shared";
 import { PrismaService } from "./prisma.service";
 
@@ -7,7 +8,17 @@ export class DatabaseSeederService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    const existingOrganizationCount = await this.prisma.organization.count();
+    let existingOrganizationCount = 0;
+
+    try {
+      existingOrganizationCount = await this.prisma.organization.count();
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+        console.warn("Skipping database seed because Prisma tables are not initialized yet. Run prisma db push before seeding.");
+        return;
+      }
+      throw error;
+    }
 
     if (existingOrganizationCount > 0) {
       return;
