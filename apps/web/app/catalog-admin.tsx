@@ -21,6 +21,7 @@ import type {
   Zone
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -68,8 +69,12 @@ type WorkflowFormState = {
   requiresConsignationEmail: boolean;
 };
 
-function statusLabel(active: boolean): CatalogStatus {
-  return active ? "active" : "inactive";
+function statusLabel(locale: "en" | "es", active: boolean): CatalogStatus | string {
+  return active ? textByLocale(locale, "active", "activo") : textByLocale(locale, "inactive", "inactivo");
+}
+
+function catalogText(locale: "en" | "es", english: string, spanish: string) {
+  return textByLocale(locale, english, spanish);
 }
 
 const CREATE_LABELS: Record<string, string> = {
@@ -93,6 +98,7 @@ const ARCHIVE_LABELS: Record<string, string> = {
 };
 
 export function CatalogAdmin() {
+  const locale = useAppLocale();
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +198,7 @@ export function CatalogAdmin() {
 
       const profileResponse = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" });
       if (!profileResponse.ok) {
-        throw new Error(`Auth profile failed with status ${profileResponse.status}.`);
+        throw new Error(textByLocale(locale, `Auth profile failed with status ${profileResponse.status}.`, `El perfil de autenticacion fallo con estado ${profileResponse.status}.`));
       }
 
       const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
@@ -216,13 +222,13 @@ export function CatalogAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(`Catalog bootstrap failed with status ${response.status}.`);
+        throw new Error(textByLocale(locale, `Catalog bootstrap failed with status ${response.status}.`, `La carga inicial de catalogos fallo con estado ${response.status}.`));
       }
 
       const data = (await response.json()) as CatalogBootstrap;
       setCatalogState(data);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load catalogs.");
+      setError(loadError instanceof Error ? loadError.message : textByLocale(locale, "Unable to load catalogs.", "No se pudieron cargar los catalogos."));
     } finally {
       setLoading(false);
     }
@@ -252,16 +258,16 @@ export function CatalogAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, `Create request for ${path} failed.`));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, `Create request for ${path} failed.`, `La solicitud de creacion para ${path} fallo.`)));
       }
 
       onSuccess();
-      setStatusMessage(`${CREATE_LABELS[path]} created successfully.`);
+      setStatusMessage(textByLocale(locale, `${CREATE_LABELS[path]} created successfully.`, `${translateCatalogLabel(locale, CREATE_LABELS[path])} creado correctamente.`));
       startTransition(() => {
         void loadCatalogs();
       });
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : `Unable to create ${path}.`);
+      setError(submitError instanceof Error ? submitError.message : textByLocale(locale, `Unable to create ${path}.`, `No se pudo crear ${path}.`));
     }
   }
 
@@ -275,15 +281,15 @@ export function CatalogAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, `Archive request for ${path}/${id} failed.`));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, `Archive request for ${path}/${id} failed.`, `La solicitud para archivar ${path}/${id} fallo.`)));
       }
 
-      setStatusMessage(`${ARCHIVE_LABELS[path]} archived successfully.`);
+      setStatusMessage(textByLocale(locale, `${ARCHIVE_LABELS[path]} archived successfully.`, `${translateCatalogLabel(locale, ARCHIVE_LABELS[path])} archivado correctamente.`));
       startTransition(() => {
         void loadCatalogs();
       });
     } catch (archiveError) {
-      setError(archiveError instanceof Error ? archiveError.message : `Unable to archive ${path}.`);
+      setError(archiveError instanceof Error ? archiveError.message : textByLocale(locale, `Unable to archive ${path}.`, `No se pudo archivar ${path}.`));
     }
   }
 
@@ -424,29 +430,29 @@ export function CatalogAdmin() {
   return (
     <section className="catalogSection" id="routes">
       <div className="sectionHeading">
-        <p className="eyebrow">Catalogs</p>
-        <h2>Catalog admin forms for geography, customers, and execution rules</h2>
+        <p className="eyebrow">{textByLocale(locale, "Catalogs", "Catalogos")}</p>
+        <h2>{textByLocale(locale, "Catalog admin forms for geography, customers, and execution rules", "Formularios de catalogos para geografia, clientes y reglas de ejecucion")}</h2>
         <p className="sectionDescription">
-          This surface now uses the live catalog API for Session 5. Create and archive actions refresh from durable
-          backend data.
+          {textByLocale(locale, "This surface now uses the live catalog API. Create and archive actions refresh from durable backend data.", "Esta pantalla usa la API real de catalogos. Las acciones de crear y archivar se actualizan desde datos persistentes del backend.")}
         </p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadCatalogs()}>
-          {actionDisabled ? "Refreshing..." : "Refresh catalogs"}
+          {actionDisabled ? textByLocale(locale, "Refreshing...", "Actualizando...") : textByLocale(locale, "Refresh catalogs", "Actualizar catalogos")}
         </button>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading catalog data...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing from API...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading catalog data...", "Cargando datos de catalogos...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing from API...", "Actualizando desde la API...")}</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
         {profile && profile.user.role !== "admin" ? (
-          <p className="feedbackInfo">Catalog management is limited to admin users.</p>
+          <p className="feedbackInfo">{textByLocale(locale, "Catalog management is limited to admin users.", "La administracion de catalogos esta limitada a usuarios administradores.")}</p>
         ) : null}
       </div>
 
       {profile && profile.user.role !== "admin" ? null : <div className="catalogAdminLayout">
         <CatalogPanel
+          locale={locale}
           title="Provinces"
           description="Maintain Costa Rica province records used by zones, visits, and routing."
           form={
@@ -473,20 +479,21 @@ export function CatalogAdmin() {
                 type="button"
                 onClick={handleProvinceCreate}
               >
-                {actionDisabled ? "Saving..." : "Add province"}
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add province", "Agregar provincia")}
               </button>
             </FormGrid>
           }
           actionDisabled={actionDisabled}
           items={provinces.map((province) => ({
             id: province.id,
-            label: `${province.name} (${province.code}) - ${statusLabel(province.active)}`,
+            label: `${province.name} (${province.code}) - ${statusLabel(locale, province.active)}`,
             archived: !province.active,
             onArchive: () => void archiveItem("provinces", province.id)
           }))}
         />
 
         <CatalogPanel
+          locale={locale}
           title="Zones"
           description="Group points of sale into operational route territories."
           form={
@@ -521,20 +528,21 @@ export function CatalogAdmin() {
                 />
               </label>
               <button className="primaryAction" disabled={actionDisabled} type="button" onClick={handleZoneCreate}>
-                {actionDisabled ? "Saving..." : "Add zone"}
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add zone", "Agregar zona")}
               </button>
             </FormGrid>
           }
           actionDisabled={actionDisabled}
           items={zones.map((zone) => ({
             id: zone.id,
-            label: `${zone.name} (${zone.code}) - ${statusLabel(zone.active)}`,
+            label: `${zone.name} (${zone.code}) - ${statusLabel(locale, zone.active)}`,
             archived: !zone.active,
             onArchive: () => void archiveItem("zones", zone.id)
           }))}
         />
 
         <CatalogPanel
+          locale={locale}
           title="Clients"
           description="Track retail clients and their operational contact points."
           form={
@@ -566,20 +574,21 @@ export function CatalogAdmin() {
                 />
               </label>
               <button className="primaryAction" disabled={actionDisabled} type="button" onClick={handleClientCreate}>
-                {actionDisabled ? "Saving..." : "Add client"}
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add client", "Agregar cliente")}
               </button>
             </FormGrid>
           }
           actionDisabled={actionDisabled}
           items={clients.map((client) => ({
             id: client.id,
-            label: `${client.name} (${client.code}) - ${statusLabel(client.active)}`,
+            label: `${client.name} (${client.code}) - ${statusLabel(locale, client.active)}`,
             archived: !client.active,
             onArchive: () => void archiveItem("clients", client.id)
           }))}
         />
 
         <CatalogPanel
+          locale={locale}
           title="Points of sale"
           description="Set the stores the field team will visit, report on, and validate by zone."
           form={
@@ -661,20 +670,21 @@ export function CatalogAdmin() {
                 type="button"
                 onClick={handlePointOfSaleCreate}
               >
-                {actionDisabled ? "Saving..." : "Add point of sale"}
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add point of sale", "Agregar punto de venta")}
               </button>
             </FormGrid>
           }
           actionDisabled={actionDisabled}
           items={pointsOfSale.map((point) => ({
             id: point.id,
-            label: `${point.name} (${point.code}) - ${statusLabel(point.active)}`,
+            label: `${point.name} (${point.code}) - ${statusLabel(locale, point.active)}`,
             archived: !point.active,
             onArchive: () => void archiveItem("points-of-sale", point.id)
           }))}
         />
 
         <CatalogPanel
+          locale={locale}
           title="Activity types"
           description="Define the kind of field work being carried out at the point of sale."
           form={
@@ -705,20 +715,21 @@ export function CatalogAdmin() {
                 type="button"
                 onClick={handleActivityTypeCreate}
               >
-                {actionDisabled ? "Saving..." : "Add activity type"}
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add activity type", "Agregar tipo de actividad")}
               </button>
             </FormGrid>
           }
           actionDisabled={actionDisabled}
           items={activityTypes.map((activityType) => ({
             id: activityType.id,
-            label: `${activityType.name} (${activityType.code}) - ${statusLabel(activityType.active)}`,
+            label: `${activityType.name} (${activityType.code}) - ${statusLabel(locale, activityType.active)}`,
             archived: !activityType.active,
             onArchive: () => void archiveItem("activity-types", activityType.id)
           }))}
         />
 
         <CatalogPanel
+          locale={locale}
           title="Task types"
           description="Define the assignment container supervisors schedule and field users execute."
           form={
@@ -740,20 +751,21 @@ export function CatalogAdmin() {
                 />
               </label>
               <button className="primaryAction" disabled={actionDisabled} type="button" onClick={handleTaskTypeCreate}>
-                {actionDisabled ? "Saving..." : "Add task type"}
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add task type", "Agregar tipo de tarea")}
               </button>
             </FormGrid>
           }
           actionDisabled={actionDisabled}
           items={taskTypes.map((taskType) => ({
             id: taskType.id,
-            label: `${taskType.name} (${taskType.code}) - ${statusLabel(taskType.active)}`,
+            label: `${taskType.name} (${taskType.code}) - ${statusLabel(locale, taskType.active)}`,
             archived: !taskType.active,
             onArchive: () => void archiveItem("task-types", taskType.id)
           }))}
         />
 
         <CatalogPanel
+          locale={locale}
           title="Workflow rules"
           description="Configure evidence, GPS, comments, approvals, and consignation email behavior per execution combination."
           form={
@@ -832,7 +844,7 @@ export function CatalogAdmin() {
                 type="button"
                 onClick={handleWorkflowRuleCreate}
               >
-                {actionDisabled ? "Saving..." : "Add workflow rule"}
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add workflow rule", "Agregar regla de flujo")}
               </button>
             </div>
           }
@@ -855,12 +867,14 @@ export function CatalogAdmin() {
 }
 
 function CatalogPanel({
+  locale,
   title,
   description,
   form,
   items,
   actionDisabled
 }: {
+  locale: "en" | "es";
   title: string;
   description: string;
   form: ReactNode;
@@ -892,16 +906,30 @@ function CatalogPanel({
                 type="button"
                 onClick={item.onArchive}
               >
-                {item.archived ? "Archived" : "Archive"}
+                {item.archived ? textByLocale(locale, "Archived", "Archivado") : textByLocale(locale, "Archive", "Archivar")}
               </button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="catalogEmptyState">No catalog records yet.</p>
+        <p className="catalogEmptyState">{textByLocale(locale, "No catalog records yet.", "Todavia no hay registros de catalogo.")}</p>
       )}
     </article>
   );
+}
+
+function translateCatalogLabel(locale: "en" | "es", label: string) {
+  const translations: Record<string, string> = {
+    Province: "provincia",
+    Zone: "zona",
+    Client: "cliente",
+    "Point of sale": "punto de venta",
+    "Activity type": "tipo de actividad",
+    "Task type": "tipo de tarea",
+    "Workflow rule": "regla de flujo"
+  };
+
+  return locale === "es" ? translations[label] ?? label.toLowerCase() : label;
 }
 
 function FormGrid({ children }: { children: ReactNode }) {

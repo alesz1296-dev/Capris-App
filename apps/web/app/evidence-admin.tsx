@@ -12,7 +12,7 @@ import {
   type UploadStatus
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
-import { useAppLocale } from "./locale-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 const EVIDENCE_TYPES: EvidenceType[] = ["before", "after", "supporting"];
@@ -90,6 +90,7 @@ export function EvidenceAdmin() {
   }, [evidenceForm.visitId, visitsForTask]);
 
   async function loadEvidence() {
+    const loadFallback = textByLocale(locale, "Unable to load evidence data.", "No se pudieron cargar los datos de evidencia.");
     try {
       setLoading(true);
       setError(null);
@@ -99,13 +100,13 @@ export function EvidenceAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to load evidence data."));
+        throw new Error(await extractErrorMessage(response, loadFallback));
       }
 
       const payload = (await response.json()) as EvidenceBootstrap;
       setBootstrap(payload);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load evidence data.");
+      setError(loadError instanceof Error ? loadError.message : loadFallback);
     } finally {
       setLoading(false);
     }
@@ -114,7 +115,7 @@ export function EvidenceAdmin() {
   async function uploadSelectedFile() {
     const selectedTask = tasks.find((task) => task.id === evidenceForm.taskId);
     if (!selectedTask || !evidenceForm.uploaderUserId || !selectedFile) {
-      setError("Select a file before uploading evidence.");
+      setError(textByLocale(locale, "Select a file before uploading evidence.", "Selecciona un archivo antes de subir evidencia."));
       return;
     }
 
@@ -136,7 +137,7 @@ export function EvidenceAdmin() {
       byteSize: selectedFile.size || undefined
     };
 
-    await submitUpload(payload, "Evidence uploaded to object storage successfully.");
+    await submitUpload(payload, textByLocale(locale, "Evidence uploaded to object storage successfully.", "Evidencia subida correctamente al almacenamiento de objetos."));
   }
 
   async function queueEvidence() {
@@ -186,15 +187,15 @@ export function EvidenceAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to queue evidence."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to queue evidence.", "No se pudo encolar la evidencia.")));
       }
 
-      setStatusMessage("Evidence queued for upload successfully.");
+      setStatusMessage(textByLocale(locale, "Evidence queued for upload successfully.", "Evidencia encolada correctamente para subir."));
       startTransition(() => {
         void loadEvidence();
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to queue evidence.");
+      setError(saveError instanceof Error ? saveError.message : textByLocale(locale, "Unable to queue evidence.", "No se pudo encolar la evidencia."));
     }
   }
 
@@ -240,15 +241,15 @@ export function EvidenceAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to update upload status."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to update upload status.", "No se pudo actualizar el estado de carga.")));
       }
 
-      setStatusMessage(`Media asset moved to ${nextStatus}.`);
+      setStatusMessage(textByLocale(locale, `Media asset moved to ${nextStatus}.`, `Activo multimedia movido a ${nextStatus}.`));
       startTransition(() => {
         void loadEvidence();
       });
     } catch (statusError) {
-      setError(statusError instanceof Error ? statusError.message : "Unable to update upload status.");
+      setError(statusError instanceof Error ? statusError.message : textByLocale(locale, "Unable to update upload status.", "No se pudo actualizar el estado de carga."));
     }
   }
 
@@ -269,15 +270,15 @@ export function EvidenceAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to queue retry."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to queue retry.", "No se pudo encolar el reintento.")));
       }
 
-      setStatusMessage(`Retry queued for ${mediaAsset.fileName}.`);
+      setStatusMessage(textByLocale(locale, `Retry queued for ${mediaAsset.fileName}.`, `Reintento encolado para ${mediaAsset.fileName}.`));
       startTransition(() => {
         void loadEvidence();
       });
     } catch (retryError) {
-      setError(retryError instanceof Error ? retryError.message : "Unable to queue retry.");
+      setError(retryError instanceof Error ? retryError.message : textByLocale(locale, "Unable to queue retry.", "No se pudo encolar el reintento."));
     }
   }
 
@@ -288,13 +289,13 @@ export function EvidenceAdmin() {
         <h2>{t(locale, "evidence.sectionTitle")}</h2>
         <p className="sectionDescription">{t(locale, "evidence.sectionDescription")}</p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadEvidence()}>
-          {actionDisabled ? "Refreshing..." : "Refresh evidence"}
+          {actionDisabled ? textByLocale(locale, "Refreshing...", "Actualizando...") : textByLocale(locale, "Refresh evidence", "Actualizar evidencia")}
         </button>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading evidence data...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing evidence state from API...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading evidence data...", "Cargando datos de evidencia...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing evidence state from API...", "Actualizando estado de evidencia desde la API...")}</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
       </div>
@@ -304,13 +305,13 @@ export function EvidenceAdmin() {
           <div className="catalogManagerHeader">
             <div>
               <h3>{t(locale, "evidence.create")}</h3>
-              <p>Select a real image file to upload through the evidence API into object storage, or queue the metadata-only variant to keep the Session 9 sync path visible.</p>
+              <p>{textByLocale(locale, "Select a real image file to upload through the evidence API into object storage, or queue the metadata-only variant to keep the sync path visible.", "Selecciona una imagen real para subirla por la API de evidencia al almacenamiento de objetos, o encola la variante solo con metadatos para mantener visible la ruta de sincronizacion.")}</p>
             </div>
           </div>
 
           <div className="formGrid">
             <label className="fullWidth">
-              <span>Task</span>
+              <span>{textByLocale(locale, "Task", "Tarea")}</span>
               <select
                 value={evidenceForm.taskId}
                 onChange={(event) =>
@@ -329,9 +330,9 @@ export function EvidenceAdmin() {
               </select>
             </label>
             <label>
-              <span>Visit</span>
+              <span>{textByLocale(locale, "Visit", "Visita")}</span>
               <select value={evidenceForm.visitId} onChange={(event) => setEvidenceForm((current) => ({ ...current, visitId: event.target.value }))}>
-                <option value="">No visit link</option>
+                <option value="">{textByLocale(locale, "No visit link", "Sin vinculacion de visita")}</option>
                 {visitsForTask.map((visit) => (
                   <option key={visit.id} value={visit.id}>
                     {visit.id}
@@ -370,7 +371,7 @@ export function EvidenceAdmin() {
               <input value={evidenceForm.fileName} onChange={(event) => setEvidenceForm((current) => ({ ...current, fileName: event.target.value }))} />
             </label>
             <label className="fullWidth">
-              <span>Select image</span>
+              <span>{textByLocale(locale, "Select image", "Seleccionar imagen")}</span>
               <input
                 accept="image/*"
                 type="file"
@@ -388,10 +389,10 @@ export function EvidenceAdmin() {
             </label>
             <div className="taskFormActions fullWidth">
               <button className="primaryAction" disabled={actionDisabled || !selectedFile} type="button" onClick={() => void uploadSelectedFile()}>
-                {actionDisabled ? "Uploading..." : "Upload selected file"}
+                {actionDisabled ? textByLocale(locale, "Uploading...", "Subiendo...") : textByLocale(locale, "Upload selected file", "Subir archivo seleccionado")}
               </button>
               <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={() => void queueEvidence()}>
-                Queue metadata-only upload
+                {textByLocale(locale, "Queue metadata-only upload", "Encolar carga solo de metadatos")}
               </button>
             </div>
           </div>
@@ -401,7 +402,7 @@ export function EvidenceAdmin() {
           <div className="catalogManagerHeader">
             <div>
               <h3>{t(locale, "evidence.reviewStub")}</h3>
-              <p>Review thumbnails, upload progress, retry counts, and pending-sync operations. Real stored thumbnails now render through the storage endpoint whenever the upload has completed.</p>
+              <p>{textByLocale(locale, "Review thumbnails, upload progress, retry counts, and pending-sync operations. Real stored thumbnails now render through the storage endpoint whenever the upload has completed.", "Revisa miniaturas, progreso de carga, conteos de reintento y operaciones pendientes de sincronizacion. Las miniaturas almacenadas ya se muestran por el endpoint de almacenamiento cuando la carga se completa.")}</p>
             </div>
           </div>
 

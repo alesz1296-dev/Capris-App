@@ -13,6 +13,7 @@ import type {
   CreateClientRequestInput
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 const DEFAULT_DATE = "2026-05-08";
@@ -79,6 +80,7 @@ const EMPTY_REQUEST_FORM: ClientRequestFormState = {
 };
 
 export function AgendaAdmin() {
+  const locale = useAppLocale();
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +137,9 @@ export function AgendaAdmin() {
   );
 
   async function loadSession12() {
+    const calendarFallback = textByLocale(locale, "Unable to load calendar data.", "No se pudieron cargar los datos del calendario.");
+    const requestFallback = textByLocale(locale, "Unable to load client requests.", "No se pudieron cargar las solicitudes de cliente.");
+    const sessionFallback = textByLocale(locale, "Unable to load agenda data.", "No se pudieron cargar los datos de agenda.");
     try {
       setLoading(true);
       setError(null);
@@ -145,10 +150,10 @@ export function AgendaAdmin() {
       ]);
 
       if (!calendarResponse.ok) {
-        throw new Error(await extractErrorMessage(calendarResponse, "Unable to load calendar data."));
+        throw new Error(await extractErrorMessage(calendarResponse, calendarFallback));
       }
       if (!requestsResponse.ok) {
-        throw new Error(await extractErrorMessage(requestsResponse, "Unable to load client requests."));
+        throw new Error(await extractErrorMessage(requestsResponse, requestFallback));
       }
 
       const [calendarPayload, requestsPayload] = await Promise.all([
@@ -159,7 +164,7 @@ export function AgendaAdmin() {
       setCalendar(calendarPayload);
       setRequestBootstrap(requestsPayload);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load session 12 data.");
+      setError(loadError instanceof Error ? loadError.message : sessionFallback);
     } finally {
       setLoading(false);
     }
@@ -181,7 +186,7 @@ export function AgendaAdmin() {
       createdByUserId: agendaForm.createdByUserId
     };
 
-    await submit(`${API_BASE_URL}/calendar/agenda-events`, payload, "Shared agenda event created.");
+    await submit(`${API_BASE_URL}/calendar/agenda-events`, payload, textByLocale(locale, "Shared agenda event created.", "Evento compartido de agenda creado."));
     setAgendaForm((current) => ({ ...EMPTY_AGENDA_FORM, createdByUserId: current.createdByUserId, ownerUserId: current.ownerUserId }));
   }
 
@@ -203,7 +208,7 @@ export function AgendaAdmin() {
       priority: requestForm.priority
     };
 
-    await submit(`${API_BASE_URL}/client-requests`, payload, "Client request created.");
+    await submit(`${API_BASE_URL}/client-requests`, payload, textByLocale(locale, "Client request created.", "Solicitud de cliente creada."));
     setRequestForm((current) => ({ ...EMPTY_REQUEST_FORM, ownerUserId: current.ownerUserId }));
   }
 
@@ -215,12 +220,13 @@ export function AgendaAdmin() {
         resolvedAt: status === "resolved" ? new Date().toISOString() : undefined,
         closedAt: status === "closed" ? new Date().toISOString() : undefined
       },
-      `Client request moved to ${status}.`,
+      textByLocale(locale, `Client request moved to ${status}.`, `Solicitud de cliente movida a ${status}.`),
       "PATCH"
     );
   }
 
   async function submit(url: string, payload: unknown, successMessage: string, method: "POST" | "PATCH" = "POST") {
+    const saveFallback = textByLocale(locale, "Unable to save agenda data.", "No se pudieron guardar los datos de agenda.");
     try {
       setStatusMessage(null);
       setError(null);
@@ -232,7 +238,7 @@ export function AgendaAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to save Session 12 data."));
+        throw new Error(await extractErrorMessage(response, saveFallback));
       }
 
       setStatusMessage(successMessage);
@@ -240,42 +246,41 @@ export function AgendaAdmin() {
         void loadSession12();
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save Session 12 data.");
+      setError(saveError instanceof Error ? saveError.message : saveFallback);
     }
   }
 
   return (
     <section className="catalogSection" id="agenda">
       <div className="sectionHeading">
-        <p className="eyebrow">Session 12</p>
-        <h2>Shared agenda, calendars, and client requests</h2>
+        <h2>{textByLocale(locale, "Shared agenda, calendars, and client requests", "Agenda compartida, calendarios y solicitudes de cliente")}</h2>
         <p className="sectionDescription">
-          View daily, weekly, monthly, and yearly scheduling windows, create shared team agenda events, and follow client requests with ownership, due dates, and aging.
+          {textByLocale(locale, "View daily, weekly, monthly, and yearly scheduling windows, create shared team agenda events, and follow client requests with ownership, due dates, and aging.", "Consulta ventanas de programacion diarias, semanales, mensuales y anuales, crea eventos compartidos de equipo y da seguimiento a solicitudes de cliente con responsables, vencimientos y antiguedad.")}
         </p>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading calendar and client-request data...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing Session 12 state from API...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading calendar and client-request data...", "Cargando calendario y solicitudes de cliente...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing agenda state from API...", "Actualizando estado de agenda desde la API...")}</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
       </div>
 
       <div className="metrics">
         <article className="metric">
-          <span>Agenda events</span>
+          <span>{textByLocale(locale, "Agenda events", "Eventos de agenda")}</span>
           <strong>{groupedCounts.agenda}</strong>
         </article>
         <article className="metric">
-          <span>Scheduled tasks</span>
+          <span>{textByLocale(locale, "Scheduled tasks", "Tareas programadas")}</span>
           <strong>{groupedCounts.tasks}</strong>
         </article>
         <article className="metric">
-          <span>Scheduled visits</span>
+          <span>{textByLocale(locale, "Scheduled visits", "Visitas programadas")}</span>
           <strong>{groupedCounts.visits}</strong>
         </article>
         <article className="metric">
-          <span>Requests due in view</span>
+          <span>{textByLocale(locale, "Requests due in view", "Solicitudes que vencen en la vista")}</span>
           <strong>{groupedCounts.requests}</strong>
         </article>
       </div>

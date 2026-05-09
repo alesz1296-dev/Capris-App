@@ -12,7 +12,7 @@ import {
   type ReviewConsignationInput
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
-import { useAppLocale } from "./locale-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -97,6 +97,9 @@ export function ActivitiesAdmin() {
   }, [activityForm.taskId, tasks, visits]);
 
   async function loadActivities() {
+    const loadContextFallback = textByLocale(locale, "Unable to load activity context.", "No se pudo cargar el contexto de actividades.");
+    const loadActivitiesFallback = textByLocale(locale, "Unable to load activities.", "No se pudieron cargar las actividades.");
+    const loadExhibitionsFallback = textByLocale(locale, "Unable to load exhibitions.", "No se pudieron cargar las exhibiciones.");
     try {
       setLoading(true);
       setError(null);
@@ -107,13 +110,13 @@ export function ActivitiesAdmin() {
       ]);
 
       if (!evidenceResponse.ok) {
-        throw new Error(await extractErrorMessage(evidenceResponse, "Unable to load activity context."));
+        throw new Error(await extractErrorMessage(evidenceResponse, loadContextFallback));
       }
       if (!activitiesResponse.ok) {
-        throw new Error(await extractErrorMessage(activitiesResponse, "Unable to load activities."));
+        throw new Error(await extractErrorMessage(activitiesResponse, loadActivitiesFallback));
       }
       if (!exhibitionsResponse.ok) {
-        throw new Error(await extractErrorMessage(exhibitionsResponse, "Unable to load exhibitions."));
+        throw new Error(await extractErrorMessage(exhibitionsResponse, loadExhibitionsFallback));
       }
 
       const [bootstrapPayload, activityPayload, exhibitionPayload] = await Promise.all([
@@ -127,7 +130,7 @@ export function ActivitiesAdmin() {
       setExhibitions(exhibitionPayload);
       setReviewState(buildReviewState(bootstrapPayload.consignations));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load activities.");
+      setError(loadError instanceof Error ? loadError.message : loadActivitiesFallback);
     } finally {
       setLoading(false);
     }
@@ -145,7 +148,7 @@ export function ActivitiesAdmin() {
       recordedAt: new Date().toISOString()
     };
 
-    await submitWorkflowAction(`${API_BASE_URL}/activities`, payload, "Activity recorded.");
+    await submitWorkflowAction(`${API_BASE_URL}/activities`, payload, textByLocale(locale, "Activity recorded.", "Actividad registrada."));
   }
 
   async function submitExhibition() {
@@ -160,7 +163,7 @@ export function ActivitiesAdmin() {
       recordedAt: new Date().toISOString()
     };
 
-    await submitWorkflowAction(`${API_BASE_URL}/exhibitions`, payload, "Exhibition installation recorded.");
+    await submitWorkflowAction(`${API_BASE_URL}/exhibitions`, payload, textByLocale(locale, "Exhibition installation recorded.", "Instalacion de exhibicion registrada."));
   }
 
   async function reviewConsignation(consignation: Consignation) {
@@ -178,14 +181,14 @@ export function ActivitiesAdmin() {
       afterEvidenceId: current.afterEvidenceId || undefined
     };
 
-    await submitWorkflowAction(`${API_BASE_URL}/consignations/${consignation.id}/review`, payload, "Consignation reviewed and ready to send.", "PATCH");
+    await submitWorkflowAction(`${API_BASE_URL}/consignations/${consignation.id}/review`, payload, textByLocale(locale, "Consignation reviewed and ready to send.", "Consignacion revisada y lista para enviar."), "PATCH");
   }
 
   async function sendConsignation(consignation: Consignation) {
     await submitWorkflowAction(
       `${API_BASE_URL}/consignations/${consignation.id}/send`,
       { sentAt: new Date().toISOString() },
-      "Consignation marked as sent.",
+      textByLocale(locale, "Consignation marked as sent.", "Consignacion marcada como enviada."),
       "PATCH"
     );
   }
@@ -193,13 +196,14 @@ export function ActivitiesAdmin() {
   async function failConsignation(consignation: Consignation) {
     await submitWorkflowAction(
       `${API_BASE_URL}/consignations/${consignation.id}/fail`,
-      { failedAt: new Date().toISOString(), reason: "Manual failure captured from review console." },
-      "Consignation marked as failed.",
+      { failedAt: new Date().toISOString(), reason: textByLocale(locale, "Manual failure captured from review console.", "Fallo manual capturado desde la consola de revision.") },
+      textByLocale(locale, "Consignation marked as failed.", "Consignacion marcada como fallida."),
       "PATCH"
     );
   }
 
   async function submitWorkflowAction(url: string, payload: unknown, successMessage: string, method: "POST" | "PATCH" = "POST") {
+    const saveFallback = textByLocale(locale, "Unable to save activity workflow.", "No se pudo guardar el flujo de actividades.");
     try {
       setStatusMessage(null);
       setError(null);
@@ -213,7 +217,7 @@ export function ActivitiesAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to save activity workflow."));
+        throw new Error(await extractErrorMessage(response, saveFallback));
       }
 
       setStatusMessage(successMessage);
@@ -221,24 +225,23 @@ export function ActivitiesAdmin() {
         void loadActivities();
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save activity workflow.");
+      setError(saveError instanceof Error ? saveError.message : saveFallback);
     }
   }
 
   return (
     <section className="catalogSection" id="activities">
       <div className="sectionHeading">
-        <p className="eyebrow">Session 10</p>
-        <h2>Consignations, activities, and exhibitions</h2>
-        <p className="sectionDescription">Review consignation emails before sending and record activity counts tied to real tasks, visits, and points of sale.</p>
+        <h2>{textByLocale(locale, "Consignations, activities, and exhibitions", "Consignaciones, actividades y exhibiciones")}</h2>
+        <p className="sectionDescription">{textByLocale(locale, "Review consignation emails before sending and record activity counts tied to real tasks, visits, and points of sale.", "Revisa correos de consignacion antes de enviar y registra conteos de actividad ligados a tareas, visitas y puntos de venta reales.")}</p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadActivities()}>
-          {actionDisabled ? "Refreshing..." : "Refresh activities"}
+          {actionDisabled ? textByLocale(locale, "Refreshing...", "Actualizando...") : textByLocale(locale, "Refresh activities", "Actualizar actividades")}
         </button>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading activity workflows...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing activity state from API...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading activity workflows...", "Cargando flujos de actividades...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing activity state from API...", "Actualizando estado de actividades desde la API...")}</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
       </div>
@@ -248,7 +251,7 @@ export function ActivitiesAdmin() {
           <div className="catalogManagerHeader">
             <div>
               <h3>{t(locale, "activity.activities")}</h3>
-              <p>Capture how many activities were completed for each field task.</p>
+              <p>{textByLocale(locale, "Capture how many activities were completed for each field task.", "Captura cuantas actividades se completaron para cada tarea de campo.")}</p>
             </div>
           </div>
           <ActivityForm
@@ -264,14 +267,14 @@ export function ActivitiesAdmin() {
               {t(locale, "activity.recordActivity")}
             </button>
           </div>
-          <ActivityList items={activities.map((item) => ({ ...item, label: "Activity" }))} />
+          <ActivityList items={activities.map((item) => ({ ...item, label: textByLocale(locale, "Activity", "Actividad") }))} />
         </article>
 
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
               <h3>{t(locale, "activity.exhibitions")}</h3>
-              <p>Record installed exhibition counts by execution visit or direct point of sale linkage.</p>
+              <p>{textByLocale(locale, "Record installed exhibition counts by execution visit or direct point of sale linkage.", "Registra conteos de exhibiciones instaladas por visita de ejecucion o vinculacion directa con el punto de venta.")}</p>
             </div>
           </div>
           <ActivityForm
@@ -287,7 +290,7 @@ export function ActivitiesAdmin() {
               {t(locale, "activity.recordExhibition")}
             </button>
           </div>
-          <ActivityList items={exhibitions.map((item) => ({ ...item, label: "Exhibition" }))} />
+          <ActivityList items={exhibitions.map((item) => ({ ...item, label: textByLocale(locale, "Exhibition", "Exhibicion") }))} />
         </article>
       </div>
 
@@ -295,7 +298,7 @@ export function ActivitiesAdmin() {
         <div className="catalogManagerHeader">
           <div>
             <h3>{t(locale, "consignation.reviewSend")}</h3>
-            <p>Move consignations from prepared to reviewed, capture recipient/content details, and track send failures before the later email-job slice lands.</p>
+            <p>{textByLocale(locale, "Move consignations from prepared to reviewed, capture recipient/content details, and track send failures before the later email-job slice lands.", "Mueve consignaciones de preparadas a revisadas, captura detalles de destinatarios y contenido, y registra fallos de envio antes de incorporar la capa de trabajos de correo.")}</p>
           </div>
         </div>
 
@@ -341,7 +344,7 @@ export function ActivitiesAdmin() {
                       value={current.beforeEvidenceId}
                       onChange={(event) => updateReviewState(consignation.id, { beforeEvidenceId: event.target.value }, setReviewState)}
                     >
-                      <option value="">Select before evidence</option>
+                      <option value="">{textByLocale(locale, "Select before evidence", "Selecciona evidencia previa")}</option>
                       {taskEvidence
                         .filter((item) => item.type === "before")
                         .map((item) => (
@@ -357,7 +360,7 @@ export function ActivitiesAdmin() {
                       value={current.afterEvidenceId}
                       onChange={(event) => updateReviewState(consignation.id, { afterEvidenceId: event.target.value }, setReviewState)}
                     >
-                      <option value="">Select after evidence</option>
+                      <option value="">{textByLocale(locale, "Select after evidence", "Selecciona evidencia posterior")}</option>
                       {taskEvidence
                         .filter((item) => item.type === "after")
                         .map((item) => (

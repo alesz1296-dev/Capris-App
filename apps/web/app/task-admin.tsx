@@ -14,7 +14,7 @@ import {
 } from "@capris/shared";
 import type { CreateTaskInput, UpdateTaskInput } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
-import { useAppLocale } from "./locale-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -190,6 +190,7 @@ export function TaskAdmin() {
   }, [activityTypes, taskForm.activityTypeId, taskForm.taskTypeId, taskTypes]);
 
   async function loadTasks() {
+    const loadFallback = textByLocale(locale, "Unable to load task data.", "No se pudieron cargar los datos de tareas.");
     try {
       setLoading(true);
       setError(null);
@@ -199,13 +200,13 @@ export function TaskAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to load task data."));
+        throw new Error(await extractErrorMessage(response, loadFallback));
       }
 
       const payload = (await response.json()) as TaskBootstrap;
       setBootstrap(payload);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load task data.");
+      setError(loadError instanceof Error ? loadError.message : loadFallback);
     } finally {
       setLoading(false);
     }
@@ -306,16 +307,20 @@ export function TaskAdmin() {
       );
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to save task."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to save task.", "No se pudo guardar la tarea.")));
       }
 
-      setStatusMessage(editingTaskId ? "Task updated successfully." : "Task created successfully.");
+      setStatusMessage(
+        editingTaskId
+          ? textByLocale(locale, "Task updated successfully.", "Tarea actualizada correctamente.")
+          : textByLocale(locale, "Task created successfully.", "Tarea creada correctamente.")
+      );
       resetTaskForm();
       startTransition(() => {
         void loadTasks();
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save task.");
+      setError(saveError instanceof Error ? saveError.message : textByLocale(locale, "Unable to save task.", "No se pudo guardar la tarea."));
     }
   }
 
@@ -333,15 +338,15 @@ export function TaskAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to update task status."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to update task status.", "No se pudo actualizar el estado de la tarea.")));
       }
 
-      setStatusMessage(`Task status moved to ${status}.`);
+      setStatusMessage(textByLocale(locale, `Task status moved to ${status}.`, `Estado de tarea cambiado a ${status}.`));
       startTransition(() => {
         void loadTasks();
       });
     } catch (statusError) {
-      setError(statusError instanceof Error ? statusError.message : "Unable to update task status.");
+      setError(statusError instanceof Error ? statusError.message : textByLocale(locale, "Unable to update task status.", "No se pudo actualizar el estado de la tarea."));
     }
   }
 
@@ -352,13 +357,13 @@ export function TaskAdmin() {
         <h2>{t(locale, "tasks.sectionTitle")}</h2>
         <p className="sectionDescription">{t(locale, "tasks.sectionDescription")}</p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadTasks()}>
-          {actionDisabled ? "Refreshing..." : t(locale, "tasks.refresh")}
+          {actionDisabled ? textByLocale(locale, "Refreshing...", "Actualizando...") : t(locale, "tasks.refresh")}
         </button>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading task data...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing from API...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading task data...", "Cargando datos de tareas...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing from API...", "Actualizando desde la API...")}</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
       </div>
@@ -367,18 +372,18 @@ export function TaskAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{editingTaskId ? "Edit task" : t(locale, "tasks.add")}</h3>
-              <p>Create task assignments using the same catalogs, scope, and workflow data already managed in Session 5.</p>
+              <h3>{editingTaskId ? textByLocale(locale, "Edit task", "Editar tarea") : t(locale, "tasks.add")}</h3>
+              <p>{textByLocale(locale, "Create task assignments using the same catalogs, scope, and workflow data already managed in the admin workspace.", "Crea asignaciones de tareas usando los mismos catalogos, alcance y reglas de flujo ya administrados en el panel.")}</p>
             </div>
           </div>
 
           <div className="formGrid">
             <label className="fullWidth">
-              <span>Title</span>
+              <span>{textByLocale(locale, "Title", "Titulo")}</span>
               <input
                 value={taskForm.title}
                 onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Install launch display and capture before/after evidence"
+                placeholder={textByLocale(locale, "Install launch display and capture before/after evidence", "Instalar exhibicion de lanzamiento y capturar evidencia antes y despues")}
               />
             </label>
             <label>
@@ -416,7 +421,7 @@ export function TaskAdmin() {
               />
             </label>
             <label>
-              <span>Province</span>
+              <span>{textByLocale(locale, "Province", "Provincia")}</span>
               <select
                 value={taskForm.provinceId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, provinceId: event.target.value }))}
@@ -429,7 +434,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>Zone</span>
+              <span>{textByLocale(locale, "Zone", "Zona")}</span>
               <select
                 value={taskForm.zoneId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, zoneId: event.target.value }))}
@@ -525,11 +530,11 @@ export function TaskAdmin() {
             </label>
             <div className="taskFormActions fullWidth">
               <button className="primaryAction" disabled={actionDisabled} type="button" onClick={submitTask}>
-                {actionDisabled ? "Saving..." : editingTaskId ? "Save changes" : t(locale, "tasks.add")}
+                {actionDisabled ? textByLocale(locale, "Saving...", "Guardando...") : editingTaskId ? textByLocale(locale, "Save changes", "Guardar cambios") : t(locale, "tasks.add")}
               </button>
               {editingTaskId ? (
                 <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={resetTaskForm}>
-                  Cancel edit
+                  {textByLocale(locale, "Cancel edit", "Cancelar edicion")}
                 </button>
               ) : null}
             </div>
@@ -539,8 +544,8 @@ export function TaskAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>Active task list</h3>
-              <p>Track assignment ownership, schedule, scope, and the allowed next status changes.</p>
+              <h3>{textByLocale(locale, "Active task list", "Lista activa de tareas")}</h3>
+              <p>{textByLocale(locale, "Track assignment ownership, schedule, scope, and the allowed next status changes.", "Da seguimiento a responsables, calendario, alcance y los siguientes cambios de estado permitidos.")}</p>
             </div>
           </div>
 
@@ -553,7 +558,7 @@ export function TaskAdmin() {
                   setFilters((current) => ({ ...current, status: event.target.value as TaskFilterState["status"] }))
                 }
               >
-                <option value="all">All statuses</option>
+                <option value="all">{textByLocale(locale, "All statuses", "Todos los estados")}</option>
                 {TASK_STATUSES.map((status) => (
                   <option key={status} value={status}>
                     {t(locale, `status.${status}` as never)}
@@ -569,7 +574,7 @@ export function TaskAdmin() {
                   setFilters((current) => ({ ...current, assigneeId: event.target.value as TaskFilterState["assigneeId"] }))
                 }
               >
-                <option value="all">All assignees</option>
+                <option value="all">{textByLocale(locale, "All assignees", "Todos los responsables")}</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name}
@@ -578,17 +583,17 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>Sort</span>
+              <span>{textByLocale(locale, "Sort", "Ordenar")}</span>
               <select
                 value={filters.sortBy}
                 onChange={(event) =>
                   setFilters((current) => ({ ...current, sortBy: event.target.value as TaskFilterState["sortBy"] }))
                 }
               >
-                <option value="scheduledForAsc">Date ascending</option>
-                <option value="scheduledForDesc">Date descending</option>
-                <option value="priorityDesc">Priority</option>
-                <option value="status">Status</option>
+                <option value="scheduledForAsc">{textByLocale(locale, "Date ascending", "Fecha ascendente")}</option>
+                <option value="scheduledForDesc">{textByLocale(locale, "Date descending", "Fecha descendente")}</option>
+                <option value="priorityDesc">{textByLocale(locale, "Priority", "Prioridad")}</option>
+                <option value="status">{textByLocale(locale, "Status", "Estado")}</option>
               </select>
             </label>
           </div>
@@ -680,17 +685,17 @@ function TaskCard({
           <dd>{task.scheduledFor}</dd>
         </div>
         <div>
-          <dt>Route</dt>
+          <dt>{textByLocale(locale, "Route", "Ruta")}</dt>
           <dd>
             {province} / {zone}
           </dd>
         </div>
         <div>
           <dt>{t(locale, "tasks.pointOfSale")}</dt>
-          <dd>{pointOfSale ?? "Not linked"}</dd>
+          <dd>{pointOfSale ?? textByLocale(locale, "Not linked", "No vinculado")}</dd>
         </div>
         <div>
-          <dt>Execution</dt>
+          <dt>{textByLocale(locale, "Execution", "Ejecucion")}</dt>
           <dd>
             {taskType} / {activityType}
           </dd>
@@ -699,7 +704,7 @@ function TaskCard({
 
       <div className="taskStatusActions">
         <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={() => onEdit(task)}>
-          Edit task
+          {textByLocale(locale, "Edit task", "Editar tarea")}
         </button>
         {STATUS_FLOW[task.status].map((nextStatus) => (
           <button
@@ -709,7 +714,7 @@ function TaskCard({
             type="button"
             onClick={() => void onStatusChange(task.id, nextStatus)}
           >
-            Move to {t(locale, `status.${nextStatus}` as never)}
+            {textByLocale(locale, "Move to", "Mover a")} {t(locale, `status.${nextStatus}` as never)}
           </button>
         ))}
       </div>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { t, type Visit, type VisitBootstrap, type VisitStatus } from "@capris/shared";
 import type { CreateVisitInput } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
-import { useAppLocale } from "./locale-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 const FALLBACK_LATITUDE = 9.9186;
@@ -76,6 +76,7 @@ export function VisitAdmin() {
   }, [tasks, visitForm.taskId]);
 
   async function loadVisits() {
+    const loadFallback = textByLocale(locale, "Unable to load visit data.", "No se pudieron cargar los datos de visitas.");
     try {
       setLoading(true);
       setError(null);
@@ -85,13 +86,13 @@ export function VisitAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to load visit data."));
+        throw new Error(await extractErrorMessage(response, loadFallback));
       }
 
       const payload = (await response.json()) as VisitBootstrap;
       setBootstrap(payload);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load visit data.");
+      setError(loadError instanceof Error ? loadError.message : loadFallback);
     } finally {
       setLoading(false);
     }
@@ -125,10 +126,10 @@ export function VisitAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to create visit."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to create visit.", "No se pudo crear la visita.")));
       }
 
-      setStatusMessage("Visit created successfully.");
+      setStatusMessage(textByLocale(locale, "Visit created successfully.", "Visita creada correctamente."));
       setVisitForm({
         taskId: selectedTask.id,
         scheduledFor: selectedTask.scheduledFor
@@ -137,7 +138,7 @@ export function VisitAdmin() {
         void loadVisits();
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to create visit.");
+      setError(saveError instanceof Error ? saveError.message : textByLocale(locale, "Unable to create visit.", "No se pudo crear la visita."));
     }
   }
 
@@ -172,15 +173,32 @@ export function VisitAdmin() {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, `Unable to ${endpoint} visit.`));
+        throw new Error(
+          await extractErrorMessage(
+            response,
+            action === "check_in"
+              ? textByLocale(locale, "Unable to check in visit.", "No se pudo registrar la entrada de la visita.")
+              : textByLocale(locale, "Unable to check out visit.", "No se pudo registrar la salida de la visita.")
+          )
+        );
       }
 
-      setStatusMessage(action === "check_in" ? `Visit ${visit.id} checked in.` : `Visit ${visit.id} checked out.`);
+      setStatusMessage(
+        action === "check_in"
+          ? textByLocale(locale, `Visit ${visit.id} checked in.`, `Visita ${visit.id} registrada en entrada.`)
+          : textByLocale(locale, `Visit ${visit.id} checked out.`, `Visita ${visit.id} registrada en salida.`)
+      );
       startTransition(() => {
         void loadVisits();
       });
     } catch (transitionError) {
-      setError(transitionError instanceof Error ? transitionError.message : `Unable to ${endpoint} visit.`);
+      setError(
+        transitionError instanceof Error
+          ? transitionError.message
+          : action === "check_in"
+            ? textByLocale(locale, "Unable to check in visit.", "No se pudo registrar la entrada de la visita.")
+            : textByLocale(locale, "Unable to check out visit.", "No se pudo registrar la salida de la visita.")
+      );
     }
   }
 
@@ -191,13 +209,13 @@ export function VisitAdmin() {
         <h2>{t(locale, "visits.sectionTitle")}</h2>
         <p className="sectionDescription">{t(locale, "visits.sectionDescription")}</p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadVisits()}>
-          {actionDisabled ? "Refreshing..." : "Refresh route day"}
+          {actionDisabled ? textByLocale(locale, "Refreshing...", "Actualizando...") : textByLocale(locale, "Refresh route day", "Actualizar ruta del dia")}
         </button>
       </div>
 
       <div className="catalogFeedbackRow">
-        {loading ? <p className="feedbackInfo">Loading visit data...</p> : null}
-        {isPending ? <p className="feedbackInfo">Refreshing visit state from API...</p> : null}
+        {loading ? <p className="feedbackInfo">{textByLocale(locale, "Loading visit data...", "Cargando datos de visitas...")}</p> : null}
+        {isPending ? <p className="feedbackInfo">{textByLocale(locale, "Refreshing visit state from API...", "Actualizando estado de visitas desde la API...")}</p> : null}
         {statusMessage ? <p className="feedbackSuccess">{statusMessage}</p> : null}
         {error ? <p className="feedbackError">{error}</p> : null}
       </div>
@@ -207,13 +225,14 @@ export function VisitAdmin() {
           <div className="catalogManagerHeader">
             <div>
               <h3>Create task-linked visit</h3>
-              <p>Visits inherit assignee and route scope from the selected task so route execution stays aligned with the task plan.</p>
+              <h3>{textByLocale(locale, "Create task-linked visit", "Crear visita vinculada a tarea")}</h3>
+              <p>{textByLocale(locale, "Visits inherit assignee and route scope from the selected task so route execution stays aligned with the task plan.", "Las visitas heredan responsable y alcance de ruta de la tarea seleccionada para que la ejecucion se mantenga alineada con el plan.")}</p>
             </div>
           </div>
 
           <div className="formGrid">
             <label className="fullWidth">
-              <span>Task</span>
+              <span>{textByLocale(locale, "Task", "Tarea")}</span>
               <select
                 value={visitForm.taskId}
                 onChange={(event) => {
@@ -247,14 +266,14 @@ export function VisitAdmin() {
               />
             </label>
             <label>
-              <span>Province</span>
+              <span>{textByLocale(locale, "Province", "Provincia")}</span>
               <input
                 disabled
                 value={selectedTask ? provinces.find((province) => province.id === selectedTask.provinceId)?.name ?? selectedTask.provinceId : ""}
               />
             </label>
             <label>
-              <span>Zone</span>
+              <span>{textByLocale(locale, "Zone", "Zona")}</span>
               <input
                 disabled
                 value={selectedTask ? zones.find((zone) => zone.id === selectedTask.zoneId)?.name ?? selectedTask.zoneId : ""}
@@ -275,7 +294,7 @@ export function VisitAdmin() {
             </label>
             <div className="taskFormActions fullWidth">
               <button className="primaryAction" disabled={actionDisabled || !selectedTask} type="button" onClick={submitVisit}>
-                {actionDisabled ? "Saving..." : "Create visit"}
+                {actionDisabled ? textByLocale(locale, "Saving...", "Guardando...") : textByLocale(locale, "Create visit", "Crear visita")}
               </button>
             </div>
           </div>
@@ -285,7 +304,7 @@ export function VisitAdmin() {
           <div className="catalogManagerHeader">
             <div>
               <h3>{t(locale, "visits.routeDay")}</h3>
-              <p>Check in and check out route stops from the same visit list the field app will consume.</p>
+              <p>{textByLocale(locale, "Check in and check out route stops from the same visit list the field app will consume.", "Registra entrada y salida de paradas de ruta desde la misma lista de visitas que consumira la app de campo.")}</p>
             </div>
           </div>
 
@@ -338,7 +357,7 @@ function VisitCard({
   const assignee = users.find((user) => user.id === visit.assigneeId)?.name ?? visit.assigneeId;
   const province = provinces.find((item) => item.id === visit.provinceId)?.name ?? visit.provinceId;
   const zone = zones.find((item) => item.id === visit.zoneId)?.name ?? visit.zoneId;
-  const pointOfSale = pointsOfSale.find((item) => item.id === visit.pointOfSaleId)?.name ?? "Route stop not linked";
+  const pointOfSale = pointsOfSale.find((item) => item.id === visit.pointOfSaleId)?.name ?? textByLocale(locale, "Route stop not linked", "Parada de ruta no vinculada");
 
   return (
     <article className="taskCard">
@@ -358,7 +377,7 @@ function VisitCard({
           <dd>{assignee}</dd>
         </div>
         <div>
-          <dt>Route</dt>
+          <dt>{textByLocale(locale, "Route", "Ruta")}</dt>
           <dd>
             {province} / {zone}
           </dd>
@@ -369,11 +388,11 @@ function VisitCard({
         </div>
         <div>
           <dt>{t(locale, "visits.checkedInAt")}</dt>
-          <dd>{visit.checkedInAt ?? "Pending"}</dd>
+          <dd>{visit.checkedInAt ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
         </div>
         <div>
           <dt>{t(locale, "visits.checkedOutAt")}</dt>
-          <dd>{visit.checkedOutAt ?? "Pending"}</dd>
+          <dd>{visit.checkedOutAt ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
         </div>
         <div>
           <dt>GPS</dt>
