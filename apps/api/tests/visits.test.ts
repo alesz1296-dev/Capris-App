@@ -4,24 +4,34 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { VisitsController } from "../src/modules/visits/visits.controller";
 import { VisitsService } from "../src/modules/visits/visits.service";
 
+const auditServiceStub = {
+  recordAudit: async () => undefined
+};
+
 async function testVisitCreationValidation() {
-  const controller = new VisitsController({
-    createVisit: () => {
-      throw new Error("Service should not be reached for invalid visit payloads.");
-    }
-  } as never);
+  const controller = new VisitsController(
+    {
+      createVisit: () => {
+        throw new Error("Service should not be reached for invalid visit payloads.");
+      }
+    } as never,
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_supervisor_001", role: "supervisor" }) } as never
+  );
 
   assert.throws(
     () =>
-      controller.createVisit({
-        organizationId: "org_capris",
-        taskId: "task_launch_display",
-        assigneeId: "user_field_001",
-        scheduledFor: "2026/05/08",
-        provinceId: "province_san_jose",
-        zoneId: "zone_central",
-        pointOfSaleId: "pos_escazu_001"
-      }),
+      controller.createVisit(
+        {
+          organizationId: "org_capris",
+          taskId: "task_launch_display",
+          assigneeId: "user_field_001",
+          scheduledFor: "2026/05/08",
+          provinceId: "province_san_jose",
+          zoneId: "zone_central",
+          pointOfSaleId: "pos_escazu_001"
+        },
+        { auth: {} } as never
+      ),
     (error: unknown) =>
       error instanceof BadRequestException &&
       `${error.message}`.includes("scheduledFor must use YYYY-MM-DD format.")
@@ -54,7 +64,9 @@ async function testVisitReferenceValidation() {
     } as never,
     {} as never,
     {} as never,
-    {} as never
+    {} as never,
+    {} as never,
+    auditServiceStub as never
   );
 
   await assert.rejects(
@@ -116,7 +128,9 @@ async function testAllowedVisitCheckIn() {
     } as never,
     {} as never,
     {} as never,
-    {} as never
+    {} as never,
+    {} as never,
+    auditServiceStub as never
   );
 
   const result = await service.checkInVisit("visit_launch_display", {
@@ -158,7 +172,9 @@ async function testDisallowedVisitCheckOut() {
     } as never,
     {} as never,
     {} as never,
-    {} as never
+    {} as never,
+    {} as never,
+    auditServiceStub as never
   );
 
   await assert.rejects(

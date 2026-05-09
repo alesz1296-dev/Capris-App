@@ -22,12 +22,14 @@ import type {
   Visit,
   WorkflowRule
 } from "@capris/shared";
+import { AuditService } from "../audit/audit.service";
 import { CatalogsService } from "../catalogs/catalogs.service";
 import { ActorAccessService } from "../auth/actor-access.service";
 import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { PrismaService } from "../database/prisma.service";
 import { IdentityAccessService } from "../identity-access/identity-access.service";
 import { ObjectStorageService } from "../object-storage/object-storage.service";
+import { ReplayProtectionService } from "../replay-protection/replay-protection.service";
 
 type EvidencePrisma = PrismaService & {
   comment: any;
@@ -59,44 +61,59 @@ export class EvidenceService {
     private readonly catalogsService: CatalogsService,
     private readonly identityAccessService: IdentityAccessService,
     private readonly objectStorageService: ObjectStorageService,
-    private readonly actorAccessService: ActorAccessService
+    private readonly actorAccessService: ActorAccessService,
+    private readonly auditService: AuditService,
+    private readonly replayProtectionService: ReplayProtectionService
   ) {}
 
-  async getEvidenceBootstrap(): Promise<EvidenceBootstrap> {
+  async getEvidenceBootstrap(actor?: AuthJwtPayload): Promise<EvidenceBootstrap> {
     const [activities, evidence, exhibitions, mediaAssets, comments, observations, consignations, tasks, visits, users, catalogs] = await Promise.all([
-      this.getActivities(),
-      this.getEvidence(),
-      this.getExhibitions(),
-      this.getMediaAssets(),
-      this.getComments(),
-      this.getObservations(),
-      this.getConsignations(),
-      this.getTasks(),
-      this.getVisits(),
+      this.getActivities(actor),
+      this.getEvidence(actor),
+      this.getExhibitions(actor),
+      this.getMediaAssets(actor),
+      this.getComments(actor),
+      this.getObservations(actor),
+      this.getConsignations(actor),
+      this.getTasks(actor),
+      this.getVisits(actor),
       this.identityAccessService.getUsers(),
       this.catalogsService.getCatalogBootstrap()
     ]);
 
+    const pointOfSaleIds = new Set(tasks.map((task) => task.pointOfSaleId).filter(Boolean));
+    const clientIds = new Set(tasks.map((task) => task.clientId).filter(Boolean));
+    const userIds = new Set([
+      ...tasks.map((task) => task.assigneeId),
+      ...evidence.map((item) => item.uploaderUserId),
+      ...comments.map((item) => item.userId),
+      ...observations.map((item) => item.userId),
+      ...consignations.map((item) => item.userId),
+      ...activities.map((item) => item.userId),
+      ...exhibitions.map((item) => item.userId)
+    ]);
+    const workflowKeySet = new Set(tasks.map((task) => `${task.organizationId}:${task.taskTypeId}:${task.activityTypeId}`));
+
     return {
       activities,
-      clients: catalogs.clients,
+      clients: catalogs.clients.filter((client) => clientIds.has(client.id)),
       evidence,
       exhibitions,
       mediaAssets,
       comments,
       observations,
       consignations,
-      pointsOfSale: catalogs.pointsOfSale,
+      pointsOfSale: catalogs.pointsOfSale.filter((pointOfSale) => pointOfSaleIds.has(pointOfSale.id)),
       tasks,
       visits,
-      users: users.map(({ permissions, ...user }) => user),
-      workflowRules: catalogs.workflowRules,
+      users: users.map(({ permissions, ...user }) => user).filter((user) => userIds.has(user.id)),
+      workflowRules: catalogs.workflowRules.filter((rule) => workflowKeySet.has(`${rule.organizationId}:${rule.taskTypeId ?? ""}:${rule.activityTypeId ?? ""}`)),
       requirementSummaries: await this.getRequirementSummaries(tasks, evidence, mediaAssets, catalogs.workflowRules),
       pendingSyncOperations: this.buildPendingSyncOperations(mediaAssets)
     };
   }
 
-  async getEvidence(): Promise<EvidencePhoto[]> {
+  async getEvidence(actor?: AuthJwtPayload): Promise<EvidencePhoto[]> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const evidence = await prisma.evidencePhoto.findMany({
       include: {
@@ -105,24 +122,32 @@ export class EvidenceService {
       orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }]
     });
 
-    return evidence.map((item: any) => this.toEvidence(item));
+    const normalized = evidence.map((item: any) => this.toEvidence(item));
+    return this.filterTaskScopedItems(actor, normalized, (item) => ({
+      organizationId: item.organizationId,
+      userId: item.uploaderUserId,
+      taskId: item.taskId
+    }));
   }
 
-  async getMediaAssets(): Promise<MediaAsset[]> {
+  async getMediaAssets(actor?: AuthJwtPayload): Promise<MediaAsset[]> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const mediaAssets = await prisma.mediaAsset.findMany({
       orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }]
     });
-
-    return mediaAssets.map((mediaAsset: any) => this.toMediaAsset(mediaAsset));
+    const evidence = await this.getEvidence(actor);
+    const allowedMediaIds = new Set(evidence.map((item) => item.mediaAssetId));
+    return mediaAssets
+      .filter((mediaAsset: any) => allowedMediaIds.has(mediaAsset.id))
+      .map((mediaAsset: any) => this.toMediaAsset(mediaAsset));
   }
 
-  async getComments(): Promise<Comment[]> {
+  async getComments(actor?: AuthJwtPayload): Promise<Comment[]> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const items = await prisma.comment.findMany({
       orderBy: [{ createdAt: "desc" }]
     });
-    return items.map((item: any) => ({
+    const normalized = items.map((item: any) => ({
       id: item.id,
       organizationId: item.organizationId,
       taskId: item.taskId,
@@ -130,14 +155,19 @@ export class EvidenceService {
       body: item.body,
       createdAt: item.createdAt
     }));
+    return this.filterTaskScopedItems(actor, normalized, (item) => ({
+      organizationId: item.organizationId,
+      userId: item.userId,
+      taskId: item.taskId
+    }));
   }
 
-  async getObservations(): Promise<Observation[]> {
+  async getObservations(actor?: AuthJwtPayload): Promise<Observation[]> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const items = await prisma.observation.findMany({
       orderBy: [{ createdAt: "desc" }]
     });
-    return items.map((item: any) => ({
+    const normalized = items.map((item: any) => ({
       id: item.id,
       organizationId: item.organizationId,
       taskId: item.taskId,
@@ -145,14 +175,19 @@ export class EvidenceService {
       body: item.body,
       createdAt: item.createdAt
     }));
+    return this.filterTaskScopedItems(actor, normalized, (item) => ({
+      organizationId: item.organizationId,
+      userId: item.userId,
+      taskId: item.taskId
+    }));
   }
 
-  async getConsignations(): Promise<Consignation[]> {
+  async getConsignations(actor?: AuthJwtPayload): Promise<Consignation[]> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const items = await prisma.consignation.findMany({
       orderBy: [{ preparedAt: "desc" }, { createdAt: "desc" }]
     });
-    return items.map((item: any) => ({
+    const normalized = items.map((item: any) => ({
       id: item.id,
       organizationId: item.organizationId,
       taskId: item.taskId,
@@ -171,15 +206,20 @@ export class EvidenceService {
       failedAt: item.failedAt ?? undefined,
       sentAt: item.sentAt ?? undefined
     }));
+    return this.filterTaskScopedItems(actor, normalized, (item) => ({
+      organizationId: item.organizationId,
+      userId: item.userId,
+      taskId: item.taskId
+    }));
   }
 
-  async getActivities(): Promise<Activity[]> {
+  async getActivities(actor?: AuthJwtPayload): Promise<Activity[]> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const items = await prisma.activation.findMany({
       orderBy: [{ recordedAt: "desc" }, { createdAt: "desc" }]
     });
 
-    return items.map((item: any) => ({
+    const normalized = items.map((item: any) => ({
       id: item.id,
       organizationId: item.organizationId,
       taskId: item.taskId,
@@ -190,15 +230,20 @@ export class EvidenceService {
       note: item.note ?? undefined,
       recordedAt: item.recordedAt
     }));
+    return this.filterTaskScopedItems(actor, normalized, (item) => ({
+      organizationId: item.organizationId,
+      userId: item.userId,
+      taskId: item.taskId
+    }));
   }
 
-  async getExhibitions(): Promise<ExhibitionInstallation[]> {
+  async getExhibitions(actor?: AuthJwtPayload): Promise<ExhibitionInstallation[]> {
     const prisma = this.prisma as unknown as EvidencePrisma;
     const items = await prisma.exhibitionInstallation.findMany({
       orderBy: [{ recordedAt: "desc" }, { createdAt: "desc" }]
     });
 
-    return items.map((item: any) => ({
+    const normalized = items.map((item: any) => ({
       id: item.id,
       organizationId: item.organizationId,
       taskId: item.taskId,
@@ -209,9 +254,23 @@ export class EvidenceService {
       note: item.note ?? undefined,
       recordedAt: item.recordedAt
     }));
+    return this.filterTaskScopedItems(actor, normalized, (item) => ({
+      organizationId: item.organizationId,
+      userId: item.userId,
+      taskId: item.taskId
+    }));
   }
 
   async createEvidence(input: CreateEvidenceInput, actor?: AuthJwtPayload): Promise<EvidenceMutationResult> {
+    const cached = await this.replayProtectionService.getCachedResult<EvidenceMutationResult>(
+      input.organizationId,
+      "photo_upload",
+      input.clientOperationId
+    );
+    if (cached) {
+      return cached;
+    }
+
     const references = await this.assertEvidenceReferences(input);
     if (actor) {
       await this.actorAccessService.assertOperationAccess(actor, {
@@ -278,7 +337,20 @@ export class EvidenceService {
       return { mediaAsset, evidence };
     });
 
-    return {
+    await this.auditService.recordAudit({
+      organizationId: evidence.organizationId,
+      actorUserId: actor?.sub ?? evidence.uploaderUserId,
+      action: "evidence.create",
+      entityType: "evidence_photo",
+      entityId: evidence.id,
+      metadata: {
+        taskId: evidence.taskId,
+        mediaAssetId: mediaAsset.id,
+        type: evidence.type
+      }
+    });
+
+    const result = {
       item: this.toEvidence({
         ...evidence,
         mediaAsset
@@ -286,6 +358,8 @@ export class EvidenceService {
       mediaAsset: this.toMediaAsset(mediaAsset),
       message: `Evidence ${evidence.id} captured for task ${evidence.taskId}.`
     };
+    await this.replayProtectionService.recordResult(input.organizationId, "photo_upload", input.clientOperationId, result);
+    return result;
   }
 
   async uploadCapturedEvidence(input: UploadCapturedEvidenceInput, actor?: AuthJwtPayload): Promise<EvidenceMutationResult> {
@@ -380,6 +454,18 @@ export class EvidenceService {
       }
     });
 
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: actor?.sub ?? updated.uploaderUserId,
+      action: "evidence.update_upload_status",
+      entityType: "media_asset",
+      entityId: updated.id,
+      metadata: {
+        uploadStatus: updated.uploadStatus,
+        syncState: updated.syncState
+      }
+    });
+
     return {
       item: this.toMediaAsset(updated),
       message: `Media asset ${updated.id} upload status updated to ${updated.uploadStatus}.`
@@ -415,6 +501,18 @@ export class EvidenceService {
         lastError: input.reason?.trim() ? `Retry requested: ${input.reason.trim()}` : null,
         chunkCount,
         uploadedChunkCount: 0
+      }
+    });
+
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: actor?.sub ?? updated.uploaderUserId,
+      action: "evidence.request_retry",
+      entityType: "media_asset",
+      entityId: updated.id,
+      metadata: {
+        uploadStatus: updated.uploadStatus,
+        retryCount: updated.retryCount
       }
     });
 
@@ -641,12 +739,12 @@ export class EvidenceService {
     return { task, uploader };
   }
 
-  private async getTasks(): Promise<Task[]> {
+  private async getTasks(actor?: AuthJwtPayload): Promise<Task[]> {
     const tasks = await (this.prisma as unknown as EvidencePrisma).task.findMany({
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
     });
 
-    return tasks.map((task: any) => ({
+    const normalized = tasks.map((task: any) => ({
       id: task.id,
       organizationId: task.organizationId,
       title: task.title,
@@ -663,14 +761,21 @@ export class EvidenceService {
       priority: task.priority as Task["priority"],
       difficulty: task.difficulty as Task["difficulty"]
     }));
+    return this.actorAccessService.filterReadable(actor, normalized, (task) => ({
+      organizationId: task.organizationId,
+      assigneeId: task.assigneeId,
+      provinceId: task.provinceId,
+      zoneId: task.zoneId,
+      clientId: task.clientId
+    }));
   }
 
-  private async getVisits(): Promise<Visit[]> {
+  private async getVisits(actor?: AuthJwtPayload): Promise<Visit[]> {
     const visits = await (this.prisma as unknown as EvidencePrisma).visit.findMany({
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
     });
 
-    return visits.map((visit: any) => ({
+    const normalized = visits.map((visit: any) => ({
       id: visit.id,
       organizationId: visit.organizationId,
       taskId: visit.taskId,
@@ -687,6 +792,37 @@ export class EvidenceService {
       checkedOutLatitude: visit.checkedOutLatitude ?? undefined,
       checkedOutLongitude: visit.checkedOutLongitude ?? undefined
     }));
+    return this.actorAccessService.filterReadable(actor, normalized, (visit) => ({
+      organizationId: visit.organizationId,
+      assigneeId: visit.assigneeId,
+      provinceId: visit.provinceId,
+      zoneId: visit.zoneId
+    }));
+  }
+
+  private async filterTaskScopedItems<TItem extends { organizationId: string }>(
+    actor: AuthJwtPayload | undefined,
+    items: TItem[],
+    resolveBaseTarget: (item: TItem) => { organizationId: string; userId?: string; taskId?: string }
+  ): Promise<TItem[]> {
+    if (!actor) {
+      return items;
+    }
+
+    const tasks = await this.getTasks(actor);
+    const taskById = new Map(tasks.map((task) => [task.id, task]));
+    return this.actorAccessService.filterReadable(actor, items, (item) => {
+      const baseTarget = resolveBaseTarget(item);
+      const task = baseTarget.taskId ? taskById.get(baseTarget.taskId) : undefined;
+      return {
+        organizationId: baseTarget.organizationId,
+        userId: baseTarget.userId,
+        assigneeId: task?.assigneeId,
+        provinceId: task?.provinceId,
+        zoneId: task?.zoneId,
+        clientId: task?.clientId
+      };
+    });
   }
 
   private toEvidence(evidence: {

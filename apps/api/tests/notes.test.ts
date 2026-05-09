@@ -4,22 +4,33 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { NotesController } from "../src/modules/notes/notes.controller";
 import { NotesService } from "../src/modules/notes/notes.service";
 
+const replayProtectionStub = {
+  getCachedResult: async () => null,
+  recordResult: async () => undefined
+};
+
 async function testCommentValidation() {
-  const controller = new NotesController({
-    createComment: () => {
-      throw new Error("Service should not be reached for invalid comment payloads.");
-    }
-  } as never);
+  const controller = new NotesController(
+    {
+      createComment: () => {
+        throw new Error("Service should not be reached for invalid comment payloads.");
+      }
+    } as never,
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_field_001" }) } as never
+  );
 
   assert.throws(
     () =>
-      controller.createComment({
-        organizationId: "org_capris",
-        taskId: "task_launch_display",
-        userId: "user_field_001",
-        body: "",
-        createdAt: "2026-05-08T18:00:00.000Z"
-      }),
+      controller.createComment(
+        {
+          organizationId: "org_capris",
+          taskId: "task_launch_display",
+          userId: "user_field_001",
+          body: "",
+          createdAt: "2026-05-08T18:00:00.000Z"
+        },
+        { auth: {} } as never
+      ),
     (error: unknown) => error instanceof BadRequestException
   );
 }
@@ -38,7 +49,9 @@ async function testObservationReferenceValidation() {
           throw new Error("Observation should not be created when task is missing.");
         }
       }
-    } as never
+    } as never,
+    {} as never,
+    replayProtectionStub as never
   );
 
   await assert.rejects(

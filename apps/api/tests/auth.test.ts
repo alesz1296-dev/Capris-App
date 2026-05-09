@@ -8,6 +8,10 @@ import { AuthTokenService } from "../src/modules/auth/auth-token.service";
 process.env.JWT_ACCESS_SECRET = "test-access-secret";
 process.env.JWT_REFRESH_SECRET = "test-refresh-secret";
 
+const auditServiceStub = {
+  recordAudit: async () => undefined
+};
+
 async function testAuthControllerValidation() {
   const controller = new AuthController({
     signInWithGoogle: async () => {
@@ -70,7 +74,8 @@ async function testGoogleSignInLinksExistingUser() {
         avatarUrl: "https://example.com/avatar.png"
       })
     } as never,
-    {} as never
+    {} as never,
+    auditServiceStub as never
   );
 
   const result = await service.signInWithGoogle({
@@ -101,7 +106,8 @@ async function testGoogleSignInRejectsUnknownUser() {
         locale: "en" as const
       })
     } as never,
-    {} as never
+    {} as never,
+    auditServiceStub as never
   );
 
   await assert.rejects(
@@ -146,7 +152,8 @@ async function testRefreshSessionRejectsRevokedSession() {
     } as never,
     tokenService,
     {} as never,
-    {} as never
+    {} as never,
+    auditServiceStub as never
   );
 
   await assert.rejects(
@@ -195,7 +202,8 @@ async function testGetDeviceSessionsReturnsSummaries() {
           permissions: []
         }
       ]
-    } as never
+    } as never,
+    auditServiceStub as never
   );
 
   const result = await service.getDeviceSessions();
@@ -235,7 +243,8 @@ async function testRevokeDeviceSessionRequiresAdmin() {
     } as never,
     new AuthTokenService(),
     {} as never,
-    {} as never
+    {} as never,
+    auditServiceStub as never
   );
 
   await assert.rejects(

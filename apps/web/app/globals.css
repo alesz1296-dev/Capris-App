@@ -59,6 +59,9 @@ a {
 
 .workspace {
   padding: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(197, 51, 63, 0.08), transparent 26%),
+    linear-gradient(180deg, #fffdfd 0%, #fff8f8 100%);
 }
 
 .topbar {
@@ -109,9 +112,20 @@ h1 {
   padding: 10px;
 }
 
-.languageSwitch button:first-child {
+.languageSwitch button[aria-pressed="true"] {
   background: var(--brand);
   color: white;
+}
+
+.languageSwitch button[aria-pressed="false"] {
+  background: #fffdfd;
+}
+
+.sidebar a:focus-visible,
+.languageSwitch button:focus-visible,
+.secondaryAction:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .authPanel {

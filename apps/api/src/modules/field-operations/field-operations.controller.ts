@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Param, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Header, Param, Post, Query, Req } from "@nestjs/common";
 import { ZodError } from "zod";
 import {
   createReportSnapshotSchema,
@@ -7,6 +7,7 @@ import {
   type Locale,
   type ReportFilters
 } from "@capris/shared";
+import type { AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { RequirePermissions } from "../auth/require-permission.decorator";
 import { FieldOperationsService } from "./field-operations.service";
 
@@ -21,14 +22,14 @@ export class FieldOperationsController {
 
   @Get("dashboard")
   @RequirePermissions("dashboards.view")
-  dashboard(@Query("locale") locale: Locale = "en") {
-    return this.service.getDashboard(locale);
+  dashboard(@Query("locale") locale: Locale = "en", @Req() request?: AuthenticatedRequest) {
+    return this.service.getDashboard(locale, request?.auth);
   }
 
   @Get("reports/bootstrap")
   @RequirePermissions("reports.export")
-  getReportBootstrap(@Query("locale") locale: Locale = "en") {
-    return this.service.getReportBootstrap(locale);
+  getReportBootstrap(@Query("locale") locale: Locale = "en", @Req() request?: AuthenticatedRequest) {
+    return this.service.getReportBootstrap(locale, request?.auth);
   }
 
   @Get("reports/:name.csv")
@@ -42,26 +43,28 @@ export class FieldOperationsController {
     @Query("provinceId") provinceId?: string,
     @Query("clientId") clientId?: string,
     @Query("dateFrom") dateFrom?: string,
-    @Query("dateTo") dateTo?: string
+    @Query("dateTo") dateTo?: string,
+    @Req() request?: AuthenticatedRequest
   ) {
     const result = await this.service.exportCsv(
       name,
       locale,
-      parseInput(reportFiltersSchema, { userId, zoneId, provinceId, clientId, dateFrom, dateTo })
+      parseInput(reportFiltersSchema, { userId, zoneId, provinceId, clientId, dateFrom, dateTo }),
+      request?.auth
     );
     return result.csv;
   }
 
   @Get("reports/snapshots")
   @RequirePermissions("reports.export")
-  getReportSnapshots() {
-    return this.service.getReportSnapshots();
+  getReportSnapshots(@Req() request?: AuthenticatedRequest) {
+    return this.service.getReportSnapshots(request?.auth);
   }
 
   @Post("reports/snapshots")
   @RequirePermissions("reports.export")
-  createReportSnapshot(@Body() input: CreateReportSnapshotInput) {
-    return this.service.createReportSnapshot(parseInput(createReportSnapshotSchema, input));
+  createReportSnapshot(@Body() input: CreateReportSnapshotInput, @Req() request: AuthenticatedRequest) {
+    return this.service.createReportSnapshot(parseInput(createReportSnapshotSchema, input), request.auth);
   }
 }
 

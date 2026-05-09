@@ -20,6 +20,7 @@ Implementation is tracked in two layers:
 - `docs/log.md`: private implementation logbook by day and session
 - `docs/production-readiness.md`: private rollout and pilot-readiness checklist
 - `docs/priorities.md`: adversarial review priorities and risk backlog
+- `docs/railway-staging.md`: private Railway staging bring-up and smoke-test guide
 
 ## Planned Stack
 
@@ -48,6 +49,31 @@ npm run dev:web
 npm run dev:api
 npm run dev:mobile
 ```
+
+## Docker
+
+Docker support is now included for the API and web apps.
+
+- `docker-compose.yml`: local Postgres + API + web stack
+- `apps/api/Dockerfile`: API image
+- `apps/web/Dockerfile`: web image
+
+Bring the local container stack up with:
+
+```bash
+docker compose up --build
+```
+
+Notes:
+
+- Mobile is still tested through `Expo development builds`, not Docker.
+- The compose stack is intended for local container QA and service bring-up, while Railway remains the default shared backend staging path.
+
+Database default:
+
+- The API is now configured for PostgreSQL by default.
+- A local helper compose file exists at `docker-compose.postgres.yml`.
+- API env defaults point to `postgresql://postgres:postgres@localhost:5432/capris_app?schema=public`.
 
 ## Working Style
 

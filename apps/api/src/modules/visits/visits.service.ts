@@ -8,6 +8,7 @@ import type {
   VisitMutationResult,
   VisitStatus
 } from "@capris/shared";
+import { AuditService } from "../audit/audit.service";
 import { CatalogsService } from "../catalogs/catalogs.service";
 import { ActorAccessService } from "../auth/actor-access.service";
 import { PrismaService } from "../database/prisma.service";
@@ -22,36 +23,56 @@ export class VisitsService {
     private readonly tasksService: TasksService,
     private readonly catalogsService: CatalogsService,
     private readonly identityAccessService: IdentityAccessService,
-    private readonly actorAccessService: ActorAccessService
+    private readonly actorAccessService: ActorAccessService,
+    private readonly auditService: AuditService
   ) {}
 
-  async getVisitBootstrap(): Promise<VisitBootstrap> {
+  async getVisitBootstrap(actor?: AuthJwtPayload): Promise<VisitBootstrap> {
     const [visits, tasks, users, catalogs] = await Promise.all([
-      this.getVisits(),
-      this.tasksService.getTasks(),
+      this.getVisits(actor),
+      this.tasksService.getTasks(actor),
       this.identityAccessService.getUsers(),
       this.catalogsService.getCatalogBootstrap()
     ]);
+    const userIds = new Set(visits.map((visit) => visit.assigneeId));
+    const provinceIds = new Set(visits.map((visit) => visit.provinceId));
+    const zoneIds = new Set(visits.map((visit) => visit.zoneId));
+    const pointOfSaleIds = new Set(visits.map((visit) => visit.pointOfSaleId).filter(Boolean));
 
     return {
       visits,
       tasks,
-      users: users.map(({ permissions, ...user }) => user),
-      provinces: catalogs.provinces,
-      zones: catalogs.zones,
-      pointsOfSale: catalogs.pointsOfSale
+      users: users.map(({ permissions, ...user }) => user).filter((user) => userIds.has(user.id)),
+      provinces: catalogs.provinces.filter((province) => provinceIds.has(province.id)),
+      zones: catalogs.zones.filter((zone) => zoneIds.has(zone.id)),
+      pointsOfSale: catalogs.pointsOfSale.filter((pointOfSale) => pointOfSaleIds.has(pointOfSale.id))
     };
   }
 
-  async getVisits(): Promise<Visit[]> {
+  async getVisits(actor?: AuthJwtPayload): Promise<Visit[]> {
     const visits = await this.prisma.visit.findMany({
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
     });
-    return visits.map((visit) => this.toVisit(visit));
+    const normalized = visits.map((visit) => this.toVisit(visit));
+    return this.actorAccessService.filterReadable(actor, normalized, (visit) => ({
+      organizationId: visit.organizationId,
+      assigneeId: visit.assigneeId,
+      provinceId: visit.provinceId,
+      zoneId: visit.zoneId
+    }));
   }
 
-  async getVisit(id: string): Promise<Visit> {
-    return this.toVisit(await this.findVisit(id));
+  async getVisit(id: string, actor?: AuthJwtPayload): Promise<Visit> {
+    const visit = this.toVisit(await this.findVisit(id));
+    if (actor) {
+      await this.actorAccessService.assertReadAccess(actor, {
+        organizationId: visit.organizationId,
+        assigneeId: visit.assigneeId,
+        provinceId: visit.provinceId,
+        zoneId: visit.zoneId
+      });
+    }
+    return visit;
   }
 
   async createVisit(input: CreateVisitInput, actor?: AuthJwtPayload): Promise<Visit> {
@@ -76,6 +97,18 @@ export class VisitsService {
         zoneId: input.zoneId,
         pointOfSaleId: input.pointOfSaleId ?? null,
         status: input.status ?? "scheduled"
+      }
+    });
+
+    await this.auditService.recordAudit({
+      organizationId: visit.organizationId,
+      actorUserId: actor?.sub ?? visit.assigneeId,
+      action: "visit.create",
+      entityType: "visit",
+      entityId: visit.id,
+      metadata: {
+        taskId: visit.taskId,
+        scheduledFor: visit.scheduledFor
       }
     });
 
@@ -107,6 +140,17 @@ export class VisitsService {
       }
     });
 
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: actor?.sub,
+      action: "visit.check_in",
+      entityType: "visit",
+      entityId: updated.id,
+      metadata: {
+        taskId: updated.taskId
+      }
+    });
+
     return {
       item: this.toVisit(updated),
       message: `Visit ${updated.id} checked in.`
@@ -135,6 +179,17 @@ export class VisitsService {
         checkedOutAt: input.checkedOutAt,
         checkedOutLatitude: input.checkedOutLatitude,
         checkedOutLongitude: input.checkedOutLongitude
+      }
+    });
+
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: actor?.sub,
+      action: "visit.check_out",
+      entityType: "visit",
+      entityId: updated.id,
+      metadata: {
+        taskId: updated.taskId
       }
     });
 

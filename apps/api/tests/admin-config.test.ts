@@ -2,6 +2,10 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { AdminConfigService } from "../src/modules/admin-config/admin-config.service";
 
+const auditServiceStub = {
+  recordAudit: async () => undefined
+};
+
 function createService(overrides: Record<string, any> = {}) {
   return new AdminConfigService(
     {
@@ -61,7 +65,8 @@ function createService(overrides: Record<string, any> = {}) {
       ...overrides
     } as never,
     {} as never,
-    {} as never
+    {} as never,
+    auditServiceStub as never
   );
 }
 

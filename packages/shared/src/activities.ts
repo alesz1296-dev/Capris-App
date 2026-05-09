@@ -10,6 +10,7 @@ export const createActivitySchema = z.object({
   organizationId: identifierSchema,
   taskId: identifierSchema,
   userId: identifierSchema,
+  clientOperationId: identifierSchema.optional(),
   visitId: identifierSchema.optional(),
   pointOfSaleId: identifierSchema.optional(),
   quantity: quantitySchema,
@@ -21,6 +22,7 @@ export const createExhibitionInstallationSchema = z.object({
   organizationId: identifierSchema,
   taskId: identifierSchema,
   userId: identifierSchema,
+  clientOperationId: identifierSchema.optional(),
   visitId: identifierSchema.optional(),
   pointOfSaleId: identifierSchema.optional(),
   quantity: quantitySchema,
@@ -32,6 +34,7 @@ export interface CreateActivityInput {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId?: string;
   visitId?: string;
   pointOfSaleId?: string;
   quantity: number;
@@ -43,6 +46,7 @@ export interface CreateExhibitionInstallationInput {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId?: string;
   visitId?: string;
   pointOfSaleId?: string;
   quantity: number;

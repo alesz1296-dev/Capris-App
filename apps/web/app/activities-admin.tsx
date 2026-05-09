@@ -12,6 +12,7 @@ import {
   type ReviewConsignationInput
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -43,6 +44,7 @@ const EMPTY_ACTIVITY_FORM: ActivityFormState = {
 };
 
 export function ActivitiesAdmin() {
+  const locale = useAppLocale();
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -245,7 +247,7 @@ export function ActivitiesAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{t("en", "activity.activities")}</h3>
+              <h3>{t(locale, "activity.activities")}</h3>
               <p>Capture how many activities were completed for each field task.</p>
             </div>
           </div>
@@ -259,7 +261,7 @@ export function ActivitiesAdmin() {
           />
           <div className="taskFormActions">
             <button className="primaryAction" disabled={actionDisabled} type="button" onClick={() => void submitActivityRecord()}>
-              {t("en", "activity.recordActivity")}
+              {t(locale, "activity.recordActivity")}
             </button>
           </div>
           <ActivityList items={activities.map((item) => ({ ...item, label: "Activity" }))} />
@@ -268,7 +270,7 @@ export function ActivitiesAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{t("en", "activity.exhibitions")}</h3>
+              <h3>{t(locale, "activity.exhibitions")}</h3>
               <p>Record installed exhibition counts by execution visit or direct point of sale linkage.</p>
             </div>
           </div>
@@ -282,7 +284,7 @@ export function ActivitiesAdmin() {
           />
           <div className="taskFormActions">
             <button className="primaryAction" disabled={actionDisabled} type="button" onClick={() => void submitExhibition()}>
-              {t("en", "activity.recordExhibition")}
+              {t(locale, "activity.recordExhibition")}
             </button>
           </div>
           <ActivityList items={exhibitions.map((item) => ({ ...item, label: "Exhibition" }))} />
@@ -292,7 +294,7 @@ export function ActivitiesAdmin() {
       <article className="catalogManagerCard">
         <div className="catalogManagerHeader">
           <div>
-            <h3>{t("en", "consignation.reviewSend")}</h3>
+            <h3>{t(locale, "consignation.reviewSend")}</h3>
             <p>Move consignations from prepared to reviewed, capture recipient/content details, and track send failures before the later email-job slice lands.</p>
           </div>
         </div>
@@ -306,35 +308,35 @@ export function ActivitiesAdmin() {
                 <div className="taskCardHeader">
                   <div>
                     <h4>{consignation.id}</h4>
-                    <p>{t("en", `consignation.status.${consignation.status}` as never)}</p>
+                    <p>{t(locale, `consignation.status.${consignation.status}` as never)}</p>
                   </div>
                   <span className="taskBadge">{consignation.taskId}</span>
                 </div>
 
                 <div className="formGrid">
                   <label className="fullWidth">
-                    <span>{t("en", "consignation.recipients")}</span>
+                    <span>{t(locale, "consignation.recipients")}</span>
                     <input
                       value={current.recipientEmails}
                       onChange={(event) => updateReviewState(consignation.id, { recipientEmails: event.target.value }, setReviewState)}
                     />
                   </label>
                   <label className="fullWidth">
-                    <span>{t("en", "consignation.subject")}</span>
+                    <span>{t(locale, "consignation.subject")}</span>
                     <input
                       value={current.emailSubject}
                       onChange={(event) => updateReviewState(consignation.id, { emailSubject: event.target.value }, setReviewState)}
                     />
                   </label>
                   <label className="fullWidth">
-                    <span>{t("en", "consignation.body")}</span>
+                    <span>{t(locale, "consignation.body")}</span>
                     <textarea
                       value={current.emailBody}
                       onChange={(event) => updateReviewState(consignation.id, { emailBody: event.target.value }, setReviewState)}
                     />
                   </label>
                   <label>
-                    <span>{t("en", "consignation.beforeEvidence")}</span>
+                    <span>{t(locale, "consignation.beforeEvidence")}</span>
                     <select
                       value={current.beforeEvidenceId}
                       onChange={(event) => updateReviewState(consignation.id, { beforeEvidenceId: event.target.value }, setReviewState)}
@@ -350,7 +352,7 @@ export function ActivitiesAdmin() {
                     </select>
                   </label>
                   <label>
-                    <span>{t("en", "consignation.afterEvidence")}</span>
+                    <span>{t(locale, "consignation.afterEvidence")}</span>
                     <select
                       value={current.afterEvidenceId}
                       onChange={(event) => updateReviewState(consignation.id, { afterEvidenceId: event.target.value }, setReviewState)}
@@ -369,13 +371,13 @@ export function ActivitiesAdmin() {
 
                 <div className="taskStatusActions">
                   <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={() => void reviewConsignation(consignation)}>
-                    {t("en", "consignation.review")}
+                    {t(locale, "consignation.review")}
                   </button>
                   <button className="primaryAction" disabled={actionDisabled} type="button" onClick={() => void sendConsignation(consignation)}>
-                    {t("en", "consignation.send")}
+                    {t(locale, "consignation.send")}
                   </button>
                   <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={() => void failConsignation(consignation)}>
-                    {t("en", "consignation.fail")}
+                    {t(locale, "consignation.fail")}
                   </button>
                 </div>
               </article>
@@ -402,6 +404,7 @@ function ActivityForm({
   users: EvidenceBootstrap["users"];
   pointsOfSale: EvidenceBootstrap["pointsOfSale"];
 }) {
+  const locale = useAppLocale();
   return (
     <div className="formGrid">
       <label className="fullWidth">
@@ -438,7 +441,7 @@ function ActivityForm({
         </select>
       </label>
       <label>
-        <span>{t("en", "tasks.pointOfSale")}</span>
+        <span>{t(locale, "tasks.pointOfSale")}</span>
         <select value={form.pointOfSaleId} onChange={(event) => onChange({ ...form, pointOfSaleId: event.target.value })}>
           <option value="">No POS link</option>
           {pointsOfSale.map((pointOfSale) => (
@@ -449,7 +452,7 @@ function ActivityForm({
         </select>
       </label>
       <label>
-        <span>{t("en", "evidence.uploader")}</span>
+        <span>{t(locale, "evidence.uploader")}</span>
         <select value={form.userId} onChange={(event) => onChange({ ...form, userId: event.target.value })}>
           {users.map((user) => (
             <option key={user.id} value={user.id}>
@@ -459,7 +462,7 @@ function ActivityForm({
         </select>
       </label>
       <label>
-        <span>{t("en", "activity.quantity")}</span>
+        <span>{t(locale, "activity.quantity")}</span>
         <input
           min={1}
           type="number"
@@ -468,7 +471,7 @@ function ActivityForm({
         />
       </label>
       <label className="fullWidth">
-        <span>{t("en", "activity.note")}</span>
+        <span>{t(locale, "activity.note")}</span>
         <input value={form.note} onChange={(event) => onChange({ ...form, note: event.target.value })} />
       </label>
     </div>
@@ -545,3 +548,4 @@ async function extractErrorMessage(response: Response, fallback: string) {
   const text = await response.text();
   return text || fallback;
 }
+

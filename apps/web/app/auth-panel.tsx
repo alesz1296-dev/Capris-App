@@ -12,6 +12,7 @@ import {
   subscribeToAuthChanges,
   type StoredTokens
 } from "./auth-client";
+import { persistPreferredLocale, useAppLocale } from "./locale-client";
 
 declare global {
   interface Window {
@@ -33,6 +34,7 @@ declare global {
 }
 
 export function AuthPanel() {
+  const locale = useAppLocale();
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const [tokens, setTokens] = useState<StoredTokens | null>(null);
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
@@ -116,7 +118,7 @@ export function AuthPanel() {
   }, []);
 
   async function signInWithGoogle(idToken: string) {
-    setStatus("Signing in...");
+    setStatus(t(locale, "auth.signIn"));
     setError(null);
 
     try {
@@ -125,13 +127,13 @@ export function AuthPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           idToken,
-          deviceName: "Capris Web"
+          deviceName: locale === "es" ? "Capris Web" : "Capris Web"
         })
       });
 
       const payload = (await response.json()) as AuthResponse & { message?: string };
       if (!response.ok) {
-        throw new Error(payload.message ?? "Google sign-in failed.");
+        throw new Error(payload.message ?? (locale === "es" ? "Fallo el inicio de sesion con Google." : "Google sign-in failed."));
       }
 
       const nextTokens = {
@@ -144,9 +146,10 @@ export function AuthPanel() {
         user: payload.user,
         session: payload.session
       });
-      setStatus("Signed in.");
+      persistPreferredLocale(payload.user.locale);
+      setStatus(locale === "es" ? "Sesion iniciada." : "Signed in.");
     } catch (signInError) {
-      setError(signInError instanceof Error ? signInError.message : "Google sign-in failed.");
+      setError(signInError instanceof Error ? signInError.message : locale === "es" ? "Fallo el inicio de sesion con Google." : "Google sign-in failed.");
       setStatus(null);
     }
   }
@@ -177,20 +180,21 @@ export function AuthPanel() {
 
       const payload = (await response.json()) as AuthProfileResponse & { message?: string };
       if (!response.ok) {
-        throw new Error(payload.message ?? "Unable to load profile.");
+        throw new Error(payload.message ?? (locale === "es" ? "No se pudo cargar el perfil." : "Unable to load profile."));
       }
 
       setProfile(payload);
-      setStatus("Session active.");
+      persistPreferredLocale(payload.user.locale);
+      setStatus(locale === "es" ? "Sesion activa." : "Session active.");
     } catch (profileError) {
-      setError(profileError instanceof Error ? profileError.message : "Unable to load profile.");
+      setError(profileError instanceof Error ? profileError.message : locale === "es" ? "No se pudo cargar el perfil." : "Unable to load profile.");
     }
   }
 
   async function signOut() {
     const currentTokens = tokens;
     clearSessionState();
-    setStatus("Signed out.");
+    setStatus(locale === "es" ? "Sesion cerrada." : "Signed out.");
 
     if (!currentTokens) {
       return;
@@ -216,10 +220,10 @@ export function AuthPanel() {
   return (
     <div className="authPanel">
       <div className="authPanelHeader">
-        <strong>{profile ? t("en", "auth.sessionActive") : t("en", "auth.signIn")}</strong>
+        <strong>{profile ? t(locale, "auth.sessionActive") : t(locale, "auth.signIn")}</strong>
         {tokens ? (
           <button className="secondaryAction" type="button" onClick={() => void signOut()}>
-            {t("en", "auth.signOut")}
+            {t(locale, "auth.signOut")}
           </button>
         ) : null}
       </div>
@@ -227,23 +231,23 @@ export function AuthPanel() {
       {profile ? (
         <div className="authIdentity">
           <div>
-            <p className="authLabel">{t("en", "auth.signedInAs")}</p>
+            <p className="authLabel">{t(locale, "auth.signedInAs")}</p>
             <p className="authValue">
               {profile.user.name} / {profile.user.email}
             </p>
             <p className="authMeta">
-              {profile.user.role} / {profile.session.provider} / {profile.session.deviceName ?? "Browser"}
+              {profile.user.role} / {profile.session.provider} / {profile.session.deviceName ?? (locale === "es" ? "Navegador" : "Browser")}
             </p>
           </div>
           {profile.user.avatarUrl ? <img alt={profile.user.name} className="authAvatar" src={profile.user.avatarUrl} /> : null}
         </div>
       ) : GOOGLE_CLIENT_ID ? (
         <div className="authSignInBlock">
-          <p className="sectionDescription">{t("en", "auth.loginRequired")}</p>
+          <p className="sectionDescription">{t(locale, "auth.loginRequired")}</p>
           <div ref={googleButtonRef} />
         </div>
       ) : (
-        <p className="sectionDescription">{t("en", "auth.googleUnavailable")}</p>
+        <p className="sectionDescription">{t(locale, "auth.googleUnavailable")}</p>
       )}
 
       {status ? <p className="feedbackInfo authFeedback">{status}</p> : null}
@@ -251,3 +255,4 @@ export function AuthPanel() {
     </div>
   );
 }
+

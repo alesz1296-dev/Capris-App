@@ -6,6 +6,7 @@ import type {
   ClientRequestStatus,
   CreateClientRequestInput,
   Priority,
+  Task,
   UpdateClientRequestInput,
   UpdateClientRequestStatusInput
 } from "@capris/shared";
@@ -37,49 +38,44 @@ export class ClientRequestsService {
     private readonly catalogsService: CatalogsService
   ) {}
 
-  async getClientRequestBootstrap(): Promise<ClientRequestBootstrap> {
+  async getClientRequestBootstrap(actor?: AuthJwtPayload): Promise<ClientRequestBootstrap> {
     const [requests, users, catalogs, tasks] = await Promise.all([
-      this.getClientRequests(),
+      this.getClientRequests(actor),
       this.identityAccessService.getUsers(),
       this.catalogsService.getCatalogBootstrap(),
-      (this.prisma as unknown as ClientRequestPrisma).task.findMany({
-        orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
-      })
+      this.loadVisibleTasks(actor)
     ]);
+
+    const userIds = new Set(requests.map((request) => request.ownerUserId));
+    const clientIds = new Set(requests.map((request) => request.clientId).filter(Boolean));
+    const provinceIds = new Set(requests.map((request) => request.provinceId).filter(Boolean));
+    const zoneIds = new Set(requests.map((request) => request.zoneId).filter(Boolean));
+    const pointOfSaleIds = new Set(requests.map((request) => request.pointOfSaleId).filter(Boolean));
 
     return {
       requests,
-      users: users.map(({ permissions, ...user }) => user),
-      clients: catalogs.clients,
-      provinces: catalogs.provinces,
-      zones: catalogs.zones,
-      pointsOfSale: catalogs.pointsOfSale,
-      tasks: tasks.map((task: any) => ({
-        id: task.id,
-        organizationId: task.organizationId,
-        title: task.title,
-        requesterId: task.requesterId,
-        assigneeId: task.assigneeId,
-        scheduledFor: task.scheduledFor,
-        provinceId: task.provinceId,
-        zoneId: task.zoneId,
-        clientId: task.clientId ?? undefined,
-        pointOfSaleId: task.pointOfSaleId ?? undefined,
-        activityTypeId: task.activityTypeId,
-        taskTypeId: task.taskTypeId,
-        status: task.status,
-        priority: task.priority,
-        difficulty: task.difficulty
-      }))
+      users: users.map(({ permissions, ...user }) => user).filter((user) => userIds.has(user.id)),
+      clients: catalogs.clients.filter((client) => clientIds.has(client.id)),
+      provinces: catalogs.provinces.filter((province) => provinceIds.has(province.id)),
+      zones: catalogs.zones.filter((zone) => zoneIds.has(zone.id)),
+      pointsOfSale: catalogs.pointsOfSale.filter((pointOfSale) => pointOfSaleIds.has(pointOfSale.id)),
+      tasks
     };
   }
 
-  async getClientRequests(): Promise<ClientRequest[]> {
+  async getClientRequests(actor?: AuthJwtPayload): Promise<ClientRequest[]> {
     const items = await (this.prisma as unknown as ClientRequestPrisma).clientRequest.findMany({
       orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }]
     });
 
-    return items.map((item: any) => this.toClientRequest(item));
+    const normalized = items.map((item: any) => this.toClientRequest(item));
+    return this.actorAccessService.filterReadable(actor, normalized, (item) => ({
+      organizationId: item.organizationId,
+      ownerUserId: item.ownerUserId,
+      provinceId: item.provinceId,
+      zoneId: item.zoneId,
+      clientId: item.clientId
+    }));
   }
 
   async createClientRequest(input: CreateClientRequestInput, actor?: AuthJwtPayload): Promise<ClientRequestMutationResult> {
@@ -306,5 +302,37 @@ export class ClientRequestsService {
 
   private createId(prefix: string) {
     return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private async loadVisibleTasks(actor?: AuthJwtPayload): Promise<Task[]> {
+    const tasks = await (this.prisma as unknown as ClientRequestPrisma).task.findMany({
+      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
+    });
+
+    const normalized: Task[] = tasks.map((task: any) => ({
+      id: task.id,
+      organizationId: task.organizationId,
+      title: task.title,
+      requesterId: task.requesterId,
+      assigneeId: task.assigneeId,
+      scheduledFor: task.scheduledFor,
+      provinceId: task.provinceId,
+      zoneId: task.zoneId,
+      clientId: task.clientId ?? undefined,
+      pointOfSaleId: task.pointOfSaleId ?? undefined,
+      activityTypeId: task.activityTypeId,
+      taskTypeId: task.taskTypeId,
+      status: task.status,
+      priority: task.priority,
+      difficulty: task.difficulty
+    }));
+
+    return this.actorAccessService.filterReadable(actor, normalized, (task) => ({
+      organizationId: task.organizationId,
+      assigneeId: task.assigneeId,
+      provinceId: task.provinceId,
+      zoneId: task.zoneId,
+      clientId: task.clientId
+    }));
   }
 }

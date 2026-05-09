@@ -12,7 +12,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "npm --workspace apps/api run start",
+    "startCommand": "npm --workspace apps/api run railway:start",
     "healthcheckPath": "/api/v1/system-health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
@@ -21,7 +21,7 @@
   "environments": {
     "staging": {
       "deploy": {
-        "startCommand": "npm --workspace apps/api run start"
+        "startCommand": "npm --workspace apps/api run railway:start"
       }
     }
   }

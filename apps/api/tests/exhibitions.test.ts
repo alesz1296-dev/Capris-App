@@ -4,22 +4,33 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { ExhibitionsController } from "../src/modules/exhibitions/exhibitions.controller";
 import { ExhibitionsService } from "../src/modules/exhibitions/exhibitions.service";
 
+const replayProtectionStub = {
+  getCachedResult: async () => null,
+  recordResult: async () => undefined
+};
+
 async function testExhibitionValidation() {
-  const controller = new ExhibitionsController({
-    createExhibition: () => {
-      throw new Error("Service should not be reached for invalid exhibition payloads.");
-    }
-  } as never);
+  const controller = new ExhibitionsController(
+    {
+      createExhibition: () => {
+        throw new Error("Service should not be reached for invalid exhibition payloads.");
+      }
+    } as never,
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_field_001" }) } as never
+  );
 
   assert.throws(
     () =>
-      controller.createExhibition({
-        organizationId: "org_capris",
-        taskId: "task_launch_display",
-        userId: "user_field_001",
-        quantity: 0,
-        recordedAt: "2026-05-08T18:35:00.000Z"
-      }),
+      controller.createExhibition(
+        {
+          organizationId: "org_capris",
+          taskId: "task_launch_display",
+          userId: "user_field_001",
+          quantity: 0,
+          recordedAt: "2026-05-08T18:35:00.000Z"
+        },
+        { auth: {} } as never
+      ),
     (error: unknown) => error instanceof BadRequestException && `${error.message}`.includes("Too small")
   );
 }
@@ -33,7 +44,9 @@ async function testExhibitionReferenceValidation() {
       user: {
         findFirst: async () => null
       }
-    } as never
+    } as never,
+    {} as never,
+    replayProtectionStub as never
   );
 
   await assert.rejects(

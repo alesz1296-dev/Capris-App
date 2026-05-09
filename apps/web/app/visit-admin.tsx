@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { t, type Visit, type VisitBootstrap, type VisitStatus } from "@capris/shared";
 import type { CreateVisitInput } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 const FALLBACK_LATITUDE = 9.9186;
@@ -26,6 +27,7 @@ const VISIT_ACTIONS: Record<VisitStatus, Array<"check_in" | "check_out">> = {
 };
 
 export function VisitAdmin() {
+  const locale = useAppLocale();
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,9 +187,9 @@ export function VisitAdmin() {
   return (
     <section className="catalogSection" id="routes">
       <div className="sectionHeading">
-        <p className="eyebrow">{t("en", "visits.title")}</p>
-        <h2>{t("en", "visits.sectionTitle")}</h2>
-        <p className="sectionDescription">{t("en", "visits.sectionDescription")}</p>
+        <p className="eyebrow">{t(locale, "visits.title")}</p>
+        <h2>{t(locale, "visits.sectionTitle")}</h2>
+        <p className="sectionDescription">{t(locale, "visits.sectionDescription")}</p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadVisits()}>
           {actionDisabled ? "Refreshing..." : "Refresh route day"}
         </button>
@@ -230,7 +232,7 @@ export function VisitAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.scheduledFor")}</span>
+              <span>{t(locale, "tasks.scheduledFor")}</span>
               <input
                 type="date"
                 value={visitForm.scheduledFor}
@@ -238,7 +240,7 @@ export function VisitAdmin() {
               />
             </label>
             <label>
-              <span>{t("en", "tasks.assignee")}</span>
+              <span>{t(locale, "tasks.assignee")}</span>
               <input
                 disabled
                 value={selectedTask ? users.find((user) => user.id === selectedTask.assigneeId)?.name ?? selectedTask.assigneeId : ""}
@@ -259,7 +261,7 @@ export function VisitAdmin() {
               />
             </label>
             <label>
-              <span>{t("en", "tasks.pointOfSale")}</span>
+              <span>{t(locale, "tasks.pointOfSale")}</span>
               <input
                 disabled
                 value={
@@ -282,7 +284,7 @@ export function VisitAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{t("en", "visits.routeDay")}</h3>
+              <h3>{t(locale, "visits.routeDay")}</h3>
               <p>Check in and check out route stops from the same visit list the field app will consume.</p>
             </div>
           </div>
@@ -304,7 +306,7 @@ export function VisitAdmin() {
               ))}
             </div>
           ) : (
-            <p className="catalogEmptyState">{t("en", "visits.none")}</p>
+            <p className="catalogEmptyState">{t(locale, "visits.none")}</p>
           )}
         </article>
       </div>
@@ -331,6 +333,7 @@ function VisitCard({
   actionDisabled: boolean;
   onTransition: (visit: Visit, action: "check_in" | "check_out") => Promise<void>;
 }) {
+  const locale = useAppLocale();
   const linkedTask = tasks.find((task) => task.id === visit.taskId);
   const assignee = users.find((user) => user.id === visit.assigneeId)?.name ?? visit.assigneeId;
   const province = provinces.find((item) => item.id === visit.provinceId)?.name ?? visit.provinceId;
@@ -343,7 +346,7 @@ function VisitCard({
         <div>
           <h4>{linkedTask?.title ?? visit.taskId}</h4>
           <p>
-            {t("en", "visits.status")}: {t("en", `visitStatus.${visit.status}` as never)}
+            {t(locale, "visits.status")}: {t(locale, `visitStatus.${visit.status}` as never)}
           </p>
         </div>
         <span className="taskBadge">{visit.scheduledFor}</span>
@@ -351,7 +354,7 @@ function VisitCard({
 
       <dl className="taskMetaGrid">
         <div>
-          <dt>{t("en", "tasks.assignee")}</dt>
+          <dt>{t(locale, "tasks.assignee")}</dt>
           <dd>{assignee}</dd>
         </div>
         <div>
@@ -361,15 +364,15 @@ function VisitCard({
           </dd>
         </div>
         <div>
-          <dt>{t("en", "tasks.pointOfSale")}</dt>
+          <dt>{t(locale, "tasks.pointOfSale")}</dt>
           <dd>{pointOfSale}</dd>
         </div>
         <div>
-          <dt>{t("en", "visits.checkedInAt")}</dt>
+          <dt>{t(locale, "visits.checkedInAt")}</dt>
           <dd>{visit.checkedInAt ?? "Pending"}</dd>
         </div>
         <div>
-          <dt>{t("en", "visits.checkedOutAt")}</dt>
+          <dt>{t(locale, "visits.checkedOutAt")}</dt>
           <dd>{visit.checkedOutAt ?? "Pending"}</dd>
         </div>
         <div>
@@ -390,7 +393,7 @@ function VisitCard({
             type="button"
             onClick={() => void onTransition(visit, action)}
           >
-            {action === "check_in" ? t("en", "visits.checkIn") : t("en", "visits.checkOut")}
+            {action === "check_in" ? t(locale, "visits.checkIn") : t(locale, "visits.checkOut")}
           </button>
         ))}
       </div>
@@ -415,3 +418,4 @@ async function extractErrorMessage(response: Response, fallback: string) {
   const text = await response.text();
   return text || fallback;
 }
+

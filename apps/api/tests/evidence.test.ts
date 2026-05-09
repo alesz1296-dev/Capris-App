@@ -4,70 +4,98 @@ import { BadRequestException } from "@nestjs/common";
 import { EvidenceController } from "../src/modules/evidence/evidence.controller";
 import { EvidenceService } from "../src/modules/evidence/evidence.service";
 
+const auditServiceStub = {
+  recordAudit: async () => undefined
+};
+
+const replayProtectionStub = {
+  getCachedResult: async () => null,
+  recordResult: async () => undefined
+};
+
 async function testEvidenceCreationValidation() {
-  const controller = new EvidenceController({
-    createEvidence: () => {
-      throw new Error("Service should not be reached for invalid evidence payloads.");
-    }
-  } as never);
+  const controller = new EvidenceController(
+    {
+      createEvidence: () => {
+        throw new Error("Service should not be reached for invalid evidence payloads.");
+      }
+    } as never,
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_field_001" }) } as never
+  );
 
   assert.throws(
     () =>
-      controller.createEvidence({
-        organizationId: "org_capris",
-        taskId: "task_launch_display",
-        uploaderUserId: "user_field_001",
-        type: "before",
-        capturedAt: "2026-05-08 14:00:00",
-        fileName: "before.jpg",
-        mimeType: "image/jpeg",
-        originalStoragePath: "/mock-storage/originals/before.jpg",
-        uploadStatus: "uploaded"
-      }),
+      controller.createEvidence(
+        {
+          organizationId: "org_capris",
+          taskId: "task_launch_display",
+          uploaderUserId: "user_field_001",
+          type: "before",
+          capturedAt: "2026-05-08 14:00:00",
+          fileName: "before.jpg",
+          mimeType: "image/jpeg",
+          originalStoragePath: "/mock-storage/originals/before.jpg",
+          uploadStatus: "uploaded"
+        },
+        { auth: {} } as never
+      ),
     (error: unknown) => error instanceof BadRequestException && `${error.message}`.includes("Invalid ISO datetime")
   );
 }
 
 async function testUploadProgressValidation() {
-  const controller = new EvidenceController({
-    updateMediaUploadStatus: () => {
-      throw new Error("Service should not be reached for invalid upload progress payloads.");
-    }
-  } as never);
+  const controller = new EvidenceController(
+    {
+      updateMediaUploadStatus: () => {
+        throw new Error("Service should not be reached for invalid upload progress payloads.");
+      }
+    } as never,
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_field_001" }) } as never
+  );
 
   assert.throws(
     () =>
-      controller.updateMediaUploadStatus("media_before_launch_display", {
-        uploadStatus: "uploading",
-        uploadProgress: 30,
-        chunkCount: 2,
-        uploadedChunkCount: 3
-      }),
+      controller.updateMediaUploadStatus(
+        "media_before_launch_display",
+        {
+          uploadStatus: "uploading",
+          uploadProgress: 30,
+          chunkCount: 2,
+          uploadedChunkCount: 3
+        },
+        { auth: {} } as never
+      ),
     (error: unknown) =>
       error instanceof BadRequestException && `${error.message}`.includes("uploadedChunkCount cannot be greater than chunkCount")
   );
 }
 
 async function testUploadCapturedEvidenceValidation() {
-  const controller = new EvidenceController({
-    uploadCapturedEvidence: () => {
-      throw new Error("Service should not be reached for invalid upload payloads.");
-    }
-  } as never);
+  const controller = new EvidenceController(
+    {
+      uploadCapturedEvidence: () => {
+        throw new Error("Service should not be reached for invalid upload payloads.");
+      }
+    } as never,
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_field_001" }) } as never
+  );
 
   assert.throws(
     () =>
-      controller.uploadCapturedEvidence({
-        organizationId: "org_capris",
-        taskId: "task_launch_display",
-        uploaderUserId: "user_field_001",
-        type: "before",
-        capturedAt: "2026-05-08T16:00:00.000Z",
-        fileName: "before.jpg",
-        mimeType: "image/jpeg",
-        fileBase64: "",
-        captureSource: "camera"
-      }),
+      controller.uploadCapturedEvidence(
+        {
+          organizationId: "org_capris",
+          taskId: "task_launch_display",
+          uploaderUserId: "user_field_001",
+          type: "before",
+          capturedAt: "2026-05-08T16:00:00.000Z",
+          fileName: "before.jpg",
+          mimeType: "image/jpeg",
+          fileBase64: "",
+          captureSource: "camera"
+        },
+        { auth: {} } as never
+      ),
     (error: unknown) => error instanceof BadRequestException
   );
 }
@@ -106,7 +134,10 @@ async function testMediaUploadTransitionValidation() {
     {} as never,
     {
       createSignedReadPath: (storagePath: string) => storagePath
-    } as never
+    } as never,
+    {} as never,
+    auditServiceStub as never,
+    replayProtectionStub as never
   );
 
   await assert.rejects(
@@ -176,7 +207,10 @@ async function testMediaRetryQueuesNewSession() {
     {} as never,
     {
       createSignedReadPath: (storagePath: string) => storagePath
-    } as never
+    } as never,
+    {} as never,
+    auditServiceStub as never,
+    replayProtectionStub as never
   );
 
   const result = await service.requestMediaRetry("media_failed_upload", {
@@ -246,7 +280,10 @@ async function testMediaResponsesSignStoredDeliveryPaths() {
     {} as never,
     {
       createSignedReadPath: (storagePath: string) => `${storagePath}?signed=1`
-    } as never
+    } as never,
+    {} as never,
+    auditServiceStub as never,
+    replayProtectionStub as never
   );
 
   const result = await service.requestMediaRetry("media_failed_upload", {

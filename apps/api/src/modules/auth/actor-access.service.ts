@@ -39,40 +39,63 @@ export class ActorAccessService {
   }
 
   async assertOperationAccess(actor: AuthJwtPayload, target: OperationAccessTarget) {
+    const scopes = actor.role === "supervisor" ? await this.getActiveSupervisorScopes(actor.sub, actor.organizationId) : [];
+    if (!this.hasAccess(actor, target, scopes)) {
+      if (actor.organizationId !== target.organizationId) {
+        throw new UnauthorizedException("Authenticated actor cannot access a different organization.");
+      }
+      if (actor.role === "field_user") {
+        throw new UnauthorizedException("Field users can only act on their own operational records.");
+      }
+      throw new UnauthorizedException("Supervisor access is outside the allowed operational scope.");
+    }
+  }
+
+  async assertReadAccess(actor: AuthJwtPayload, target: OperationAccessTarget) {
+    await this.assertOperationAccess(actor, target);
+  }
+
+  async filterReadable<TItem>(
+    actor: AuthJwtPayload | undefined,
+    items: TItem[],
+    resolveTarget: (item: TItem) => OperationAccessTarget
+  ): Promise<TItem[]> {
+    if (!actor || actor.role === "admin") {
+      return items;
+    }
+
+    const scopes = actor.role === "supervisor" ? await this.getActiveSupervisorScopes(actor.sub, actor.organizationId) : [];
+    return items.filter((item) => this.hasAccess(actor, resolveTarget(item), scopes));
+  }
+
+  private hasAccess(actor: AuthJwtPayload, target: OperationAccessTarget, scopes: SupervisorScope[]) {
     if (actor.organizationId !== target.organizationId) {
-      throw new UnauthorizedException("Authenticated actor cannot access a different organization.");
+      return false;
     }
 
     if (actor.role === "admin") {
-      return;
+      return true;
     }
 
     if (actor.role === "field_user") {
       const ownedUserIds = [target.userId, target.assigneeId, target.ownerUserId].filter(Boolean);
-      if (ownedUserIds.some((value) => value !== actor.sub)) {
-        throw new UnauthorizedException("Field users can only act on their own operational records.");
-      }
-      return;
+      return ownedUserIds.length > 0 && ownedUserIds.every((value) => value === actor.sub);
     }
 
-    const scopes = await this.getActiveSupervisorScopes(actor.sub, actor.organizationId);
     if (scopes.some((scope) => scope.type === "organization" && scope.referenceId === target.organizationId)) {
-      return;
+      return true;
     }
-
     if (target.clientId && scopes.some((scope) => scope.type === "client" && scope.referenceId === target.clientId)) {
-      return;
+      return true;
     }
-
     if (target.zoneId && scopes.some((scope) => scope.type === "zone" && scope.referenceId === target.zoneId)) {
-      return;
+      return true;
     }
-
     if (target.provinceId && scopes.some((scope) => scope.type === "province" && scope.referenceId === target.provinceId)) {
-      return;
+      return true;
     }
 
-    throw new UnauthorizedException("Supervisor access is outside the allowed operational scope.");
+    return false;
   }
 
   private async getActiveSupervisorScopes(userId: string, organizationId: string): Promise<SupervisorScope[]> {

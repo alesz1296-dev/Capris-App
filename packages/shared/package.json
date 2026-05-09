@@ -23,9 +23,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "crypto-js": "^4.2.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "typescript": "^5.8.0"
   }
 }

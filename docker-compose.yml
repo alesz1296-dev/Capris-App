@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: capris-postgres
+    environment:
+      POSTGRES_DB: capris_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - capris_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d capris_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: capris-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      APP_TIMEZONE: America/Costa_Rica
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/capris_app?schema=public
+      JWT_ACCESS_SECRET: local-access-secret
+      JWT_REFRESH_SECRET: local-refresh-secret
+      MEDIA_URL_SIGNING_SECRET: local-media-signing-secret
+      MEDIA_URL_TTL_SECONDS: 900
+      PORT: 4000
+      GOOGLE_CLIENT_ID: local-google-client-id
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: capris-web
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000/api/v1
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: local-google-client-id
+    ports:
+      - "3000:3000"
+
+volumes:
+  capris_postgres_data:

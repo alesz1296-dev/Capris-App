@@ -14,6 +14,7 @@ import {
 } from "@capris/shared";
 import type { CreateTaskInput, UpdateTaskInput } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -67,6 +68,7 @@ const DEFAULT_TASK_FORM: TaskFormState = {
 };
 
 export function TaskAdmin() {
+  const locale = useAppLocale();
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -346,11 +348,11 @@ export function TaskAdmin() {
   return (
     <section className="catalogSection" id="tasks">
       <div className="sectionHeading">
-        <p className="eyebrow">{t("en", "tasks.title")}</p>
-        <h2>{t("en", "tasks.sectionTitle")}</h2>
-        <p className="sectionDescription">{t("en", "tasks.sectionDescription")}</p>
+        <p className="eyebrow">{t(locale, "tasks.title")}</p>
+        <h2>{t(locale, "tasks.sectionTitle")}</h2>
+        <p className="sectionDescription">{t(locale, "tasks.sectionDescription")}</p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadTasks()}>
-          {actionDisabled ? "Refreshing..." : t("en", "tasks.refresh")}
+          {actionDisabled ? "Refreshing..." : t(locale, "tasks.refresh")}
         </button>
       </div>
 
@@ -365,7 +367,7 @@ export function TaskAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{editingTaskId ? "Edit task" : t("en", "tasks.add")}</h3>
+              <h3>{editingTaskId ? "Edit task" : t(locale, "tasks.add")}</h3>
               <p>Create task assignments using the same catalogs, scope, and workflow data already managed in Session 5.</p>
             </div>
           </div>
@@ -380,7 +382,7 @@ export function TaskAdmin() {
               />
             </label>
             <label>
-              <span>{t("en", "tasks.requester")}</span>
+              <span>{t(locale, "tasks.requester")}</span>
               <select
                 value={taskForm.requesterId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, requesterId: event.target.value }))}
@@ -393,7 +395,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.assignee")}</span>
+              <span>{t(locale, "tasks.assignee")}</span>
               <select
                 value={taskForm.assigneeId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, assigneeId: event.target.value }))}
@@ -406,7 +408,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.scheduledFor")}</span>
+              <span>{t(locale, "tasks.scheduledFor")}</span>
               <input
                 type="date"
                 value={taskForm.scheduledFor}
@@ -440,7 +442,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.client")}</span>
+              <span>{t(locale, "tasks.client")}</span>
               <select
                 value={taskForm.clientId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, clientId: event.target.value }))}
@@ -453,7 +455,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.pointOfSale")}</span>
+              <span>{t(locale, "tasks.pointOfSale")}</span>
               <select
                 value={taskForm.pointOfSaleId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, pointOfSaleId: event.target.value }))}
@@ -466,7 +468,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.activityType")}</span>
+              <span>{t(locale, "tasks.activityType")}</span>
               <select
                 value={taskForm.activityTypeId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, activityTypeId: event.target.value }))}
@@ -479,7 +481,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.taskType")}</span>
+              <span>{t(locale, "tasks.taskType")}</span>
               <select
                 value={taskForm.taskTypeId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, taskTypeId: event.target.value }))}
@@ -492,7 +494,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.priority")}</span>
+              <span>{t(locale, "tasks.priority")}</span>
               <select
                 value={taskForm.priority}
                 onChange={(event) =>
@@ -501,13 +503,13 @@ export function TaskAdmin() {
               >
                 {PRIORITIES.map((priority) => (
                   <option key={priority} value={priority}>
-                    {t("en", `priority.${priority}` as never)}
+                    {t(locale, `priority.${priority}` as never)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.difficulty")}</span>
+              <span>{t(locale, "tasks.difficulty")}</span>
               <select
                 value={taskForm.difficulty}
                 onChange={(event) =>
@@ -516,14 +518,14 @@ export function TaskAdmin() {
               >
                 {DIFFICULTIES.map((difficulty) => (
                   <option key={difficulty} value={difficulty}>
-                    {t("en", `difficulty.${difficulty}` as never)}
+                    {t(locale, `difficulty.${difficulty}` as never)}
                   </option>
                 ))}
               </select>
             </label>
             <div className="taskFormActions fullWidth">
               <button className="primaryAction" disabled={actionDisabled} type="button" onClick={submitTask}>
-                {actionDisabled ? "Saving..." : editingTaskId ? "Save changes" : t("en", "tasks.add")}
+                {actionDisabled ? "Saving..." : editingTaskId ? "Save changes" : t(locale, "tasks.add")}
               </button>
               {editingTaskId ? (
                 <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={resetTaskForm}>
@@ -544,7 +546,7 @@ export function TaskAdmin() {
 
           <div className="taskFilterBar">
             <label>
-              <span>{t("en", "tasks.status")}</span>
+              <span>{t(locale, "tasks.status")}</span>
               <select
                 value={filters.status}
                 onChange={(event) =>
@@ -554,13 +556,13 @@ export function TaskAdmin() {
                 <option value="all">All statuses</option>
                 {TASK_STATUSES.map((status) => (
                   <option key={status} value={status}>
-                    {t("en", `status.${status}` as never)}
+                    {t(locale, `status.${status}` as never)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              <span>{t("en", "tasks.assignee")}</span>
+              <span>{t(locale, "tasks.assignee")}</span>
               <select
                 value={filters.assigneeId}
                 onChange={(event) =>
@@ -610,7 +612,7 @@ export function TaskAdmin() {
               ))}
             </div>
           ) : (
-            <p className="catalogEmptyState">{t("en", "tasks.none")}</p>
+            <p className="catalogEmptyState">{t(locale, "tasks.none")}</p>
           )}
         </article>
       </div>
@@ -641,6 +643,7 @@ function TaskCard({
   onEdit: (task: Task) => void;
   onStatusChange: (taskId: string, status: TaskStatus) => Promise<void>;
 }) {
+  const locale = useAppLocale();
   const requester = users.find((user) => user.id === task.requesterId)?.name ?? task.requesterId;
   const assignee = users.find((user) => user.id === task.assigneeId)?.name ?? task.assigneeId;
   const province = provinces.find((item) => item.id === task.provinceId)?.name ?? task.provinceId;
@@ -655,25 +658,25 @@ function TaskCard({
         <div>
           <h4>{task.title}</h4>
           <p>
-            {t("en", "tasks.status")}: {t("en", `status.${task.status}` as never)}
+            {t(locale, "tasks.status")}: {t(locale, `status.${task.status}` as never)}
           </p>
         </div>
         <span className="taskBadge">
-          {t("en", `priority.${task.priority}` as never)} / {t("en", `difficulty.${task.difficulty}` as never)}
+          {t(locale, `priority.${task.priority}` as never)} / {t(locale, `difficulty.${task.difficulty}` as never)}
         </span>
       </div>
 
       <dl className="taskMetaGrid">
         <div>
-          <dt>{t("en", "tasks.requester")}</dt>
+          <dt>{t(locale, "tasks.requester")}</dt>
           <dd>{requester}</dd>
         </div>
         <div>
-          <dt>{t("en", "tasks.assignee")}</dt>
+          <dt>{t(locale, "tasks.assignee")}</dt>
           <dd>{assignee}</dd>
         </div>
         <div>
-          <dt>{t("en", "tasks.scheduledFor")}</dt>
+          <dt>{t(locale, "tasks.scheduledFor")}</dt>
           <dd>{task.scheduledFor}</dd>
         </div>
         <div>
@@ -683,7 +686,7 @@ function TaskCard({
           </dd>
         </div>
         <div>
-          <dt>{t("en", "tasks.pointOfSale")}</dt>
+          <dt>{t(locale, "tasks.pointOfSale")}</dt>
           <dd>{pointOfSale ?? "Not linked"}</dd>
         </div>
         <div>
@@ -706,7 +709,7 @@ function TaskCard({
             type="button"
             onClick={() => void onStatusChange(task.id, nextStatus)}
           >
-            Move to {t("en", `status.${nextStatus}` as never)}
+            Move to {t(locale, `status.${nextStatus}` as never)}
           </button>
         ))}
       </div>
@@ -731,3 +734,4 @@ async function extractErrorMessage(response: Response, fallback: string) {
   const text = await response.text();
   return text || fallback;
 }
+

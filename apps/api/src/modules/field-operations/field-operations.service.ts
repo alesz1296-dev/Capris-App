@@ -22,10 +22,13 @@ import {
   type Task,
   type Visit
 } from "@capris/shared";
+import { AuditService } from "../audit/audit.service";
+import { ActorAccessService } from "../auth/actor-access.service";
 import { CatalogsService } from "../catalogs/catalogs.service";
 import { PrismaService } from "../database/prisma.service";
 import { IdentityAccessService } from "../identity-access/identity-access.service";
 import { TasksService } from "../tasks/tasks.service";
+import type { AuthJwtPayload } from "../auth/auth-token.service";
 
 type DashboardPrisma = PrismaService & {
   visit: any;
@@ -44,7 +47,9 @@ export class FieldOperationsService {
     private readonly prisma: PrismaService,
     private readonly catalogsService: CatalogsService,
     private readonly identityAccessService: IdentityAccessService,
-    private readonly tasksService: TasksService
+    private readonly tasksService: TasksService,
+    private readonly actorAccessService: ActorAccessService,
+    private readonly auditService: AuditService
   ) {}
 
   async getBootstrap(locale: Locale) {
@@ -64,20 +69,31 @@ export class FieldOperationsService {
     };
   }
 
-  async getDashboard(locale: Locale): Promise<DashboardResponse> {
+  async getDashboard(locale: Locale, actor?: AuthJwtPayload): Promise<DashboardResponse> {
     const prisma = this.prisma as unknown as DashboardPrisma;
-    const [tasks, visits, evidencePhotos, mediaAssets, activities, exhibitions, consignations, requests, users, catalogs] = await Promise.all([
-      this.tasksService.getTasks(),
+    const [tasks, rawVisits, rawEvidencePhotos, rawMediaAssets, rawActivities, rawExhibitions, rawConsignations, requests, users, catalogs] = await Promise.all([
+      this.tasksService.getTasks(actor),
       prisma.visit.findMany({ orderBy: [{ scheduledFor: "asc" }] }),
       prisma.evidencePhoto.findMany({ orderBy: [{ capturedAt: "desc" }] }),
       prisma.mediaAsset.findMany({ orderBy: [{ capturedAt: "desc" }] }),
       prisma.activation.findMany({ orderBy: [{ recordedAt: "desc" }] }),
       prisma.exhibitionInstallation.findMany({ orderBy: [{ recordedAt: "desc" }] }),
       prisma.consignation.findMany({ orderBy: [{ preparedAt: "desc" }] }),
-      prisma.clientRequest.findMany({ orderBy: [{ dueDate: "asc" }] }),
+      this.getReadableClientRequests(actor),
       this.identityAccessService.getUsers(),
       this.catalogsService.getCatalogBootstrap()
     ]);
+
+    const taskById = new Map(tasks.map((task) => [task.id, task]));
+    const taskIds = new Set(taskById.keys());
+    const visits = rawVisits.filter((visit: any) => taskIds.has(visit.taskId));
+    const visitIds = new Set(visits.map((visit: any) => visit.id));
+    const evidencePhotos = rawEvidencePhotos.filter((item: any) => taskIds.has(item.taskId) && (!item.visitId || visitIds.has(item.visitId)));
+    const mediaIds = new Set(evidencePhotos.map((item: any) => item.mediaAssetId));
+    const mediaAssets = rawMediaAssets.filter((item: any) => mediaIds.has(item.id));
+    const activities = rawActivities.filter((item: any) => taskIds.has(item.taskId));
+    const exhibitions = rawExhibitions.filter((item: any) => taskIds.has(item.taskId));
+    const consignations = rawConsignations.filter((item: any) => taskIds.has(item.taskId));
 
     const today = new Date().toISOString().slice(0, 10);
     const completedTasks = tasks.filter((task) => task.status === "completed");
@@ -133,7 +149,6 @@ export class FieldOperationsService {
     const failedUploads = mediaAssets.filter((mediaAsset: any) => mediaAsset.uploadStatus === "failed" || mediaAsset.syncState === "sync_failed").length;
     const failedEmails = consignations.filter((item: any) => item.status === "failed").length;
 
-    const taskById = new Map(tasks.map((task) => [task.id, task]));
     const userLabelById = new Map(users.map(({ permissions, ...user }) => [user.id, user.name]));
     const zoneLabelById = new Map(catalogs.zones.map((zone) => [zone.id, zone.name]));
     const provinceLabelById = new Map(catalogs.provinces.map((province) => [province.id, province.name]));
@@ -169,35 +184,43 @@ export class FieldOperationsService {
     };
   }
 
-  async getReportBootstrap(locale: Locale): Promise<ReportBootstrap> {
+  async getReportBootstrap(locale: Locale, actor?: AuthJwtPayload): Promise<ReportBootstrap> {
     const [users, catalogs, snapshots, dashboardPreview] = await Promise.all([
       this.identityAccessService.getUsers(),
       this.catalogsService.getCatalogBootstrap(),
-      this.getReportSnapshots(),
-      this.getDashboard(locale)
+      this.getReportSnapshots(actor),
+      this.getDashboard(locale, actor)
     ]);
 
+    const context = await this.getReportingContext({}, actor);
+    const visibleUserIds = new Set(context.tasks.map((task) => task.assigneeId).concat(context.requests.map((request: any) => request.ownerUserId)));
+    const visibleProvinceIds = new Set(context.tasks.map((task) => task.provinceId).concat(context.requests.map((request: any) => request.provinceId).filter(Boolean)));
+    const visibleZoneIds = new Set(context.tasks.map((task) => task.zoneId).concat(context.requests.map((request: any) => request.zoneId).filter(Boolean)));
+    const visibleClientIds = new Set(context.tasks.map((task) => task.clientId).concat(context.requests.map((request: any) => request.clientId).filter(Boolean)).filter(Boolean));
+
     return {
-      users: users.map(({ permissions, ...user }) => user),
-      provinces: catalogs.provinces,
-      zones: catalogs.zones,
-      clients: catalogs.clients,
+      users: users.map(({ permissions, ...user }) => user).filter((user) => visibleUserIds.has(user.id)),
+      provinces: catalogs.provinces.filter((province) => visibleProvinceIds.has(province.id)),
+      zones: catalogs.zones.filter((zone) => visibleZoneIds.has(zone.id)),
+      clients: catalogs.clients.filter((client) => visibleClientIds.has(client.id)),
       snapshots,
       availableReports: [...REPORT_NAMES],
       dashboardPreview
     };
   }
 
-  async getReportSnapshots(): Promise<ReportSnapshot[]> {
+  async getReportSnapshots(actor?: AuthJwtPayload): Promise<ReportSnapshot[]> {
     const snapshots = await (this.prisma as unknown as DashboardPrisma).reportSnapshot.findMany({
       orderBy: [{ createdAt: "desc" }]
     });
-
-    return snapshots.map((snapshot: any) => this.toReportSnapshot(snapshot));
+    const filtered = await this.actorAccessService.filterReadable(actor, snapshots, (snapshot: any) => ({
+      organizationId: snapshot.organizationId
+    }));
+    return filtered.map((snapshot: any) => this.toReportSnapshot(snapshot));
   }
 
-  async createReportSnapshot(input: CreateReportSnapshotInput) {
-    const exportResult = await this.exportCsv(input.reportName, input.locale, input.filters);
+  async createReportSnapshot(input: CreateReportSnapshotInput, actor?: AuthJwtPayload) {
+    const exportResult = await this.exportCsv(input.reportName, input.locale, input.filters, actor);
     const created = await (this.prisma as unknown as DashboardPrisma).reportSnapshot.create({
       data: {
         id: this.createId("snapshot"),
@@ -212,28 +235,57 @@ export class FieldOperationsService {
       }
     });
 
+    await this.auditService.recordAudit({
+      organizationId: created.organizationId,
+      actorUserId: actor?.sub,
+      action: "report.create_snapshot",
+      entityType: "report_snapshot",
+      entityId: created.id,
+      metadata: {
+        reportName: created.reportName,
+        rowCount: created.rowCount
+      }
+    });
+
     return {
       item: this.toReportSnapshot(created),
       message: `Report snapshot ${created.id} created.`
     };
   }
 
-  async exportCsv(name: string, locale: Locale, filters: ReportFilters = {}): Promise<ReportExportResponse> {
+  async exportCsv(name: string, locale: Locale, filters: ReportFilters = {}, actor?: AuthJwtPayload): Promise<ReportExportResponse> {
     if (!REPORT_NAMES.includes(name as ReportName)) {
       throw new BadRequestException(`Unsupported report export ${name}.`);
     }
 
-    const context = await this.getReportingContext(filters);
+    const context = await this.getReportingContext(filters, actor);
     const { headers, rows } = this.buildReportRows(name as ReportName, locale, context);
     const csv = [headers, ...rows].map((row) => row.map((value: string) => this.escapeCsv(value)).join(",")).join("\n");
 
-    return {
+    const result = {
       reportName: name as ReportName,
       locale,
       fileName: `capris-${name}-${new Date().toISOString().slice(0, 10)}.csv`,
       rowCount: rows.length,
       csv
     };
+
+    if (actor) {
+      await this.auditService.recordAudit({
+        organizationId: actor.organizationId,
+        actorUserId: actor.sub,
+        action: "report.export_csv",
+        entityType: "report",
+        entityId: name,
+        metadata: {
+          locale,
+          rowCount: rows.length,
+          filters
+        }
+      });
+    }
+
+    return result;
   }
 
   private buildProductivity(
@@ -376,16 +428,16 @@ export class FieldOperationsService {
     return Math.max(0, Math.floor((end - start) / 86400000));
   }
 
-  private async getReportingContext(filters: ReportFilters) {
+  private async getReportingContext(filters: ReportFilters, actor?: AuthJwtPayload) {
     const prisma = this.prisma as unknown as DashboardPrisma;
-    const [tasks, visits, evidencePhotos, mediaAssets, activities, exhibitions, requests, users, catalogs] = await Promise.all([
-      this.tasksService.getTasks(),
+    const [tasks, rawVisits, rawEvidencePhotos, rawMediaAssets, rawActivities, rawExhibitions, requests, users, catalogs] = await Promise.all([
+      this.tasksService.getTasks(actor),
       prisma.visit.findMany({ orderBy: [{ scheduledFor: "asc" }] }),
       prisma.evidencePhoto.findMany({ orderBy: [{ capturedAt: "desc" }] }),
       prisma.mediaAsset.findMany({ orderBy: [{ capturedAt: "desc" }] }),
       prisma.activation.findMany({ orderBy: [{ recordedAt: "desc" }] }),
       prisma.exhibitionInstallation.findMany({ orderBy: [{ recordedAt: "desc" }] }),
-      prisma.clientRequest.findMany({ orderBy: [{ dueDate: "asc" }] }),
+      this.getReadableClientRequests(actor),
       this.identityAccessService.getUsers(),
       this.catalogsService.getCatalogBootstrap()
     ]);
@@ -399,7 +451,7 @@ export class FieldOperationsService {
 
     const filteredTasks = tasks.filter(taskMatches);
     const taskIds = new Set(filteredTasks.map((task) => task.id));
-    const filteredVisits = visits.filter(
+    const filteredVisits = rawVisits.filter(
       (visit: any) =>
         taskIds.has(visit.taskId) &&
         (!filters.userId || visit.assigneeId === filters.userId) &&
@@ -408,11 +460,11 @@ export class FieldOperationsService {
         this.matchesDateRange(visit.scheduledFor, filters)
     );
     const visitIds = new Set(filteredVisits.map((visit: any) => visit.id));
-    const filteredEvidence = evidencePhotos.filter((item: any) => taskIds.has(item.taskId) && (!item.visitId || visitIds.has(item.visitId)));
+    const filteredEvidence = rawEvidencePhotos.filter((item: any) => taskIds.has(item.taskId) && (!item.visitId || visitIds.has(item.visitId)));
     const mediaIds = new Set(filteredEvidence.map((item: any) => item.mediaAssetId));
-    const filteredMediaAssets = mediaAssets.filter((item: any) => mediaIds.has(item.id));
-    const filteredActivities = activities.filter((item: any) => taskIds.has(item.taskId) && this.matchesIsoDateRange(item.recordedAt, filters));
-    const filteredExhibitions = exhibitions.filter((item: any) => taskIds.has(item.taskId) && this.matchesIsoDateRange(item.recordedAt, filters));
+    const filteredMediaAssets = rawMediaAssets.filter((item: any) => mediaIds.has(item.id));
+    const filteredActivities = rawActivities.filter((item: any) => taskIds.has(item.taskId) && this.matchesIsoDateRange(item.recordedAt, filters));
+    const filteredExhibitions = rawExhibitions.filter((item: any) => taskIds.has(item.taskId) && this.matchesIsoDateRange(item.recordedAt, filters));
     const filteredRequests = requests.filter(
       (item: any) =>
         (!filters.userId || item.ownerUserId === filters.userId) &&
@@ -640,5 +692,19 @@ export class FieldOperationsService {
 
   private createId(prefix: string) {
     return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private async getReadableClientRequests(actor?: AuthJwtPayload) {
+    const requests = await (this.prisma as unknown as DashboardPrisma).clientRequest.findMany({
+      orderBy: [{ dueDate: "asc" }]
+    });
+
+    return this.actorAccessService.filterReadable(actor, requests, (item: any) => ({
+      organizationId: item.organizationId,
+      ownerUserId: item.ownerUserId,
+      provinceId: item.provinceId ?? undefined,
+      zoneId: item.zoneId ?? undefined,
+      clientId: item.clientId ?? undefined
+    }));
   }
 }

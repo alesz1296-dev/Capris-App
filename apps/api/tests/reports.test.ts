@@ -2,6 +2,14 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { FieldOperationsService } from "../src/modules/field-operations/field-operations.service";
 
+const auditServiceStub = {
+  recordAudit: async () => undefined
+};
+
+const actorAccessStub = {
+  filterReadable: async (_actor: unknown, items: any[]) => items
+};
+
 function createReportsService() {
   return new FieldOperationsService(
     {
@@ -85,7 +93,9 @@ function createReportsService() {
           difficulty: "standard"
         }
       ]
-    } as never
+    } as never,
+    actorAccessStub as never,
+    auditServiceStub as never
   );
 }
 

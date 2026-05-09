@@ -11,6 +11,8 @@ import type {
   UpdateAdminSettingsInput,
   UpdateReminderRuleInput
 } from "@capris/shared";
+import { AuditService } from "../audit/audit.service";
+import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { CatalogsService } from "../catalogs/catalogs.service";
 import { IdentityAccessService } from "../identity-access/identity-access.service";
 import { PrismaService } from "../database/prisma.service";
@@ -32,7 +34,8 @@ export class AdminConfigService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalogsService: CatalogsService,
-    private readonly identityAccessService: IdentityAccessService
+    private readonly identityAccessService: IdentityAccessService,
+    private readonly auditService: AuditService
   ) {}
 
   async getBootstrap(): Promise<AdminConfigBootstrap> {
@@ -47,7 +50,7 @@ export class AdminConfigService {
     return items.map((item: any) => this.toReminderRule(item));
   }
 
-  async createReminderRule(input: CreateReminderRuleInput): Promise<AdminConfigMutationResult<ReminderRule>> {
+  async createReminderRule(input: CreateReminderRuleInput, actor?: AuthJwtPayload): Promise<AdminConfigMutationResult<ReminderRule>> {
     const created = await (this.prisma as unknown as AdminConfigPrisma).reminderRule.create({
       data: {
         id: this.createId("reminder"),
@@ -60,13 +63,25 @@ export class AdminConfigService {
       }
     });
 
+    await this.auditService.recordAudit({
+      organizationId: created.organizationId,
+      actorUserId: actor?.sub,
+      action: "admin_config.create_reminder_rule",
+      entityType: "reminder_rule",
+      entityId: created.id,
+      metadata: {
+        eventType: created.eventType,
+        channel: created.channel
+      }
+    });
+
     return {
       item: this.toReminderRule(created),
       message: `Reminder rule ${created.id} created.`
     };
   }
 
-  async updateReminderRule(id: string, input: UpdateReminderRuleInput): Promise<AdminConfigMutationResult<ReminderRule>> {
+  async updateReminderRule(id: string, input: UpdateReminderRuleInput, actor?: AuthJwtPayload): Promise<AdminConfigMutationResult<ReminderRule>> {
     const existing = await (this.prisma as unknown as AdminConfigPrisma).reminderRule.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException(`Reminder rule ${id} was not found.`);
@@ -81,6 +96,19 @@ export class AdminConfigService {
         channel: input.channel,
         offsetMinutes: input.offsetMinutes,
         active: input.active
+      }
+    });
+
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: actor?.sub,
+      action: "admin_config.update_reminder_rule",
+      entityType: "reminder_rule",
+      entityId: updated.id,
+      metadata: {
+        eventType: updated.eventType,
+        channel: updated.channel,
+        active: updated.active
       }
     });
 
@@ -108,7 +136,7 @@ export class AdminConfigService {
     return this.toSettings(existing);
   }
 
-  async updateSettings(input: UpdateAdminSettingsInput): Promise<AdminConfigMutationResult<AdminSettings>> {
+  async updateSettings(input: UpdateAdminSettingsInput, actor?: AuthJwtPayload): Promise<AdminConfigMutationResult<AdminSettings>> {
     const updated = await (this.prisma as unknown as AdminConfigPrisma).adminSettings.upsert({
       where: { organizationId: input.organizationId },
       update: {
@@ -126,13 +154,27 @@ export class AdminConfigService {
       }
     });
 
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: actor?.sub,
+      action: "admin_config.update_settings",
+      entityType: "admin_settings",
+      entityId: updated.organizationId,
+      metadata: {
+        recipientCount: input.defaultRecipientEmails.length,
+        retentionPhotoDays: input.retentionPhotoDays,
+        retentionGpsDays: input.retentionGpsDays,
+        retentionAuditDays: input.retentionAuditDays
+      }
+    });
+
     return {
       item: this.toSettings(updated),
       message: `Admin settings for ${updated.organizationId} updated.`
     };
   }
 
-  async runImport(input: ImportCsvInput): Promise<ImportResult> {
+  async runImport(input: ImportCsvInput, actor?: AuthJwtPayload): Promise<ImportResult> {
     const rows = parseCsv(input.csvContent);
     if (!rows.length) {
       throw new BadRequestException("CSV content must include a header row and at least one data row.");
@@ -159,13 +201,28 @@ export class AdminConfigService {
       }
     }
 
-    return {
+    const result = {
       entityType: input.entityType,
       createdCount,
       updatedCount,
       failedCount: failures.length,
       failures
     };
+
+    await this.auditService.recordAudit({
+      organizationId: input.organizationId,
+      actorUserId: actor?.sub,
+      action: "admin_config.run_import",
+      entityType: "import_job",
+      entityId: input.entityType,
+      metadata: {
+        createdCount,
+        updatedCount,
+        failedCount: failures.length
+      }
+    });
+
+    return result;
   }
 
   private async importRow(organizationId: string, entityType: ImportCsvInput["entityType"], row: Record<string, string>) {

@@ -22,20 +22,20 @@ export class VisitsController {
 
   @Get("bootstrap")
   @RequirePermissions("visits.view")
-  getBootstrap() {
-    return this.service.getVisitBootstrap();
+  getBootstrap(@Req() request: AuthenticatedRequest) {
+    return this.service.getVisitBootstrap(this.actorAccessService.getActor(request));
   }
 
   @Get()
   @RequirePermissions("visits.view")
-  getVisits() {
-    return this.service.getVisits();
+  getVisits(@Req() request: AuthenticatedRequest) {
+    return this.service.getVisits(this.actorAccessService.getActor(request));
   }
 
   @Get(":id")
   @RequirePermissions("visits.view")
-  getVisit(@Param("id") id: string) {
-    return this.service.getVisit(id);
+  getVisit(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.service.getVisit(id, this.actorAccessService.getActor(request));
   }
 
   @Post()

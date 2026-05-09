@@ -1,7 +1,6 @@
-const path = require("node:path");
-
-const absoluteDbPath = path.resolve(__dirname, "dev.db");
-process.env.DATABASE_URL = process.env.DATABASE_URL || `file:${absoluteDbPath.replace(/\\/g, "/")}`;
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL ||
+  "postgresql://postgres:postgres@localhost:5432/capris_app?schema=public";
 
 const { PrismaClient } = require("@prisma/client");
 

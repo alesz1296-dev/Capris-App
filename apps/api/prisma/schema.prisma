@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -39,6 +39,10 @@ model Organization {
   reminderRules ReminderRule[]
   adminSettings AdminSettings?
   sessions      DeviceSession[]
+  auditLogs     AuditLog[]
+  emailLogs     EmailLog[]
+  notificationLogs NotificationLog[]
+  syncReceipts  SyncReceipt[]
 }
 
 model User {
@@ -71,6 +75,9 @@ model User {
   submittedExceptions ExceptionRecord[] @relation("ExceptionSubmittedBy")
   reviewedExceptions ExceptionRecord[]  @relation("ExceptionReviewedBy")
   sessions       DeviceSession[]
+  auditLogs      AuditLog[]             @relation("AuditActor")
+  emailLogs      EmailLog[]             @relation("EmailTriggeredBy")
+  notificationLogs NotificationLog[]    @relation("NotificationUser")
 }
 
 model DeviceSession {
@@ -605,4 +612,80 @@ model AdminSettings {
   retentionAuditDays    Int
   updatedAt             DateTime     @updatedAt
   organization          Organization @relation(fields: [organizationId], references: [id])
+}
+
+model AuditLog {
+  id             String       @id
+  organizationId String
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String?
+  status         String
+  metadataJson   String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  actor          User?        @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+  @@index([actorUserId, createdAt])
+}
+
+model EmailLog {
+  id               String       @id
+  organizationId   String
+  triggeredByUserId String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  consignationId   String?
+  recipientEmailsJson String
+  subject          String?
+  provider         String?
+  status           String
+  failureReason    String?
+  metadataJson     String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  triggeredBy      User?        @relation("EmailTriggeredBy", fields: [triggeredByUserId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@index([consignationId, createdAt])
+}
+
+model NotificationLog {
+  id             String       @id
+  organizationId String
+  userId         String?
+  reminderRuleId String?
+  channel        String
+  eventType      String
+  recipient      String?
+  status         String
+  payloadJson    String?
+  failureReason  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User?        @relation("NotificationUser", fields: [userId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@index([userId, createdAt])
+}
+
+model SyncReceipt {
+  id             String       @id
+  organizationId String
+  operationId    String
+  operationType  String
+  responseJson   String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, operationId, operationType])
+  @@index([organizationId, operationType, createdAt])
 }
