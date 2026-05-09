@@ -1,100 +1,223 @@
 # Capris App
 
-Bilingual field operations platform for Costa Rica.
+Bilingual field operations platform for Costa Rica, built for field teams, supervisors, and admins.
 
-This repository is structured as a TypeScript monorepo with:
+Capris combines a mobile field workflow with a web operations console for task execution, visits, evidence capture, consignations, client follow-up, dashboards, reports, imports, and operational controls.
 
-- `apps/api`: NestJS backend/API scaffold
-- `apps/web`: Next.js admin/supervisor web app scaffold
-- `apps/mobile`: Expo React Native field app scaffold
-- `packages/shared`: shared domain types, enums, permissions, workflow rules, sync states, and i18n resources
+## Overview
 
-Private architecture notes and role guides live in `docs/` and `guides/`. Those folders are intentionally ignored by Git.
+Capris is designed for teams that need to manage field work across provinces, zones, clients, and points of sale with:
 
-The private docs are the source of truth for implementation decisions. Feature work should follow the documented session plan, architecture notes, testing strategy, and security guidance.
+- English and Spanish support
+- online and offline field execution
+- mandatory evidence workflows
+- visit check-in/check-out
+- activities and exhibitions tracking
+- consignation review and delivery flow
+- supervisor/admin dashboards and reporting
+- imports, retention settings, reminder rules, and system-health visibility
 
-Implementation is tracked in two layers:
+## Current Repo Status
 
-- `docs/implementation-roadmap.md`: phase-level delivery plan
-- `docs/implementation-sessions.md`: session-by-session execution plan for building the product incrementally
-- `docs/log.md`: private implementation logbook by day and session
-- `docs/production-readiness.md`: private rollout and pilot-readiness checklist
-- `docs/priorities.md`: adversarial review priorities and risk backlog
-- `docs/railway-staging.md`: private Railway staging bring-up and smoke-test guide
+This repo already includes a substantial working foundation across API, web, mobile, offline, auth, permissions, reporting, and admin tooling.
 
-## Planned Stack
+Implemented at a high level:
+
+- Google sign-in layered over JWT sessions
+- global JWT enforcement plus permission-based backend protection
+- organization, role, and supervisor-scope model
+- task, visit, evidence, activity, exhibition, consignation, exception, agenda, and client-request flows
+- offline mobile queue with encrypted payload handling
+- signed media delivery
+- dashboards, CSV exports, and immutable report snapshots
+- CSV imports and admin configuration
+- audit, email, notification, and replay-protection foundations
+- Docker for local Postgres + API + web
+- Railway as the default backend staging target
+
+## Monorepo Structure
+
+- `apps/api`: NestJS backend
+- `apps/web`: Next.js admin/supervisor console
+- `apps/mobile`: Expo React Native field app
+- `packages/shared`: shared contracts, enums, permissions, sync types, validation, and i18n resources
+
+## Tech Stack
 
 - Mobile: React Native + Expo
 - Web: Next.js
 - API: NestJS
-- Database: PostgreSQL
+- Database: PostgreSQL + Prisma
 - Mobile offline store: SQLite
-- Storage: S3-compatible object storage
+- Storage: local adapter + S3-compatible object storage
+- Auth: Google sign-in + JWT access/refresh sessions
+- Email: Postmark or SendGrid
 - Maps: Mapbox
 - Notifications: Firebase Cloud Messaging
-- Email: Postmark or SendGrid
+- Containers: Docker + Docker Compose
+- Staging: Railway
+
+## Architecture Summary
+
+Capris follows a monorepo architecture with a shared domain package.
+
+- `packages/shared` defines the canonical contracts used across API, web, and mobile.
+- `apps/api` is the system source of truth for permissions, scope checks, persistence, auditability, signed media, reporting, and replay-safe offline mutation handling.
+- `apps/web` focuses on supervisor/admin operations: catalogs, tasks, visits, evidence review, activities, exceptions, reports, imports, admin config, and dashboards.
+- `apps/mobile` focuses on route-day execution: sign-in, task/visit flows, evidence capture, activities, exhibitions, consignations, and offline sync.
+
+## Authentication And Security
+
+The current auth/security model includes:
+
+- Google identity exchange into Capris JWT sessions
+- refresh-token-backed device sessions
+- global JWT route protection by default
+- permission-based controller protection
+- actor-derived ownership and scope checks
+- supervisor read-side scope filtering
+- signed media URLs for protected media access
+- durable audit, email, and notification logs
+- encrypted mobile offline payload handling
 
 ## Local Development
 
-Install dependencies from the repository root once package installation is available:
+Install dependencies from the repo root:
 
 ```bash
 npm install
 ```
 
-Run individual apps:
+Run the local apps:
 
 ```bash
-npm run dev:web
 npm run dev:api
+npm run dev:web
 npm run dev:mobile
+```
+
+Default local API target:
+
+- `http://localhost:4000/api/v1`
+
+Default local web target:
+
+- `http://localhost:3000`
+
+## Database
+
+The project is now Postgres-first.
+
+Default local connection target:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/capris_app?schema=public
+```
+
+Useful API database scripts:
+
+```bash
+npm --workspace apps/api run db:generate
+npm --workspace apps/api run db:push
+npm --workspace apps/api run db:seed
 ```
 
 ## Docker
 
-Docker support is now included for the API and web apps.
+Docker support is included for local container QA.
 
-- `docker-compose.yml`: local Postgres + API + web stack
-- `apps/api/Dockerfile`: API image
-- `apps/web/Dockerfile`: web image
+Files:
 
-Bring the local container stack up with:
+- `docker-compose.yml`
+- `apps/api/Dockerfile`
+- `apps/web/Dockerfile`
+
+Bring the stack up with:
 
 ```bash
 docker compose up --build
 ```
 
-Notes:
+This starts:
 
-- Mobile is still tested through `Expo development builds`, not Docker.
-- The compose stack is intended for local container QA and service bring-up, while Railway remains the default shared backend staging path.
+- Postgres on `5432`
+- API on `4000`
+- web on `3000`
 
-Database default:
+Important note:
 
-- The API is now configured for PostgreSQL by default.
-- A local helper compose file exists at `docker-compose.postgres.yml`.
-- API env defaults point to `postgresql://postgres:postgres@localhost:5432/capris_app?schema=public`.
+- Mobile is not containerized for normal development.
+- The official mobile testing path remains Expo development builds.
 
-## Working Style
+## Railway Staging
 
-The project is intentionally organized so we can implement it in visible sessions. Each session should produce a small, testable slice of the platform instead of a large opaque batch of changes.
+Railway is the default shared backend staging path.
 
-## Validation Rule
+Relevant files:
+
+- `apps/api/railway.json`
+- `docs/railway-staging.md` (private, ignored from Git)
+
+Current staging flow:
+
+- deploy API to Railway
+- attach Railway Postgres
+- configure staging env vars
+- seed if needed
+- point local web and Expo dev builds at the Railway API
+
+## Environment Variables
+
+Example env values live in:
+
+- `.env.example`
+
+Important variables include:
+
+- `DATABASE_URL`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `MEDIA_URL_SIGNING_SECRET`
+- `GOOGLE_CLIENT_ID`
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+- `EXPO_PUBLIC_GOOGLE_CLIENT_ID`
+- `NEXT_PUBLIC_API_BASE_URL`
+- `EXPO_PUBLIC_API_BASE_URL`
+- `POSTMARK_TOKEN` or `SENDGRID_API_KEY`
+
+## Validation Workflow
 
 The working local validation rule is:
 
-- Every meaningful code slice: run `npm.cmd run typecheck` and `npm.cmd test`.
-- Every frontend or shared-contract change: run `npm.cmd --workspace apps/web run build`.
-- Every schema change: run `npm.cmd --workspace apps/api run db:push`.
-- Every workflow milestone: run the relevant app in `dev` mode for manual validation of the affected flow.
-- Before commits: run the full local verification set for the slices touched by the change.
+- every meaningful code slice: `npm.cmd run typecheck` and `npm.cmd test`
+- every frontend or shared-contract change: `npm.cmd --workspace apps/web run build`
+- every schema change: `npm.cmd --workspace apps/api run db:push`
+- every workflow milestone: run the affected app in `dev` mode for manual validation
 
-## Spec-Driven Rule
+Useful commands:
 
-This project follows spec-driven development.
+```bash
+npm run typecheck
+npm test
+npm --workspace apps/web run build
+```
 
-- The private markdown docs in `docs/` and `guides/` are the implementation source of truth.
-- Features should move in this order whenever practical:
-  spec, shared contract, validation, API/UI implementation, tests, doc update.
-- Behavior should not be invented ad hoc in app code when the relevant private spec is missing or unclear.
-- When implementation intentionally changes behavior, the relevant private docs should be updated in the same work session.
+## Testing Paths
+
+- Local browser/admin testing: `apps/web`
+- Local API testing: `apps/api`
+- Mobile testing: Expo development builds
+- Shared backend staging: Railway
+- Local container QA: Docker Compose
+
+## Working Model
+
+The repo is being built in visible implementation sessions rather than one large opaque batch.
+
+Project rule summary:
+
+- private `docs/` and `guides/` files are the implementation source of truth
+- features should move in this order whenever practical:
+  spec, shared contract, validation, implementation, tests, doc update
+
+Those private docs are intentionally ignored by Git and are not part of the public repository context.
