@@ -7,10 +7,10 @@ export default function LoginPage() {
         <p className="eyebrow">Capris Costa Rica</p>
         <h1>Ingresar a Capris</h1>
         <p className="pageLead">
-          Inicia sesion con correo y contrasena, o crea una cuenta de usuario de campo para entrar a la aplicacion.
+          Inicia sesión con correo y contraseña, o crea una cuenta de usuario de campo para entrar a la aplicación.
         </p>
       </section>
-      <section className="loginCard" aria-label="Inicio de sesion">
+      <section className="loginCard" aria-label="Inicio de sesión">
         <AuthPanel />
       </section>
     </main>

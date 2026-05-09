@@ -30,7 +30,7 @@ const navigation = [
   { href: "/activities", en: "Activities", es: "Actividades" },
   { href: "/reports", en: "Reports", es: "Reportes" },
   { href: "/imports", en: "Imports", es: "Importaciones" },
-  { href: "/catalogs", en: "Catalogs", es: "Catalogos" },
+  { href: "/catalogs", en: "Catalogs", es: "Catálogos" },
   { href: "/access", en: "Access", es: "Acceso", privileged: true }
 ] as const;
 
@@ -99,11 +99,11 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
   if (authState === "checking") {
     return (
       <main className="loginPage">
-        <section className="loginCard" aria-label={textByLocale(locale, "Checking session", "Verificando sesion")}>
+        <section className="loginCard" aria-label={textByLocale(locale, "Checking session", "Verificando sesión")}>
           <p className="eyebrow">Capris Costa Rica</p>
           <h1>{textByLocale(locale, "Checking access", "Verificando acceso")}</h1>
           <p className="pageLead">
-            {textByLocale(locale, "Confirming your session before loading the app.", "Confirmando tu sesion antes de cargar la app.")}
+            {textByLocale(locale, "Confirming your session before loading the app.", "Confirmando tu sesión antes de cargar la app.")}
           </p>
         </section>
       </main>

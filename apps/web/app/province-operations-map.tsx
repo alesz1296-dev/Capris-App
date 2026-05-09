@@ -90,7 +90,7 @@ export function ProvinceOperationsMap({
         </div>
         <StaticCostaRicaMap locale={locale} />
         <div className="routeMapEmpty">
-          <strong>{textByLocale(locale, "Map waiting for route geography", "Mapa esperando geografia de rutas")}</strong>
+          <strong>{textByLocale(locale, "Map waiting for route geography", "Mapa esperando geografía de rutas")}</strong>
           <span>
             {textByLocale(
               locale,
@@ -245,7 +245,7 @@ export function ProvinceOperationsMap({
                             <dd>{zone.evidence}</dd>
                           </div>
                           <div>
-                            <dt>{textByLocale(locale, "Latest GPS", "Ultimo GPS")}</dt>
+                            <dt>{textByLocale(locale, "Latest GPS", "Último GPS")}</dt>
                             <dd>{zone.latestGps}</dd>
                           </div>
                         </dl>
