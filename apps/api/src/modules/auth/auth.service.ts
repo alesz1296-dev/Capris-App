@@ -240,8 +240,8 @@ export class AuthService {
     ]);
 
     return {
-      sessions: sessions.map((session) => this.toDeviceSessionSummary(session)),
-      users: users.map(({ permissions, ...user }) => user)
+      sessions: sessions.map((session: any) => this.toDeviceSessionSummary(session)),
+      users: users.map(({ permissions, ...user }: any) => user)
     };
   }
 

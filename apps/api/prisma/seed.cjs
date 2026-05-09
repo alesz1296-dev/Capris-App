@@ -1,6 +1,6 @@
-process.env.DATABASE_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://<db_user>:<db_password>@localhost:5432/capris_app?schema=public";
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL must be set before running the seed script.");
+}
 
 const { PrismaClient } = require("@prisma/client");
 

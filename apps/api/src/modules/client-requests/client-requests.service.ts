@@ -54,7 +54,7 @@ export class ClientRequestsService {
 
     return {
       requests,
-      users: users.map(({ permissions, ...user }) => user).filter((user) => userIds.has(user.id)),
+      users: users.map(({ permissions, ...user }: any) => user).filter((user: any) => userIds.has(user.id)),
       clients: catalogs.clients.filter((client) => clientIds.has(client.id)),
       provinces: catalogs.provinces.filter((province) => provinceIds.has(province.id)),
       zones: catalogs.zones.filter((zone) => zoneIds.has(zone.id)),

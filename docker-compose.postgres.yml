@@ -5,14 +5,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: capris_app
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: capris_local_user
+      POSTGRES_PASSWORD: change-me-local
     ports:
       - "5432:5432"
     volumes:
       - capris_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d capris_app"]
+      test: ["CMD-SHELL", "pg_isready -U capris_local_user -d capris_app"]
       interval: 5s
       timeout: 5s
       retries: 20

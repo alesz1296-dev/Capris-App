@@ -106,7 +106,7 @@ export class EvidenceService {
       pointsOfSale: catalogs.pointsOfSale.filter((pointOfSale) => pointOfSaleIds.has(pointOfSale.id)),
       tasks,
       visits,
-      users: users.map(({ permissions, ...user }) => user).filter((user) => userIds.has(user.id)),
+      users: users.map(({ permissions, ...user }: any) => user).filter((user: any) => userIds.has(user.id)),
       workflowRules: catalogs.workflowRules.filter((rule) => workflowKeySet.has(`${rule.organizationId}:${rule.taskTypeId ?? ""}:${rule.activityTypeId ?? ""}`)),
       requirementSummaries: await this.getRequirementSummaries(tasks, evidence, mediaAssets, catalogs.workflowRules),
       pendingSyncOperations: this.buildPendingSyncOperations(mediaAssets)

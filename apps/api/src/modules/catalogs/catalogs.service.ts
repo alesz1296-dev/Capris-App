@@ -56,7 +56,7 @@ export class CatalogsService {
 
   async getProvinces(): Promise<Province[]> {
     const provinces = await this.prisma.province.findMany({ orderBy: { name: "asc" } });
-    return provinces.map((province) => ({
+    return provinces.map((province: any) => ({
       id: province.id,
       organizationId: province.organizationId,
       country: province.country as typeof DEFAULT_COUNTRY,
@@ -135,7 +135,7 @@ export class CatalogsService {
 
   async getZones(): Promise<Zone[]> {
     const zones = await this.prisma.zone.findMany({ orderBy: { name: "asc" } });
-    return zones.map((zone) => this.toZone(zone));
+    return zones.map((zone: any) => this.toZone(zone));
   }
 
   async getZone(id: string): Promise<Zone> {
@@ -219,7 +219,7 @@ export class CatalogsService {
 
   async getClients(): Promise<Client[]> {
     const clients = await this.prisma.client.findMany({ orderBy: { name: "asc" } });
-    return clients.map((client) => this.toClient(client));
+    return clients.map((client: any) => this.toClient(client));
   }
 
   async getClient(id: string): Promise<Client> {
@@ -292,7 +292,7 @@ export class CatalogsService {
 
   async getPointsOfSale(): Promise<PointOfSale[]> {
     const pointsOfSale = await this.prisma.pointOfSale.findMany({ orderBy: { name: "asc" } });
-    return pointsOfSale.map((pointOfSale) => this.toPointOfSale(pointOfSale));
+    return pointsOfSale.map((pointOfSale: any) => this.toPointOfSale(pointOfSale));
   }
 
   async getPointOfSale(id: string): Promise<PointOfSale> {
@@ -390,7 +390,7 @@ export class CatalogsService {
 
   async getActivityTypes(): Promise<ActivityType[]> {
     const activityTypes = await this.prisma.activityType.findMany({ orderBy: { name: "asc" } });
-    return activityTypes.map((activityType) => this.toActivityType(activityType));
+    return activityTypes.map((activityType: any) => this.toActivityType(activityType));
   }
 
   async getActivityType(id: string): Promise<ActivityType> {
@@ -467,7 +467,7 @@ export class CatalogsService {
 
   async getTaskTypes(): Promise<TaskType[]> {
     const taskTypes = await this.prisma.taskType.findMany({ orderBy: { name: "asc" } });
-    return taskTypes.map((taskType) => this.toTaskType(taskType));
+    return taskTypes.map((taskType: any) => this.toTaskType(taskType));
   }
 
   async getTaskType(id: string): Promise<TaskType> {
@@ -538,7 +538,7 @@ export class CatalogsService {
 
   async getWorkflowRules(): Promise<WorkflowRule[]> {
     const workflowRules = await this.prisma.workflowRule.findMany({ orderBy: { id: "asc" } });
-    return workflowRules.map((workflowRule) => this.toWorkflowRule(workflowRule));
+    return workflowRules.map((workflowRule: any) => this.toWorkflowRule(workflowRule));
   }
 
   async getWorkflowRule(id: string): Promise<WorkflowRule> {

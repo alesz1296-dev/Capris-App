@@ -146,8 +146,14 @@ This starts:
 
 Important note:
 
+<<<<<<< HEAD
 - Mobile is not containerized for normal development.
 - The official mobile testing path remains Expo development builds.
+=======
+- The API is now configured for PostgreSQL by default.
+- A local helper compose file exists at `docker-compose.postgres.yml`.
+- API env defaults point to `postgresql://<db_user>:<db_password>@localhost:5432/capris_app?schema=public`.
+>>>>>>> 2c8020f (fix: TS any errors)
 
 ## Railway Staging
 
