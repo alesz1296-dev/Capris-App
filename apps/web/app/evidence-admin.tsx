@@ -12,6 +12,7 @@ import {
   type UploadStatus
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { formatCoordinates, resolveWebCoordinates } from "./location-client";
 import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
@@ -54,6 +55,7 @@ export function EvidenceAdmin() {
   const users = bootstrap?.users ?? [];
   const evidence = bootstrap?.evidence ?? [];
   const mediaAssets = bootstrap?.mediaAssets ?? [];
+  const pointsOfSale = bootstrap?.pointsOfSale ?? [];
   const requirementSummaries = bootstrap?.requirementSummaries ?? [];
   const pendingSyncOperations = bootstrap?.pendingSyncOperations ?? [];
   const actionDisabled = loading || isPending;
@@ -121,6 +123,11 @@ export function EvidenceAdmin() {
 
     const dataUrl = await fileToDataUrl(selectedFile);
     const timestamp = new Date().toISOString();
+    const selectedVisit = visits.find((visit) => visit.id === evidenceForm.visitId);
+    const linkedPointOfSale = pointsOfSale.find(
+      (pointOfSale) => pointOfSale.id === selectedVisit?.pointOfSaleId || pointOfSale.id === selectedTask.pointOfSaleId
+    );
+    const location = await resolveWebCoordinates(locale, linkedPointOfSale);
     const payload: UploadCapturedEvidenceInput = {
       organizationId: ORGANIZATION_ID,
       taskId: evidenceForm.taskId,
@@ -128,8 +135,8 @@ export function EvidenceAdmin() {
       uploaderUserId: evidenceForm.uploaderUserId,
       type: evidenceForm.type,
       capturedAt: timestamp,
-      latitude: 9.9186,
-      longitude: -84.1397,
+      latitude: location.latitude,
+      longitude: location.longitude,
       fileName: selectedFile.name || evidenceForm.fileName.trim() || `${selectedTask.id}-${evidenceForm.type}.jpg`,
       mimeType: selectedFile.type || "image/jpeg",
       fileBase64: dataUrl,
@@ -149,6 +156,11 @@ export function EvidenceAdmin() {
     const now = Date.now();
     const timestamp = new Date(now).toISOString();
     const uploadSessionId = `upload_${now}`;
+    const selectedVisit = visits.find((visit) => visit.id === evidenceForm.visitId);
+    const linkedPointOfSale = pointsOfSale.find(
+      (pointOfSale) => pointOfSale.id === selectedVisit?.pointOfSaleId || pointOfSale.id === selectedTask.pointOfSaleId
+    );
+    const location = await resolveWebCoordinates(locale, linkedPointOfSale);
     const payload: CreateEvidenceInput = {
       organizationId: ORGANIZATION_ID,
       taskId: evidenceForm.taskId,
@@ -156,8 +168,8 @@ export function EvidenceAdmin() {
       uploaderUserId: evidenceForm.uploaderUserId,
       type: evidenceForm.type,
       capturedAt: timestamp,
-      latitude: 9.9186,
-      longitude: -84.1397,
+      latitude: location.latitude,
+      longitude: location.longitude,
       fileName: evidenceForm.fileName.trim() || `${selectedTask.id}-${evidenceForm.type}.jpg`,
       mimeType: selectedFile?.type || "image/jpeg",
       originalStoragePath: `/local-device/originals/${now}-${evidenceForm.type}.jpg`,
@@ -409,15 +421,15 @@ export function EvidenceAdmin() {
           <div className="evidenceOpsSummary">
             <div className="evidenceOpsMetric">
               <strong>{pendingSyncOperations.length}</strong>
-              <span>Pending sync operations</span>
+              <span>{textByLocale(locale, "Pending sync operations", "Operaciones pendientes de sincronizacion")}</span>
             </div>
             <div className="evidenceOpsMetric">
               <strong>{failedMediaAssets.length}</strong>
-              <span>Failed uploads ready for retry</span>
+              <span>{textByLocale(locale, "Failed uploads ready for retry", "Cargas fallidas listas para reintento")}</span>
             </div>
             <div className="evidenceOpsMetric">
               <strong>{mediaAssets.filter((item) => item.uploadStatus === "uploading").length}</strong>
-              <span>Uploads currently in progress</span>
+              <span>{textByLocale(locale, "Uploads currently in progress", "Cargas actualmente en progreso")}</span>
             </div>
           </div>
 
@@ -506,48 +518,52 @@ function EvidenceCard({
             </div>
             <div>
               <dt>{t(locale, "evidence.originalPath")}</dt>
-              <dd>{mediaAsset?.originalStoragePath ?? "Pending"}</dd>
+              <dd>{mediaAsset?.originalStoragePath ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
             </div>
             <div>
               <dt>{t(locale, "evidence.thumbnailPath")}</dt>
-              <dd>{mediaAsset?.thumbnailStoragePath ?? "Pending"}</dd>
+              <dd>{mediaAsset?.thumbnailStoragePath ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
             </div>
             <div>
               <dt>{t(locale, "evidence.uploadStatus")}</dt>
               <dd>{t(locale, `uploadStatus.${uploadStatus}` as never)}</dd>
             </div>
             <div>
+              <dt>GPS</dt>
+              <dd>{formatCoordinates(evidence.latitude, evidence.longitude)}</dd>
+            </div>
+            <div>
               <dt>{t(locale, "evidence.requirements")}</dt>
-              <dd>{missingTypes.length > 0 ? `Missing: ${missingTypes.join(", ")}` : "Complete"}</dd>
+              <dd>{missingTypes.length > 0 ? `${textByLocale(locale, "Missing", "Faltan")}: ${missingTypes.join(", ")}` : textByLocale(locale, "Complete", "Completo")}</dd>
             </div>
             <div>
-              <dt>Visit link</dt>
-              <dd>{evidence.visitId ?? "Task-only evidence"}</dd>
+              <dt>{textByLocale(locale, "Visit link", "Vinculo de visita")}</dt>
+              <dd>{evidence.visitId ?? textByLocale(locale, "Task-only evidence", "Evidencia solo de tarea")}</dd>
             </div>
             <div>
-              <dt>Sync state</dt>
+              <dt>{textByLocale(locale, "Sync state", "Estado de sincronizacion")}</dt>
               <dd>{mediaAsset?.syncState ?? "pending_sync"}</dd>
             </div>
             <div>
-              <dt>Upload session</dt>
-              <dd>{mediaAsset?.uploadSessionId ?? "Not assigned"}</dd>
+              <dt>{textByLocale(locale, "Transfer reference", "Referencia de transferencia")}</dt>
+              <dd>{mediaAsset?.uploadSessionId ?? textByLocale(locale, "Not assigned", "Sin asignar")}</dd>
             </div>
             <div>
-              <dt>Retries</dt>
+              <dt>{textByLocale(locale, "Retries", "Reintentos")}</dt>
               <dd>{mediaAsset?.retryCount ?? 0}</dd>
             </div>
           </dl>
 
           <div className="evidenceProgressPanel">
             <div className="evidenceProgressHeader">
-              <strong>Upload progress</strong>
+              <strong>{textByLocale(locale, "Upload progress", "Progreso de carga")}</strong>
               <span>{Math.round(mediaAsset?.uploadProgress ?? 0)}%</span>
             </div>
             <div className="evidenceProgressBar">
               <span style={{ width: `${Math.max(4, mediaAsset?.uploadProgress ?? 0)}%` }} />
             </div>
             <p className="evidenceProgressCopy">
-              Chunks: {mediaAsset?.uploadedChunkCount ?? 0} / {mediaAsset?.chunkCount ?? 0}
+              {textByLocale(locale, "Chunks", "Bloques")}: {mediaAsset?.uploadedChunkCount ?? 0} / {mediaAsset?.chunkCount ?? 0}
             </p>
             {mediaAsset?.lastError ? <p className="feedbackError evidenceInlineError">{mediaAsset.lastError}</p> : null}
           </div>
@@ -558,7 +574,7 @@ function EvidenceCard({
         <div className="taskStatusActions">
           {mediaAsset.uploadStatus === "failed" ? (
             <button className="primaryAction" disabled={actionDisabled} type="button" onClick={() => void onRetry(mediaAsset, "Manual review retry from web console")}>
-              Queue retry
+              {textByLocale(locale, "Queue retry", "Encolar reintento")}
             </button>
           ) : null}
           {UPLOAD_NEXT_ACTIONS[uploadStatus].map((nextStatus) => (
@@ -569,7 +585,7 @@ function EvidenceCard({
               type="button"
               onClick={() => void onUploadStatusChange(mediaAsset, nextStatus)}
             >
-              Move to {t(locale, `uploadStatus.${nextStatus}` as never)}
+              {textByLocale(locale, "Move to", "Mover a")} {t(locale, `uploadStatus.${nextStatus}` as never)}
             </button>
           ))}
         </div>
@@ -645,7 +661,7 @@ function createThumbnailPreview(mediaAsset: MediaAsset | undefined, evidenceType
       <text x="24" y="54" font-family="Segoe UI, sans-serif" font-size="18" font-weight="700" fill="${ink}">${label}</text>
       <text x="24" y="92" font-family="Segoe UI, sans-serif" font-size="14" fill="${ink}">${mediaAsset?.fileName ?? "pending-capture.jpg"}</text>
       <text x="24" y="128" font-family="Segoe UI, sans-serif" font-size="14" fill="${ink}">Progress ${Math.round(mediaAsset?.uploadProgress ?? 0)}%</text>
-      <text x="24" y="164" font-family="Segoe UI, sans-serif" font-size="13" fill="${ink}">Session ${mediaAsset?.uploadSessionId ?? "not-started"}</text>
+      <text x="24" y="164" font-family="Segoe UI, sans-serif" font-size="13" fill="${ink}">Ref ${mediaAsset?.uploadSessionId ?? "pending"}</text>
     </svg>
   `);
 
