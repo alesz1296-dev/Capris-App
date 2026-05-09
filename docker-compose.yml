@@ -11,7 +11,7 @@ services:
     volumes:
       - capris_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d capris_app"]
+      test: ["CMD-SHELL", "pg_isready -U capris_local_user -d capris_app"]
       interval: 10s
       timeout: 5s
       retries: 10
