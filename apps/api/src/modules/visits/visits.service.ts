@@ -34,18 +34,49 @@ export class VisitsService {
       this.identityAccessService.getUsers(),
       this.catalogsService.getCatalogBootstrap()
     ]);
-    const userIds = new Set(visits.map((visit) => visit.assigneeId));
-    const provinceIds = new Set(visits.map((visit) => visit.provinceId));
-    const zoneIds = new Set(visits.map((visit) => visit.zoneId));
-    const pointOfSaleIds = new Set(visits.map((visit) => visit.pointOfSaleId).filter(Boolean));
+    const userIds = new Set([...visits.map((visit) => visit.assigneeId), ...tasks.map((task) => task.assigneeId)]);
+    const provinceIds = new Set([...visits.map((visit) => visit.provinceId), ...tasks.map((task) => task.provinceId)]);
+    const zoneIds = new Set([...visits.map((visit) => visit.zoneId), ...tasks.map((task) => task.zoneId)]);
+    const pointOfSaleIds = new Set([...visits.map((visit) => visit.pointOfSaleId), ...tasks.map((task) => task.pointOfSaleId)].filter(Boolean));
+    const organizationCatalogs = {
+      provinces: actor ? catalogs.provinces.filter((province) => province.organizationId === actor.organizationId) : catalogs.provinces,
+      zones: actor ? catalogs.zones.filter((zone) => zone.organizationId === actor.organizationId) : catalogs.zones,
+      pointsOfSale: actor ? catalogs.pointsOfSale.filter((pointOfSale) => pointOfSale.organizationId === actor.organizationId) : catalogs.pointsOfSale
+    };
+    const accessibleCatalogs =
+      !actor || actor.role === "admin"
+        ? organizationCatalogs
+        : actor.role === "supervisor"
+          ? {
+              provinces: await this.actorAccessService.filterReadable(actor, organizationCatalogs.provinces, (province) => ({
+                organizationId: province.organizationId,
+                provinceId: province.id
+              })),
+              zones: await this.actorAccessService.filterReadable(actor, organizationCatalogs.zones, (zone) => ({
+                organizationId: zone.organizationId,
+                provinceId: zone.provinceId,
+                zoneId: zone.id
+              })),
+              pointsOfSale: await this.actorAccessService.filterReadable(actor, organizationCatalogs.pointsOfSale, (pointOfSale) => ({
+                organizationId: pointOfSale.organizationId,
+                provinceId: pointOfSale.provinceId,
+                zoneId: pointOfSale.zoneId,
+                clientId: pointOfSale.clientId
+              }))
+            }
+          : {
+              provinces: organizationCatalogs.provinces.filter((province) => provinceIds.has(province.id)),
+              zones: organizationCatalogs.zones.filter((zone) => zoneIds.has(zone.id)),
+              pointsOfSale: organizationCatalogs.pointsOfSale.filter((pointOfSale) => pointOfSaleIds.has(pointOfSale.id))
+            };
 
     return {
       visits,
       tasks,
       users: users.map(({ permissions, ...user }: any) => user).filter((user: any) => userIds.has(user.id)),
-      provinces: catalogs.provinces.filter((province) => provinceIds.has(province.id)),
-      zones: catalogs.zones.filter((zone) => zoneIds.has(zone.id)),
-      pointsOfSale: catalogs.pointsOfSale.filter((pointOfSale) => pointOfSaleIds.has(pointOfSale.id))
+      provinces: accessibleCatalogs.provinces,
+      zones: accessibleCatalogs.zones,
+      pointsOfSale: accessibleCatalogs.pointsOfSale
     };
   }
 

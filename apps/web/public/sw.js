@@ -1,9 +1,9 @@
-const CACHE_NAME = "capris-pwa-v1";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/apple-icon", "/icon"];
+const CACHE_NAME = "capris-pwa-v3";
+const STATIC_ASSETS = ["/manifest.webmanifest", "/apple-icon", "/icon"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())
   );
 });
 
@@ -26,7 +26,19 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request).catch(() => caches.match("/")));
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (requestUrl.searchParams.has("_rsc") || requestUrl.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  const shouldCache =
+    requestUrl.pathname.startsWith("/_next/static/") ||
+    STATIC_ASSETS.includes(requestUrl.pathname);
+
+  if (!shouldCache) {
     return;
   }
 
