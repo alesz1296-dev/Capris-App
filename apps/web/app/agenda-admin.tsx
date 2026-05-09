@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import type {
   AgendaEvent,
+  AuthProfileResponse,
   CalendarBootstrap,
   CalendarEntry,
   CalendarView,
@@ -10,13 +11,15 @@ import type {
   ClientRequestBootstrap,
   ClientRequestStatus,
   CreateAgendaEventInput,
-  CreateClientRequestInput
+  CreateClientRequestInput,
+  CreateTaskInput,
+  TaskBootstrap
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
 import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
-const DEFAULT_DATE = "2026-05-08";
+const DEFAULT_DATE = new Date().toISOString().slice(0, 10);
 
 const CALENDAR_VIEWS: CalendarView[] = ["day", "week", "month", "year"];
 const REQUEST_STATUSES: ClientRequestStatus[] = ["open", "in_progress", "waiting_client", "resolved", "closed"];
@@ -103,6 +106,20 @@ type ClientRequestFormState = {
   priority: "low" | "medium" | "high" | "urgent";
 };
 
+type QuickTaskFormState = {
+  title: string;
+  assigneeId: string;
+  scheduledFor: string;
+  provinceId: string;
+  zoneId: string;
+  clientId: string;
+  pointOfSaleId: string;
+  activityTypeId: string;
+  taskTypeId: string;
+  priority: "low" | "medium" | "high" | "urgent";
+  difficulty: "easy" | "standard" | "hard" | "critical";
+};
+
 const EMPTY_AGENDA_FORM: AgendaFormState = {
   title: "",
   description: "",
@@ -132,6 +149,20 @@ const EMPTY_REQUEST_FORM: ClientRequestFormState = {
   priority: "medium"
 };
 
+const EMPTY_QUICK_TASK_FORM: QuickTaskFormState = {
+  title: "",
+  assigneeId: "",
+  scheduledFor: DEFAULT_DATE,
+  provinceId: "",
+  zoneId: "",
+  clientId: "",
+  pointOfSaleId: "",
+  activityTypeId: "",
+  taskTypeId: "",
+  priority: "medium",
+  difficulty: "standard"
+};
+
 export function AgendaAdmin() {
   const locale = useAppLocale();
   const [loading, setLoading] = useState(true);
@@ -140,10 +171,29 @@ export function AgendaAdmin() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [view, setView] = useState<CalendarView>("week");
   const [anchorDate, setAnchorDate] = useState(DEFAULT_DATE);
+  const [selectedDate, setSelectedDate] = useState(DEFAULT_DATE);
+  const [selectedUserId, setSelectedUserId] = useState<"all" | string>("all");
+  const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
   const [calendar, setCalendar] = useState<CalendarBootstrap | null>(null);
   const [requestBootstrap, setRequestBootstrap] = useState<ClientRequestBootstrap | null>(null);
+  const [taskBootstrap, setTaskBootstrap] = useState<TaskBootstrap | null>(null);
   const [agendaForm, setAgendaForm] = useState<AgendaFormState>(EMPTY_AGENDA_FORM);
   const [requestForm, setRequestForm] = useState<ClientRequestFormState>(EMPTY_REQUEST_FORM);
+  const [quickTaskForm, setQuickTaskForm] = useState<QuickTaskFormState>(EMPTY_QUICK_TASK_FORM);
+
+  const isPlanner = profile?.user.role === "admin" || profile?.user.role === "supervisor";
+  const entries = calendar?.entries ?? [];
+  const agendaEvents = calendar?.agendaEvents ?? [];
+  const requests = requestBootstrap?.requests ?? [];
+  const users = taskBootstrap?.users ?? calendar?.users ?? requestBootstrap?.users ?? [];
+  const teams = calendar?.teams ?? [];
+  const clients = taskBootstrap?.clients ?? requestBootstrap?.clients ?? [];
+  const provinces = taskBootstrap?.provinces ?? requestBootstrap?.provinces ?? [];
+  const zones = taskBootstrap?.zones ?? requestBootstrap?.zones ?? [];
+  const pointsOfSale = taskBootstrap?.pointsOfSale ?? requestBootstrap?.pointsOfSale ?? [];
+  const activityTypes = taskBootstrap?.activityTypes ?? [];
+  const taskTypes = taskBootstrap?.taskTypes ?? [];
+  const tasks = taskBootstrap?.tasks ?? requestBootstrap?.tasks ?? [];
 
   useEffect(() => {
     void loadAgendaData();
@@ -168,25 +218,74 @@ export function AgendaAdmin() {
     }));
   }, [requestBootstrap]);
 
-  const entries = calendar?.entries ?? [];
-  const agendaEvents = calendar?.agendaEvents ?? [];
-  const requests = requestBootstrap?.requests ?? [];
-  const users = requestBootstrap?.users ?? [];
-  const teams = calendar?.teams ?? [];
-  const clients = requestBootstrap?.clients ?? [];
-  const provinces = requestBootstrap?.provinces ?? [];
-  const zones = requestBootstrap?.zones ?? [];
-  const pointsOfSale = requestBootstrap?.pointsOfSale ?? [];
-  const tasks = requestBootstrap?.tasks ?? [];
+  useEffect(() => {
+    setAgendaForm((current) => ({
+      ...current,
+      startAt: `${selectedDate}T14:00:00.000Z`,
+      endAt: `${selectedDate}T15:00:00.000Z`
+    }));
+    setRequestForm((current) => ({ ...current, dueDate: selectedDate }));
+    setQuickTaskForm((current) => ({ ...current, scheduledFor: selectedDate }));
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (!taskBootstrap || !profile) {
+      return;
+    }
+
+    setSelectedUserId((current) => (profile.user.role === "field_user" ? profile.user.id : current));
+    setQuickTaskForm((current) => ({
+      ...current,
+      assigneeId: current.assigneeId || taskBootstrap.users[0]?.id || "",
+      provinceId: current.provinceId || taskBootstrap.provinces.find((province) => province.active)?.id || "",
+      clientId: current.clientId || taskBootstrap.clients.find((client) => client.active)?.id || "",
+      activityTypeId: current.activityTypeId || taskBootstrap.activityTypes.find((activityType) => activityType.active)?.id || "",
+      taskTypeId: current.taskTypeId || taskBootstrap.taskTypes.find((taskType) => taskType.active)?.id || ""
+    }));
+  }, [profile, taskBootstrap]);
+
+  useEffect(() => {
+    const zoneOptions = zones.filter((zone) => zone.active && zone.provinceId === quickTaskForm.provinceId);
+    if (!quickTaskForm.zoneId || !zoneOptions.some((zone) => zone.id === quickTaskForm.zoneId)) {
+      setQuickTaskForm((current) => ({ ...current, zoneId: zoneOptions[0]?.id ?? "" }));
+    }
+  }, [quickTaskForm.provinceId, quickTaskForm.zoneId, zones]);
+
+  useEffect(() => {
+    const pointOfSaleOptions = pointsOfSale.filter(
+      (pointOfSale) =>
+        pointOfSale.active &&
+        pointOfSale.provinceId === quickTaskForm.provinceId &&
+        pointOfSale.zoneId === quickTaskForm.zoneId &&
+        (!quickTaskForm.clientId || pointOfSale.clientId === quickTaskForm.clientId)
+    );
+    if (!quickTaskForm.pointOfSaleId || !pointOfSaleOptions.some((pointOfSale) => pointOfSale.id === quickTaskForm.pointOfSaleId)) {
+      setQuickTaskForm((current) => ({ ...current, pointOfSaleId: pointOfSaleOptions[0]?.id ?? "" }));
+    }
+  }, [pointsOfSale, quickTaskForm.clientId, quickTaskForm.pointOfSaleId, quickTaskForm.provinceId, quickTaskForm.zoneId]);
+
+  const visibleEntries = useMemo(
+    () => entries.filter((entry) => selectedUserId === "all" || entry.ownerUserId === selectedUserId || entry.scopeReferenceId === selectedUserId),
+    [entries, selectedUserId]
+  );
+  const calendarDays = useMemo(() => buildCalendarDays(calendar?.window.startDate ?? anchorDate, calendar?.window.endDate ?? anchorDate), [anchorDate, calendar]);
+  const entriesByDate = useMemo(() => {
+    const grouped = new Map<string, CalendarEntry[]>();
+    for (const entry of visibleEntries) {
+      const date = entry.startAt.slice(0, 10);
+      grouped.set(date, [...(grouped.get(date) ?? []), entry]);
+    }
+    return grouped;
+  }, [visibleEntries]);
 
   const groupedCounts = useMemo(
     () => ({
-      agenda: entries.filter((entry) => entry.kind === "agenda_event").length,
-      tasks: entries.filter((entry) => entry.kind === "task").length,
-      visits: entries.filter((entry) => entry.kind === "visit").length,
-      requests: entries.filter((entry) => entry.kind === "client_request").length
+      agenda: visibleEntries.filter((entry) => entry.kind === "agenda_event").length,
+      tasks: visibleEntries.filter((entry) => entry.kind === "task").length,
+      visits: visibleEntries.filter((entry) => entry.kind === "visit").length,
+      requests: visibleEntries.filter((entry) => entry.kind === "client_request").length
     }),
-    [entries]
+    [visibleEntries]
   );
 
   async function loadAgendaData() {
@@ -197,25 +296,37 @@ export function AgendaAdmin() {
       setLoading(true);
       setError(null);
 
-      const [calendarResponse, requestsResponse] = await Promise.all([
+      const [profileResponse, calendarResponse, requestsResponse, tasksResponse] = await Promise.all([
+        authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" }),
         authenticatedFetch(`${API_BASE_URL}/calendar/bootstrap?view=${view}&date=${anchorDate}`, { cache: "no-store" }),
-        authenticatedFetch(`${API_BASE_URL}/client-requests/bootstrap`, { cache: "no-store" })
+        authenticatedFetch(`${API_BASE_URL}/client-requests/bootstrap`, { cache: "no-store" }),
+        authenticatedFetch(`${API_BASE_URL}/tasks/bootstrap`, { cache: "no-store" })
       ]);
 
+      if (!profileResponse.ok) {
+        throw new Error(await extractErrorMessage(profileResponse, sessionFallback));
+      }
       if (!calendarResponse.ok) {
         throw new Error(await extractErrorMessage(calendarResponse, calendarFallback));
       }
       if (!requestsResponse.ok) {
         throw new Error(await extractErrorMessage(requestsResponse, requestFallback));
       }
+      if (!tasksResponse.ok) {
+        throw new Error(await extractErrorMessage(tasksResponse, sessionFallback));
+      }
 
-      const [calendarPayload, requestsPayload] = await Promise.all([
+      const [profilePayload, calendarPayload, requestsPayload, tasksPayload] = await Promise.all([
+        profileResponse.json() as Promise<AuthProfileResponse>,
         calendarResponse.json() as Promise<CalendarBootstrap>,
-        requestsResponse.json() as Promise<ClientRequestBootstrap>
+        requestsResponse.json() as Promise<ClientRequestBootstrap>,
+        tasksResponse.json() as Promise<TaskBootstrap>
       ]);
 
+      setProfile(profilePayload);
       setCalendar(calendarPayload);
       setRequestBootstrap(requestsPayload);
+      setTaskBootstrap(tasksPayload);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : sessionFallback);
     } finally {
@@ -241,6 +352,31 @@ export function AgendaAdmin() {
 
     await submit(`${API_BASE_URL}/calendar/agenda-events`, payload, textByLocale(locale, "Shared agenda event created.", "Evento compartido de agenda creado."));
     setAgendaForm((current) => ({ ...EMPTY_AGENDA_FORM, createdByUserId: current.createdByUserId, ownerUserId: current.ownerUserId }));
+  }
+
+  async function createQuickTask() {
+    const payload: CreateTaskInput = {
+      organizationId: ORGANIZATION_ID,
+      title: quickTaskForm.title,
+      requesterId: profile?.user.id ?? "",
+      assigneeId: quickTaskForm.assigneeId,
+      scheduledFor: quickTaskForm.scheduledFor,
+      provinceId: quickTaskForm.provinceId,
+      zoneId: quickTaskForm.zoneId,
+      clientId: quickTaskForm.clientId || undefined,
+      pointOfSaleId: quickTaskForm.pointOfSaleId || undefined,
+      activityTypeId: quickTaskForm.activityTypeId,
+      taskTypeId: quickTaskForm.taskTypeId,
+      priority: quickTaskForm.priority,
+      difficulty: quickTaskForm.difficulty
+    };
+
+    await submit(
+      `${API_BASE_URL}/tasks`,
+      payload,
+      textByLocale(locale, "Work assigned on the selected day.", "Trabajo asignado en el dia seleccionado.")
+    );
+    setQuickTaskForm((current) => ({ ...current, title: "" }));
   }
 
   async function createClientRequest() {
@@ -306,9 +442,23 @@ export function AgendaAdmin() {
   return (
     <section className="catalogSection" id="agenda">
       <div className="sectionHeading">
-        <h2>{textByLocale(locale, "Shared agenda, calendars, and client requests", "Agenda compartida, calendarios y solicitudes de cliente")}</h2>
+        <h2>
+          {isPlanner
+            ? textByLocale(locale, "Shared team calendar and work planning", "Calendario compartido y planeacion de trabajo")
+            : textByLocale(locale, "My work calendar", "Mi calendario de trabajo")}
+        </h2>
         <p className="sectionDescription">
-          {textByLocale(locale, "View daily, weekly, monthly, and yearly scheduling windows, create shared team agenda events, and follow client requests with ownership, due dates, and aging.", "Consulta ventanas de programacion diarias, semanales, mensuales y anuales, crea eventos compartidos de equipo y da seguimiento a solicitudes de cliente con responsables, vencimientos y antiguedad.")}
+          {isPlanner
+            ? textByLocale(
+                locale,
+                "Admins and supervisors can review work done, switch between people, touch a day, and assign new work for that date.",
+                "Administradores y supervisores pueden revisar trabajo realizado, cambiar entre personas, tocar un dia y asignar trabajo nuevo para esa fecha."
+              )
+            : textByLocale(
+                locale,
+                "Field users only see their own tasks, visits, requests, and personal agenda events.",
+                "Los usuarios de campo solo ven sus tareas, visitas, solicitudes y eventos personales."
+              )}
         </p>
       </div>
 
@@ -338,34 +488,171 @@ export function AgendaAdmin() {
         </article>
       </div>
 
+      <article className="catalogManagerCard calendarBoard">
+        <div className="catalogManagerHeader">
+          <div>
+            <h3>{textByLocale(locale, "Calendar", "Calendario")}</h3>
+            <p>
+              {calendar?.window.startDate ?? anchorDate} {textByLocale(locale, "to", "a")} {calendar?.window.endDate ?? anchorDate}
+            </p>
+          </div>
+          {isPlanner ? (
+            <label className="calendarPersonFilter">
+              <span>{textByLocale(locale, "Person", "Persona")}</span>
+              <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)}>
+                <option value="all">{textByLocale(locale, "Shared calendar", "Calendario compartido")}</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
+        <div className="taskStatusActions">
+          {CALENDAR_VIEWS.map((calendarView) => (
+            <button
+              key={calendarView}
+              className={calendarView === view ? "primaryAction" : "secondaryAction"}
+              type="button"
+              onClick={() => setView(calendarView)}
+            >
+              {calendarViewLabel(locale, calendarView)}
+            </button>
+          ))}
+        </div>
+        <label className="fullWidth">
+          <span>{textByLocale(locale, "Anchor date", "Fecha de referencia")}</span>
+          <input
+            type="date"
+            value={anchorDate}
+            onChange={(event) => {
+              setAnchorDate(event.target.value);
+              setSelectedDate(event.target.value);
+            }}
+          />
+        </label>
+        <div className="calendarDayGrid">
+          {calendarDays.map((day) => {
+            const dayEntries = entriesByDate.get(day) ?? [];
+            return (
+              <button
+                aria-pressed={selectedDate === day}
+                className="calendarDayButton"
+                key={day}
+                type="button"
+                onClick={() => setSelectedDate(day)}
+              >
+                <span>{formatDayLabel(day)}</span>
+                <strong>{dayEntries.length}</strong>
+                <small>
+                  {dayEntries.slice(0, 2).map((entry) => entry.title).join(" / ") ||
+                    textByLocale(locale, "No work", "Sin trabajo")}
+                </small>
+              </button>
+            );
+          })}
+        </div>
+      </article>
+
       <div className="taskAdminLayout">
+        {isPlanner ? (
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{textByLocale(locale, "Calendar views", "Vistas del calendario")}</h3>
-              <p>
-                {calendar?.window.startDate ?? anchorDate} {textByLocale(locale, "to", "a")} {calendar?.window.endDate ?? anchorDate}
-              </p>
+              <h3>{textByLocale(locale, "Assign work on selected day", "Asignar trabajo en el dia seleccionado")}</h3>
+              <p>{textByLocale(locale, "Touch a calendar day, choose a person and route stop, then create the work item for that exact date.", "Toca un dia del calendario, elige persona y parada de ruta, y crea el trabajo para esa fecha exacta.")}</p>
             </div>
           </div>
-          <div className="taskStatusActions">
-            {CALENDAR_VIEWS.map((calendarView) => (
-              <button
-                key={calendarView}
-                className={calendarView === view ? "primaryAction" : "secondaryAction"}
-                type="button"
-                onClick={() => setView(calendarView)}
-              >
-                {calendarViewLabel(locale, calendarView)}
-              </button>
-            ))}
+          <div className="formGrid">
+            <label className="fullWidth">
+              <span>{textByLocale(locale, "Work title", "Titulo del trabajo")}</span>
+              <input value={quickTaskForm.title} onChange={(event) => setQuickTaskForm((current) => ({ ...current, title: event.target.value }))} />
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Assigned user", "Usuario asignado")}</span>
+              <select value={quickTaskForm.assigneeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, assigneeId: event.target.value }))}>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>{user.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Date", "Fecha")}</span>
+              <input type="date" value={quickTaskForm.scheduledFor} onChange={(event) => {
+                setSelectedDate(event.target.value);
+                setQuickTaskForm((current) => ({ ...current, scheduledFor: event.target.value }));
+              }} />
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Province", "Provincia")}</span>
+              <select value={quickTaskForm.provinceId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, provinceId: event.target.value }))}>
+                {provinces.filter((province) => province.active).map((province) => (
+                  <option key={province.id} value={province.id}>{province.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Zone", "Zona")}</span>
+              <select value={quickTaskForm.zoneId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, zoneId: event.target.value }))}>
+                {zones.filter((zone) => zone.active && zone.provinceId === quickTaskForm.provinceId).map((zone) => (
+                  <option key={zone.id} value={zone.id}>{zone.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Point of sale", "Punto de venta")}</span>
+              <select value={quickTaskForm.pointOfSaleId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, pointOfSaleId: event.target.value }))}>
+                {pointsOfSale
+                  .filter((pointOfSale) => pointOfSale.active && pointOfSale.provinceId === quickTaskForm.provinceId && pointOfSale.zoneId === quickTaskForm.zoneId)
+                  .map((pointOfSale) => (
+                    <option key={pointOfSale.id} value={pointOfSale.id}>{pointOfSale.name}</option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Client", "Cliente")}</span>
+              <select value={quickTaskForm.clientId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, clientId: event.target.value }))}>
+                {clients.filter((client) => client.active).map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Task type", "Tipo de tarea")}</span>
+              <select value={quickTaskForm.taskTypeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, taskTypeId: event.target.value }))}>
+                {taskTypes.filter((taskType) => taskType.active).map((taskType) => (
+                  <option key={taskType.id} value={taskType.id}>{taskType.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Activity", "Actividad")}</span>
+              <select value={quickTaskForm.activityTypeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, activityTypeId: event.target.value }))}>
+                {activityTypes.filter((activityType) => activityType.active).map((activityType) => (
+                  <option key={activityType.id} value={activityType.id}>{activityType.name}</option>
+                ))}
+              </select>
+            </label>
           </div>
-          <label className="fullWidth">
-            <span>{textByLocale(locale, "Anchor date", "Fecha de referencia")}</span>
-            <input type="date" value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} />
-          </label>
+          <div className="taskFormActions">
+            <button className="primaryAction" disabled={loading || isPending || !quickTaskForm.title || !quickTaskForm.assigneeId || !quickTaskForm.zoneId || !quickTaskForm.activityTypeId || !quickTaskForm.taskTypeId} type="button" onClick={() => void createQuickTask()}>
+              {textByLocale(locale, "Assign work", "Asignar trabajo")}
+            </button>
+          </div>
+        </article>
+        ) : null}
+
+        <article className="catalogManagerCard">
+          <div className="catalogManagerHeader">
+            <div>
+              <h3>{textByLocale(locale, "Selected day", "Dia seleccionado")}</h3>
+              <p>{selectedDate}</p>
+            </div>
+          </div>
           <div className="taskList">
-            {entries.map((entry: CalendarEntry) => (
+            {visibleEntries.filter((entry) => entry.startAt.slice(0, 10) === selectedDate).map((entry: CalendarEntry) => (
               <article className="taskCard" key={entry.id}>
                 <div className="taskCardHeader">
                   <div>
@@ -379,9 +666,13 @@ export function AgendaAdmin() {
                 {entry.description ? <p>{entry.description}</p> : null}
               </article>
             ))}
+            {visibleEntries.filter((entry) => entry.startAt.slice(0, 10) === selectedDate).length === 0 ? (
+              <p className="catalogEmptyState">{textByLocale(locale, "No work planned for this day.", "No hay trabajo planeado para este dia.")}</p>
+            ) : null}
           </div>
         </article>
 
+        {isPlanner ? (
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
@@ -467,9 +758,10 @@ export function AgendaAdmin() {
             ))}
           </div>
         </article>
+        ) : null}
       </div>
 
-      <article className="catalogManagerCard" id="requests">
+      {isPlanner ? <article className="catalogManagerCard" id="requests">
         <div className="catalogManagerHeader">
           <div>
             <h3>{textByLocale(locale, "Client request follow-up", "Seguimiento de solicitudes de cliente")}</h3>
@@ -610,7 +902,7 @@ export function AgendaAdmin() {
             </article>
           ))}
         </div>
-      </article>
+      </article> : null}
     </section>
   );
 }
@@ -628,4 +920,26 @@ async function extractErrorMessage(response: Response, fallback: string) {
   }
   const text = await response.text();
   return text || fallback;
+}
+
+function buildCalendarDays(startDate: string, endDate: string) {
+  const days: string[] = [];
+  const cursor = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+
+  while (cursor.getTime() <= end.getTime()) {
+    days.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return days;
+}
+
+function formatDayLabel(day: string) {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  return date.toLocaleDateString("es-CR", {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
 }
