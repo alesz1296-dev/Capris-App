@@ -21,6 +21,59 @@ const DEFAULT_DATE = "2026-05-08";
 const CALENDAR_VIEWS: CalendarView[] = ["day", "week", "month", "year"];
 const REQUEST_STATUSES: ClientRequestStatus[] = ["open", "in_progress", "waiting_client", "resolved", "closed"];
 
+function calendarViewLabel(locale: "en" | "es", view: CalendarView) {
+  return textByLocale(
+    locale,
+    view,
+    {
+      day: "dia",
+      week: "semana",
+      month: "mes",
+      year: "anio"
+    }[view]
+  );
+}
+
+function calendarEntryKindLabel(locale: "en" | "es", kind: CalendarEntry["kind"]) {
+  return textByLocale(
+    locale,
+    kind.replaceAll("_", " "),
+    {
+      agenda_event: "evento de agenda",
+      task: "tarea",
+      visit: "visita",
+      client_request: "solicitud de cliente"
+    }[kind]
+  );
+}
+
+function clientRequestStatusLabel(locale: "en" | "es", status: ClientRequestStatus) {
+  return textByLocale(
+    locale,
+    status.replaceAll("_", " "),
+    {
+      open: "abierta",
+      in_progress: "en proceso",
+      waiting_client: "esperando al cliente",
+      resolved: "resuelta",
+      closed: "cerrada"
+    }[status]
+  );
+}
+
+function priorityLabel(locale: "en" | "es", priority: ClientRequestFormState["priority"]) {
+  return textByLocale(
+    locale,
+    priority,
+    {
+      low: "baja",
+      medium: "media",
+      high: "alta",
+      urgent: "urgente"
+    }[priority]
+  );
+}
+
 type AgendaFormState = {
   title: string;
   description: string;
@@ -220,7 +273,7 @@ export function AgendaAdmin() {
         resolvedAt: status === "resolved" ? new Date().toISOString() : undefined,
         closedAt: status === "closed" ? new Date().toISOString() : undefined
       },
-      textByLocale(locale, `Client request moved to ${status}.`, `Solicitud de cliente movida a ${status}.`),
+      textByLocale(locale, `Client request moved to ${status}.`, `Solicitud de cliente movida a ${clientRequestStatusLabel(locale, status)}.`),
       "PATCH"
     );
   }
@@ -289,9 +342,9 @@ export function AgendaAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>Calendar views</h3>
+              <h3>{textByLocale(locale, "Calendar views", "Vistas del calendario")}</h3>
               <p>
-                {calendar?.window.startDate ?? anchorDate} to {calendar?.window.endDate ?? anchorDate}
+                {calendar?.window.startDate ?? anchorDate} {textByLocale(locale, "to", "a")} {calendar?.window.endDate ?? anchorDate}
               </p>
             </div>
           </div>
@@ -303,12 +356,12 @@ export function AgendaAdmin() {
                 type="button"
                 onClick={() => setView(calendarView)}
               >
-                {calendarView}
+                {calendarViewLabel(locale, calendarView)}
               </button>
             ))}
           </div>
           <label className="fullWidth">
-            <span>Anchor date</span>
+            <span>{textByLocale(locale, "Anchor date", "Fecha de referencia")}</span>
             <input type="date" value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} />
           </label>
           <div className="taskList">
@@ -318,10 +371,10 @@ export function AgendaAdmin() {
                   <div>
                     <h4>{entry.title}</h4>
                     <p>
-                      {entry.kind} / {entry.startAt}
+                      {calendarEntryKindLabel(locale, entry.kind)} / {entry.startAt}
                     </p>
                   </div>
-                  <span className="taskBadge">{entry.status ?? entry.kind}</span>
+                  <span className="taskBadge">{entry.status ? clientRequestStatusLabel(locale, entry.status as ClientRequestStatus) : calendarEntryKindLabel(locale, entry.kind)}</span>
                 </div>
                 {entry.description ? <p>{entry.description}</p> : null}
               </article>
@@ -407,7 +460,7 @@ export function AgendaAdmin() {
                     {item.startAt} {textByLocale(locale, "to", "a")} {item.endAt}
                   </p>
                 </div>
-                <span className="taskBadge">{item.scopeType}</span>
+                <span className="taskBadge">{textByLocale(locale, item.scopeType, item.scopeType === "organization" ? "organizacion" : item.scopeType === "team" ? "equipo" : "usuario")}</span>
                 </div>
                 {item.description ? <p>{item.description}</p> : null}
               </article>
@@ -538,19 +591,19 @@ export function AgendaAdmin() {
                     {request.requesterName} / {textByLocale(locale, "due", "vence")} {request.dueDate}
                   </p>
                 </div>
-                <span className="taskBadge">{request.status}</span>
+                <span className="taskBadge">{clientRequestStatusLabel(locale, request.status)}</span>
               </div>
               {request.description ? <p>{request.description}</p> : null}
               <p>
                 {textByLocale(locale, "Age", "Antiguedad")} {request.agingDays} {textByLocale(locale, "days", "dias")} {request.overdue ? `/ ${textByLocale(locale, "overdue", "vencida")}` : ""}
               </p>
               <p>
-                {textByLocale(locale, "Owner", "Responsable")}: {users.find((user) => user.id === request.ownerUserId)?.name ?? request.ownerUserId} / {textByLocale(locale, "Priority", "Prioridad")}: {request.priority}
+                {textByLocale(locale, "Owner", "Responsable")}: {users.find((user) => user.id === request.ownerUserId)?.name ?? request.ownerUserId} / {textByLocale(locale, "Priority", "Prioridad")}: {priorityLabel(locale, request.priority)}
               </p>
               <div className="taskStatusActions">
                 {REQUEST_STATUSES.filter((status) => status !== request.status).map((status) => (
                   <button key={status} className="secondaryAction" type="button" onClick={() => void updateRequestStatus(request, status)}>
-                    {status}
+                    {clientRequestStatusLabel(locale, status)}
                   </button>
                 ))}
               </div>

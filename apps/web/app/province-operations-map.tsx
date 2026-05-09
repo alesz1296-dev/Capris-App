@@ -10,6 +10,7 @@ type ProvinceOperationsMapProps = {
   evidenceBootstrap: EvidenceBootstrap | null;
   loading: boolean;
   error: string | null;
+  variant?: "dashboard" | "routes";
 };
 
 type Marker = {
@@ -20,12 +21,22 @@ type Marker = {
   tone: "point" | "check_in" | "check_out" | "evidence";
 };
 
+type ZoneSummary = {
+  id: string;
+  name: string;
+  points: number;
+  visits: number;
+  evidence: number;
+  latestGps: string;
+};
+
 export function ProvinceOperationsMap({
   locale,
   visitBootstrap,
   evidenceBootstrap,
   loading,
-  error
+  error,
+  variant = "dashboard"
 }: ProvinceOperationsMapProps) {
   const provinces = visitBootstrap?.provinces.filter((province) => province.active) ?? [];
 
@@ -47,19 +58,36 @@ export function ProvinceOperationsMap({
 
   const taskById = new Map((evidenceBootstrap?.tasks ?? visitBootstrap.tasks).map((task) => [task.id, task]));
   const visitById = new Map((evidenceBootstrap?.visits ?? visitBootstrap.visits).map((visit) => [visit.id, visit]));
+  const activeZones = visitBootstrap.zones.filter((zone) => zone.active);
+  const routeStops = visitBootstrap.pointsOfSale.filter((pointOfSale) => pointOfSale.active);
+  const capturedVisits = visitBootstrap.visits.filter((visit) => visit.checkedInLatitude !== undefined || visit.checkedOutLatitude !== undefined);
+  const capturedEvidence = evidenceBootstrap?.evidence.filter((item) => item.latitude !== undefined && item.longitude !== undefined) ?? [];
+  const sectionClassName = variant === "routes" ? "catalogSection routeMapSection" : "catalogSection";
 
   return (
-    <section className="catalogSection" aria-label={textByLocale(locale, "Operations map by province", "Mapa operativo por provincia")}>
+    <section className={sectionClassName} aria-label={textByLocale(locale, "Province and zone route map", "Mapa de rutas por provincia y zona")}>
       <div className="sectionHeading">
-        <h2>{textByLocale(locale, "Operations map by province", "Mapa operativo por provincia")}</h2>
+        <p className="eyebrow">{textByLocale(locale, "Costa Rica > Province > Zone", "Costa Rica > Provincia > Zona")}</p>
+        <h2>{textByLocale(locale, "Province and zone route map", "Mapa de rutas por provincia y zona")}</h2>
         <p className="sectionDescription">
           {textByLocale(
             locale,
-            "Each province keeps its own map surface so route coverage, captured GPS, and evidence flow are visible without mixing regions together.",
-            "Cada provincia conserva su propia vista de mapa para que la cobertura de ruta, el GPS capturado y el flujo de evidencia se vean sin mezclar regiones."
+            "Costa Rica is grouped first by province, then by zone, so route coverage, captured GPS, and evidence can be reviewed without mixing operating areas.",
+            "Costa Rica se organiza primero por provincia y luego por zona, para revisar cobertura de ruta, GPS capturado y evidencia sin mezclar areas operativas."
           )}
         </p>
       </div>
+
+      {variant === "routes" ? (
+        <div className="countryRouteSummary">
+          <SummaryStat label={textByLocale(locale, "Country", "Pais")} value="Costa Rica" />
+          <SummaryStat label={textByLocale(locale, "Provinces", "Provincias")} value={`${provinces.length}`} />
+          <SummaryStat label={textByLocale(locale, "Zones", "Zonas")} value={`${activeZones.length}`} />
+          <SummaryStat label={textByLocale(locale, "Route stops", "Paradas")} value={`${routeStops.length}`} />
+          <SummaryStat label={textByLocale(locale, "Visits with GPS", "Visitas con GPS")} value={`${capturedVisits.length}`} />
+          <SummaryStat label={textByLocale(locale, "Evidence with GPS", "Evidencias con GPS")} value={`${capturedEvidence.length}`} />
+        </div>
+      ) : null}
 
       <div className="provinceMapGrid">
         {provinces.map((province) => {
@@ -74,6 +102,7 @@ export function ProvinceOperationsMap({
           });
 
           const markers = buildProvinceMarkers(locale, points, visits, evidence, taskById);
+          const zoneSummaries = buildZoneSummaries(province, visitBootstrap, evidence, taskById);
           const latestVisit = [...visits]
             .filter((visit) => visit.checkedOutLatitude !== undefined || visit.checkedInLatitude !== undefined)
             .sort((left, right) => `${right.checkedOutAt ?? right.checkedInAt ?? ""}`.localeCompare(`${left.checkedOutAt ?? left.checkedInAt ?? ""}`))[0];
@@ -85,9 +114,10 @@ export function ProvinceOperationsMap({
             <article className="provinceMapCard" key={province.id}>
               <div className="provinceMapHeader">
                 <div>
+                  <span className="routeHierarchyLabel">Costa Rica / {textByLocale(locale, "Province", "Provincia")}</span>
                   <h3>{province.name}</h3>
                   <p>
-                    {points.length} {textByLocale(locale, "route stops", "paradas")} · {visits.length} {textByLocale(locale, "visits", "visitas")} · {evidence.length}{" "}
+                    {points.length} {textByLocale(locale, "route stops", "paradas")} / {visits.length} {textByLocale(locale, "visits", "visitas")} / {evidence.length}{" "}
                     {textByLocale(locale, "evidence items", "evidencias")}
                   </p>
                 </div>
@@ -144,11 +174,56 @@ export function ProvinceOperationsMap({
                   <dd>{latestEvidence ? formatCoordinates(latestEvidence.latitude, latestEvidence.longitude) : "--"}</dd>
                 </div>
               </dl>
+
+              <div className="provinceZonePanel">
+                <strong>{textByLocale(locale, "Zones in this province", "Zonas de esta provincia")}</strong>
+                <div className="provinceZoneList">
+                  {zoneSummaries.length > 0 ? (
+                    zoneSummaries.map((zone) => (
+                      <div className="provinceZoneItem" key={zone.id}>
+                        <div>
+                          <small>{province.name} / {textByLocale(locale, "Zone", "Zona")}</small>
+                          <span>{zone.name}</span>
+                        </div>
+                        <dl>
+                          <div>
+                            <dt>{textByLocale(locale, "Stops", "Paradas")}</dt>
+                            <dd>{zone.points}</dd>
+                          </div>
+                          <div>
+                            <dt>{textByLocale(locale, "Visits", "Visitas")}</dt>
+                            <dd>{zone.visits}</dd>
+                          </div>
+                          <div>
+                            <dt>{textByLocale(locale, "Evidence", "Evidencia")}</dt>
+                            <dd>{zone.evidence}</dd>
+                          </div>
+                          <div>
+                            <dt>{textByLocale(locale, "Latest GPS", "Ultimo GPS")}</dt>
+                            <dd>{zone.latestGps}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="catalogEmptyState">{textByLocale(locale, "No active zones for this province yet.", "Todavia no hay zonas activas para esta provincia.")}</p>
+                  )}
+                </div>
+              </div>
             </article>
           );
         })}
       </div>
     </section>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 
@@ -167,7 +242,7 @@ function buildProvinceMarkers(
       latitude: pointOfSale.latitude!,
       longitude: pointOfSale.longitude!,
       tone: "point",
-      label: `${pointOfSale.name} · ${formatCoordinates(pointOfSale.latitude, pointOfSale.longitude)}`
+      label: `${pointOfSale.name} / ${formatCoordinates(pointOfSale.latitude, pointOfSale.longitude)}`
     });
   }
 
@@ -178,7 +253,7 @@ function buildProvinceMarkers(
         latitude: visit.checkedInLatitude,
         longitude: visit.checkedInLongitude,
         tone: "check_in",
-        label: `${textByLocale(locale, "Check-in", "Entrada")} ${visit.id} · ${formatCoordinates(visit.checkedInLatitude, visit.checkedInLongitude)}`
+        label: `${textByLocale(locale, "Check-in", "Entrada")} ${visit.id} / ${formatCoordinates(visit.checkedInLatitude, visit.checkedInLongitude)}`
       });
     }
 
@@ -188,7 +263,7 @@ function buildProvinceMarkers(
         latitude: visit.checkedOutLatitude,
         longitude: visit.checkedOutLongitude,
         tone: "check_out",
-        label: `${textByLocale(locale, "Check-out", "Salida")} ${visit.id} · ${formatCoordinates(visit.checkedOutLatitude, visit.checkedOutLongitude)}`
+        label: `${textByLocale(locale, "Check-out", "Salida")} ${visit.id} / ${formatCoordinates(visit.checkedOutLatitude, visit.checkedOutLongitude)}`
       });
     }
   }
@@ -204,11 +279,52 @@ function buildProvinceMarkers(
       latitude: item.latitude,
       longitude: item.longitude,
       tone: "evidence",
-      label: `${textByLocale(locale, "Evidence", "Evidencia")} ${linkedTask?.title ?? item.taskId} · ${formatCoordinates(item.latitude, item.longitude)}`
+      label: `${textByLocale(locale, "Evidence", "Evidencia")} ${linkedTask?.title ?? item.taskId} / ${formatCoordinates(item.latitude, item.longitude)}`
     });
   }
 
   return markers;
+}
+
+function buildZoneSummaries(
+  province: Province,
+  visitBootstrap: VisitBootstrap,
+  evidence: NonNullable<EvidenceBootstrap>["evidence"],
+  taskById: Map<string, Task>
+) {
+  const activeZones = visitBootstrap.zones.filter((zone) => zone.active && zone.provinceId === province.id);
+
+  return activeZones.map((zone) => {
+    const points = visitBootstrap.pointsOfSale.filter((pointOfSale) => pointOfSale.active && pointOfSale.zoneId === zone.id);
+    const visits = visitBootstrap.visits.filter((visit) => visit.zoneId === zone.id);
+    const zoneEvidence = evidence.filter((item) => {
+      const linkedTask = taskById.get(item.taskId);
+      return linkedTask?.zoneId === zone.id || visits.some((visit) => visit.id === item.visitId);
+    });
+    const latestVisit = [...visits]
+      .filter((visit) => visit.checkedOutLatitude !== undefined || visit.checkedInLatitude !== undefined)
+      .sort((left, right) => `${right.checkedOutAt ?? right.checkedInAt ?? ""}`.localeCompare(`${left.checkedOutAt ?? left.checkedInAt ?? ""}`))[0];
+    const latestEvidence = [...zoneEvidence]
+      .filter((item) => item.latitude !== undefined && item.longitude !== undefined)
+      .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt))[0];
+
+    return {
+      id: zone.id,
+      name: zone.name,
+      points: points.length,
+      visits: visits.length,
+      evidence: zoneEvidence.length,
+      latestGps:
+        latestEvidence
+          ? formatCoordinates(latestEvidence.latitude, latestEvidence.longitude)
+          : latestVisit
+            ? formatCoordinates(
+                latestVisit.checkedOutLatitude ?? latestVisit.checkedInLatitude,
+                latestVisit.checkedOutLongitude ?? latestVisit.checkedInLongitude
+              )
+            : "--"
+    } satisfies ZoneSummary;
+  });
 }
 
 function projectMarker(markers: Marker[], marker: Marker) {

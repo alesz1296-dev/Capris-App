@@ -3,13 +3,9 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { t, type Locale, type ReportBootstrap, type ReportFilters, type ReportName } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
-import { textByLocale } from "./locale-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 
 const REPORT_NAMES: ReportName[] = ["summary", "productivity", "tasks", "client_requests"];
-
-type ReportsAdminProps = {
-  locale?: Locale;
-};
 
 type FilterState = Record<"userId" | "zoneId" | "provinceId" | "clientId" | "dateFrom" | "dateTo", string>;
 
@@ -22,7 +18,8 @@ const EMPTY_FILTERS: FilterState = {
   dateTo: ""
 };
 
-export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
+export function ReportsAdmin() {
+  const locale = useAppLocale();
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -230,7 +227,7 @@ export function ReportsAdmin({ locale = "en" }: ReportsAdminProps) {
                 <div className="taskCardHeader">
                   <div>
                     <h4>{reportLabel(locale, snapshot.reportName)}</h4>
-                    <p>{snapshot.fileName}</p>
+                <p>{snapshot.fileName}</p>
                   </div>
                   <span className="taskBadge">{snapshot.locale.toUpperCase()}</span>
                 </div>
@@ -257,13 +254,13 @@ function normalizeFilters(filters: FilterState): ReportFilters {
 function reportLabel(locale: Locale, name: ReportName) {
   switch (name) {
     case "summary":
-      return t(locale, "reports.summary");
+      return locale === "es" ? "Resumen" : t(locale, "reports.summary");
     case "productivity":
-      return t(locale, "reports.productivity");
+      return locale === "es" ? "Productividad" : t(locale, "reports.productivity");
     case "tasks":
-      return t(locale, "reports.tasks");
+      return locale === "es" ? "Tareas" : t(locale, "reports.tasks");
     case "client_requests":
-      return t(locale, "reports.clientRequests");
+      return locale === "es" ? "Solicitudes de cliente" : t(locale, "reports.clientRequests");
   }
 }
 

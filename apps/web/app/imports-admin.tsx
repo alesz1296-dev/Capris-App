@@ -11,7 +11,7 @@ import type {
   UpdateAdminSettingsInput
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
-import { textByLocale } from "./locale-client";
+import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -75,7 +75,8 @@ function getReminderChannelLabel(locale: Locale, channel: ReminderRule["channel"
   return textByLocale(locale, channel, channel === "push" ? "push" : "correo");
 }
 
-export function ImportsAdmin({ locale = "en" as Locale }) {
+export function ImportsAdmin() {
+  const locale = useAppLocale();
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +112,7 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
       setError(null);
       const profileResponse = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" });
       if (!profileResponse.ok) {
-        throw new Error(await extractErrorMessage(profileResponse, "Unable to load auth profile."));
+        throw new Error(await extractErrorMessage(profileResponse, textByLocale(locale, "Unable to load auth profile.", "No se pudo cargar el perfil de autenticacion.")));
       }
 
       const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
@@ -124,7 +125,7 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
 
       const response = await authenticatedFetch(`${API_BASE_URL}/admin-config/bootstrap`, { cache: "no-store" });
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to load admin configuration."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to load admin configuration.", "No se pudo cargar la configuracion administrativa.")));
       }
 
       const payload = (await response.json()) as AdminConfigBootstrap;
@@ -157,12 +158,12 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to run import."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to run import.", "No se pudo ejecutar la importacion.")));
       }
 
       const payload = (await response.json()) as ImportResult;
       setLastImportResult(payload);
-      setStatusMessage(textByLocale(locale, `Import completed for ${payload.entityType}.`, `Importacion completada para ${payload.entityType}.`));
+      setStatusMessage(textByLocale(locale, `Import completed for ${payload.entityType}.`, `Importacion completada para ${getImportEntityLabel(locale, payload.entityType)}.`));
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : textByLocale(locale, "Unable to run import.", "No se pudo ejecutar la importacion."));
     }
@@ -186,7 +187,7 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
       });
 
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to create reminder rule."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to create reminder rule.", "No se pudo crear la regla de recordatorio.")));
       }
 
       setReminderForm({
@@ -224,7 +225,7 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
         body: JSON.stringify(payload)
       });
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response, "Unable to save admin settings."));
+        throw new Error(await extractErrorMessage(response, textByLocale(locale, "Unable to save admin settings.", "No se pudo guardar la configuracion administrativa.")));
       }
 
       setStatusMessage(textByLocale(locale, "Admin settings updated.", "Configuracion administrativa actualizada."));
@@ -294,7 +295,7 @@ export function ImportsAdmin({ locale = "en" as Locale }) {
               <article className="taskCard">
                 <div className="taskCardHeader">
                   <div>
-                    <h4>{lastImportResult.entityType}</h4>
+                    <h4>{getImportEntityLabel(locale, lastImportResult.entityType)}</h4>
                     <p>{textByLocale(locale, `Created ${lastImportResult.createdCount}, updated ${lastImportResult.updatedCount}, failed ${lastImportResult.failedCount}`, `Creados ${lastImportResult.createdCount}, actualizados ${lastImportResult.updatedCount}, fallidos ${lastImportResult.failedCount}`)}</p>
                   </div>
                   <span className="taskBadge">{lastImportResult.failedCount ? textByLocale(locale, "review", "revisar") : textByLocale(locale, "ok", "ok")}</span>
