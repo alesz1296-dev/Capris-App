@@ -14,7 +14,7 @@ export const en = {
   "role.supervisor": "Supervisor",
   "role.supervisor.description": "Scoped team oversight, assignments, evidence review, and exception handling.",
   "role.field_user": "Field User",
-  "role.field_user.description": "Assigned field execution, visit tracking, evidence capture, and consignation review.",
+  "role.field_user.description": "Assigned field execution, visit tracking, evidence capture, and route activity updates.",
   "status.pending": "Pending",
   "status.in_progress": "In progress",
   "status.completed": "Completed",

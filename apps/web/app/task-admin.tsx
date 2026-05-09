@@ -252,9 +252,11 @@ export function TaskAdmin() {
       !taskForm.assigneeId ||
       !taskForm.provinceId ||
       !taskForm.zoneId ||
+      !taskForm.pointOfSaleId ||
       !taskForm.activityTypeId ||
       !taskForm.taskTypeId
     ) {
+      setError(textByLocale(locale, "Route work requires a point of sale/store before it can be assigned.", "El trabajo de ruta requiere un punto de venta antes de asignarse."));
       return;
     }
 
@@ -471,6 +473,9 @@ export function TaskAdmin() {
                   </option>
                 ))}
               </select>
+              {!pointsOfSaleForScope.length ? (
+                <small className="fieldHint">{textByLocale(locale, "Add a route stop first, then assign work to it.", "Primero agrega una parada de ruta y luego asigna trabajo.")}</small>
+              ) : null}
             </label>
             <label>
               <span>{t(locale, "tasks.activityType")}</span>
@@ -529,7 +534,7 @@ export function TaskAdmin() {
               </select>
             </label>
             <div className="taskFormActions fullWidth">
-              <button className="primaryAction" disabled={actionDisabled} type="button" onClick={submitTask}>
+              <button className="primaryAction" disabled={actionDisabled || !taskForm.pointOfSaleId} type="button" onClick={submitTask}>
                 {actionDisabled ? textByLocale(locale, "Saving...", "Guardando...") : editingTaskId ? textByLocale(locale, "Save changes", "Guardar cambios") : t(locale, "tasks.add")}
               </button>
               {editingTaskId ? (

@@ -421,6 +421,103 @@ async function testSupervisorCanCompleteTaskInsideScope() {
   assert.equal(result.item.status, "completed");
 }
 
+async function testSupervisorCanPlanRouteWorkInsideScope() {
+  const actorAccessService = new ActorAccessService({
+    supervisorScope: {
+      findMany: async () => [
+        {
+          id: "scope_1",
+          organizationId: "org_capris",
+          userId: "user_supervisor_001",
+          type: "province",
+          referenceId: "province_san_jose",
+          referenceName: "San Jose",
+          active: true
+        }
+      ]
+    }
+  } as never);
+
+  const createdTaskData: Record<string, unknown>[] = [];
+  const service = new TasksService(
+    {
+      user: {
+        findFirst: async ({ where }: { where: { id: string } }) => ({ id: where.id })
+      },
+      province: {
+        findFirst: async () => ({ id: "province_san_jose" })
+      },
+      zone: {
+        findFirst: async () => ({ id: "zone_central" })
+      },
+      activityType: {
+        findFirst: async () => ({ id: "activity_exhibition" })
+      },
+      taskType: {
+        findFirst: async () => ({ id: "task_visit" })
+      },
+      client: {
+        findFirst: async () => ({ id: "client_auto_mercado" })
+      },
+      pointOfSale: {
+        findFirst: async () => ({ id: "pos_escazu_001" })
+      },
+      task: {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          createdTaskData.push(data);
+          return {
+            id: "task_route_planned",
+            status: "pending",
+            ...data
+          };
+        }
+      }
+    } as never,
+    {} as never,
+    {} as never,
+    {
+      assertTaskCompletionRequirements: async () => undefined
+    } as never,
+    actorAccessService,
+    auditServiceStub as never
+  );
+
+  const result = await service.createTask(
+    {
+      organizationId: "org_capris",
+      title: "Visit Escazu Plaza",
+      requesterId: "user_supervisor_001",
+      assigneeId: "user_field_001",
+      scheduledFor: "2026-05-10",
+      provinceId: "province_san_jose",
+      zoneId: "zone_central",
+      clientId: "client_auto_mercado",
+      pointOfSaleId: "pos_escazu_001",
+      activityTypeId: "activity_exhibition",
+      taskTypeId: "task_visit",
+      priority: "medium",
+      difficulty: "standard"
+    },
+    {
+      sub: "user_supervisor_001",
+      organizationId: "org_capris",
+      email: "supervisor@example.com",
+      role: "supervisor",
+      locale: "es",
+      name: "Supervisor User",
+      sessionId: "session_2",
+      type: "access",
+      iat: 1,
+      exp: 9999999999
+    }
+  );
+
+  assert.ok(result.id.startsWith("task_"));
+  assert.equal(result.pointOfSaleId, "pos_escazu_001");
+  assert.equal(createdTaskData[0]?.assigneeId, "user_field_001");
+  assert.equal(createdTaskData[0]?.pointOfSaleId, "pos_escazu_001");
+}
+
 async function main() {
   await testTaskCreationValidation();
   await testTaskReferenceValidation();
@@ -429,6 +526,7 @@ async function main() {
   await testCompletionRequiresEvidence();
   await testFieldUserCannotUpdateAnotherUsersTaskStatus();
   await testSupervisorCanCompleteTaskInsideScope();
+  await testSupervisorCanPlanRouteWorkInsideScope();
   console.log("Task tests passed.");
 }
 

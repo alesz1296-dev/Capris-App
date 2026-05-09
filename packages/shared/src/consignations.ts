@@ -9,7 +9,7 @@ const emailSchema = z.string().trim().email();
 export const prepareConsignationSchema = z.object({
   organizationId: identifierSchema,
   taskId: identifierSchema,
-  userId: identifierSchema,
+  userId: identifierSchema.optional(),
   clientOperationId: identifierSchema.optional(),
   visitId: identifierSchema.optional(),
   note: noteSchema.optional(),
@@ -40,7 +40,7 @@ export const failConsignationSchema = z.object({
 export interface PrepareConsignationInput {
   organizationId: string;
   taskId: string;
-  userId: string;
+  userId?: string;
   clientOperationId?: string;
   visitId?: string;
   note?: string;

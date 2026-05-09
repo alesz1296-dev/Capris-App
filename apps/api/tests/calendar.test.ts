@@ -16,10 +16,13 @@ async function testCalendarQueryValidation() {
 
   assert.throws(
     () =>
-      controller.getBootstrap({
-        view: "week",
-        date: "2026/05/08"
-      } as never),
+      controller.getBootstrap(
+        {
+          view: "week",
+          date: "2026/05/08"
+        } as never,
+        { auth: {} } as never
+      ),
     (error: unknown) => error instanceof BadRequestException && `${error.message}`.includes("date must use YYYY-MM-DD format.")
   );
 }

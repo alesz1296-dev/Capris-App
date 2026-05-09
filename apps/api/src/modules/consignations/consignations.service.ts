@@ -35,12 +35,26 @@ export class ConsignationsService {
     private readonly replayProtectionService: ReplayProtectionService
   ) {}
 
-  async getConsignations(): Promise<Consignation[]> {
+  async getConsignations(actor?: AuthJwtPayload): Promise<Consignation[]> {
     const prisma = this.prisma as unknown as ConsignationsPrisma;
     const items = await prisma.consignation.findMany({
+      where: {
+        organizationId: actor?.organizationId
+      },
+      include: {
+        task: true
+      },
       orderBy: [{ preparedAt: "desc" }, { createdAt: "desc" }]
     });
-    return items.map((item: any) => this.toConsignation(item));
+    const readableItems = await this.actorAccessService.filterReadable(actor, items, (item: any) => ({
+      organizationId: item.organizationId,
+      userId: item.userId,
+      assigneeId: item.task?.assigneeId,
+      provinceId: item.task?.provinceId,
+      zoneId: item.task?.zoneId,
+      clientId: item.task?.clientId ?? undefined
+    }));
+    return readableItems.map((item: any) => this.toConsignation(item));
   }
 
   async prepareConsignation(input: PrepareConsignationInput, actor?: AuthJwtPayload): Promise<ConsignationMutationResult> {
@@ -54,10 +68,11 @@ export class ConsignationsService {
     }
 
     const task = await this.assertReferences(input);
+    const userId = input.userId ?? task.assigneeId;
     if (actor) {
       await this.actorAccessService.assertOperationAccess(actor, {
         organizationId: input.organizationId,
-        userId: input.userId,
+        userId,
         assigneeId: task.assigneeId,
         provinceId: task.provinceId,
         zoneId: task.zoneId,
@@ -69,7 +84,7 @@ export class ConsignationsService {
         id: this.createId("consignation"),
         organizationId: input.organizationId,
         taskId: input.taskId,
-        userId: input.userId,
+        userId,
         visitId: input.visitId ?? null,
         note: input.note?.trim() || null,
         status: "prepared",
@@ -418,14 +433,14 @@ export class ConsignationsService {
     const prisma = this.prisma as unknown as ConsignationsPrisma;
     const [task, user] = await Promise.all([
       prisma.task.findFirst({ where: { id: input.taskId, organizationId: input.organizationId } }),
-      prisma.user.findFirst({ where: { id: input.userId, organizationId: input.organizationId, active: true } })
+      input.userId ? prisma.user.findFirst({ where: { id: input.userId, organizationId: input.organizationId, active: true } }) : Promise.resolve(null)
     ]);
 
     if (!task) {
       throw new NotFoundException(`Task ${input.taskId} was not found.`);
     }
 
-    if (!user) {
+    if (input.userId && !user) {
       throw new NotFoundException(`User ${input.userId} was not found.`);
     }
 

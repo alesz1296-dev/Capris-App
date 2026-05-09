@@ -109,26 +109,29 @@ export function ExceptionsAdmin() {
       setLoading(true);
       setError(null);
 
-      const [exceptionsResponse, sessionsResponse, profileResponse] = await Promise.all([
+      const profileResponse = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" });
+      if (!profileResponse.ok) {
+        throw new Error(await extractErrorMessage(profileResponse, textByLocale(locale, "Unable to load auth profile.", "No se pudo cargar el perfil de autenticacion.")));
+      }
+
+      const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
+      const [exceptionsResponse, sessionsResponse] = await Promise.all([
         authenticatedFetch(`${API_BASE_URL}/exceptions/bootstrap`, { cache: "no-store" }),
-        authenticatedFetch(`${API_BASE_URL}/auth/sessions`, { cache: "no-store" }),
-        authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" })
+        profilePayload.user.role === "admin"
+          ? authenticatedFetch(`${API_BASE_URL}/auth/sessions`, { cache: "no-store" })
+          : Promise.resolve(null)
       ]);
 
       if (!exceptionsResponse.ok) {
         throw new Error(await extractErrorMessage(exceptionsResponse, textByLocale(locale, "Unable to load exceptions.", "No se pudieron cargar las excepciones.")));
       }
-      if (!sessionsResponse.ok) {
+      if (sessionsResponse && !sessionsResponse.ok) {
         throw new Error(await extractErrorMessage(sessionsResponse, textByLocale(locale, "Unable to load device sessions.", "No se pudieron cargar las sesiones de dispositivo.")));
       }
-      if (!profileResponse.ok) {
-        throw new Error(await extractErrorMessage(profileResponse, textByLocale(locale, "Unable to load auth profile.", "No se pudo cargar el perfil de autenticacion.")));
-      }
 
-      const [exceptionsPayload, sessionsPayload, profilePayload] = await Promise.all([
+      const [exceptionsPayload, sessionsPayload] = await Promise.all([
         exceptionsResponse.json() as Promise<ExceptionBootstrap>,
-        sessionsResponse.json() as Promise<DeviceSessionBootstrap>,
-        profileResponse.json() as Promise<AuthProfileResponse>
+        sessionsResponse ? (sessionsResponse.json() as Promise<DeviceSessionBootstrap>) : Promise.resolve(null)
       ]);
 
       setBootstrap(exceptionsPayload);

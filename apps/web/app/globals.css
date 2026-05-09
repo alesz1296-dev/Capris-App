@@ -881,6 +881,93 @@ a {
   line-height: 1.35;
 }
 
+.fieldHint {
+  color: #8a6f28;
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  margin-top: 0.35rem;
+}
+
+.routeCommandCenter {
+  align-items: center;
+  background:
+    radial-gradient(circle at top left, rgba(199, 47, 63, 0.14), transparent 34%),
+    linear-gradient(135deg, #fffaf6, #f8eeee);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 22px;
+  padding: 24px;
+}
+
+.routeCommandCenter h2 {
+  margin: 0;
+}
+
+.routeCommandCenter p {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.routeCommandCenter nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.routeCommandCenter a {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 800;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.routeEmbeddedWorkspace {
+  margin-top: 22px;
+}
+
+.routeEmbeddedWorkspace details {
+  background: #fffdfc;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.routeEmbeddedWorkspace summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 18px 22px;
+}
+
+.routeEmbeddedWorkspace summary span {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.routeEmbeddedWorkspace summary small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.routeEmbeddedWorkspace .catalogSection {
+  border: 0;
+  box-shadow: none;
+  margin: 0;
+}
+
 .catalogManagerHeader p {
   color: var(--muted);
   line-height: 1.5;
@@ -1295,6 +1382,7 @@ a {
   .operations,
   .accessGrid,
   .catalogGrid,
+  .routeCommandCenter,
   .countryRouteSummary,
   .evidenceOpsSummary,
   .routeWorkflowGrid,
@@ -1312,6 +1400,10 @@ a {
 
   .taskCardHeader {
     flex-direction: column;
+  }
+
+  .routeCommandCenter nav {
+    justify-content: flex-start;
   }
 
   .evidencePreviewLayout {
@@ -1370,6 +1462,26 @@ a {
 
   .calendarDayButton {
     min-height: 88px;
+  }
+
+  .routeCommandCenter {
+    border-radius: 20px;
+    padding: 18px;
+  }
+
+  .routeCommandCenter nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .routeCommandCenter a {
+    text-align: center;
+  }
+
+  .routeEmbeddedWorkspace summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .countryRouteSummary div,

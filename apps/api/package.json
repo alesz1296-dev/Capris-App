@@ -9,6 +9,7 @@
     "db:init": "prisma db push && node prisma/seed.cjs",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.cjs",
+    "db:seed:roles": "node prisma/role-fixtures.cjs",
     "railway:start": "node dist/apps/api/src/main.js",
     "railway:seed": "node prisma/seed.cjs",
     "start": "node dist/apps/api/src/main.js",
