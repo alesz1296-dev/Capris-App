@@ -12,6 +12,7 @@ import {
   type UploadStatus
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
+import { useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 const EVIDENCE_TYPES: EvidenceType[] = ["before", "after", "supporting"];
@@ -39,6 +40,7 @@ const DEFAULT_EVIDENCE_FORM: EvidenceFormState = {
 };
 
 export function EvidenceAdmin() {
+  const locale = useAppLocale();
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -282,9 +284,9 @@ export function EvidenceAdmin() {
   return (
     <section className="catalogSection" id="evidence">
       <div className="sectionHeading">
-        <p className="eyebrow">{t("en", "evidence.title")}</p>
-        <h2>{t("en", "evidence.sectionTitle")}</h2>
-        <p className="sectionDescription">{t("en", "evidence.sectionDescription")}</p>
+        <p className="eyebrow">{t(locale, "evidence.title")}</p>
+        <h2>{t(locale, "evidence.sectionTitle")}</h2>
+        <p className="sectionDescription">{t(locale, "evidence.sectionDescription")}</p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadEvidence()}>
           {actionDisabled ? "Refreshing..." : "Refresh evidence"}
         </button>
@@ -301,7 +303,7 @@ export function EvidenceAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{t("en", "evidence.create")}</h3>
+              <h3>{t(locale, "evidence.create")}</h3>
               <p>Select a real image file to upload through the evidence API into object storage, or queue the metadata-only variant to keep the Session 9 sync path visible.</p>
             </div>
           </div>
@@ -338,7 +340,7 @@ export function EvidenceAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "evidence.uploader")}</span>
+              <span>{t(locale, "evidence.uploader")}</span>
               <select
                 value={evidenceForm.uploaderUserId}
                 onChange={(event) => setEvidenceForm((current) => ({ ...current, uploaderUserId: event.target.value }))}
@@ -351,20 +353,20 @@ export function EvidenceAdmin() {
               </select>
             </label>
             <label>
-              <span>{t("en", "evidence.type")}</span>
+              <span>{t(locale, "evidence.type")}</span>
               <select
                 value={evidenceForm.type}
                 onChange={(event) => setEvidenceForm((current) => ({ ...current, type: event.target.value as EvidenceType }))}
               >
                 {EVIDENCE_TYPES.map((type) => (
                   <option key={type} value={type}>
-                    {t("en", `evidence.type.${type}` as never)}
+                    {t(locale, `evidence.type.${type}` as never)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="fullWidth">
-              <span>{t("en", "evidence.fileName")}</span>
+              <span>{t(locale, "evidence.fileName")}</span>
               <input value={evidenceForm.fileName} onChange={(event) => setEvidenceForm((current) => ({ ...current, fileName: event.target.value }))} />
             </label>
             <label className="fullWidth">
@@ -398,7 +400,7 @@ export function EvidenceAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{t("en", "evidence.reviewStub")}</h3>
+              <h3>{t(locale, "evidence.reviewStub")}</h3>
               <p>Review thumbnails, upload progress, retry counts, and pending-sync operations. Real stored thumbnails now render through the storage endpoint whenever the upload has completed.</p>
             </div>
           </div>
@@ -448,7 +450,7 @@ export function EvidenceAdmin() {
               ))}
             </div>
           ) : (
-            <p className="catalogEmptyState">{t("en", "evidence.none")}</p>
+            <p className="catalogEmptyState">{t(locale, "evidence.none")}</p>
           )}
         </article>
       </div>
@@ -473,6 +475,7 @@ function EvidenceCard({
   onUploadStatusChange: (mediaAsset: MediaAsset, nextStatus: UploadStatus) => Promise<void>;
   onRetry: (mediaAsset: MediaAsset, reason?: string) => Promise<void>;
 }) {
+  const locale = useAppLocale();
   const uploadStatus = mediaAsset?.uploadStatus ?? evidence.uploadStatus;
   const missingTypes = requirementSummary?.missingTypes ?? [];
   const previewSrc = createThumbnailPreview(mediaAsset, evidence.type);
@@ -483,7 +486,7 @@ function EvidenceCard({
         <div>
           <h4>{taskTitle}</h4>
           <p>
-            {t("en", `evidence.type.${evidence.type}` as never)} / {t("en", `uploadStatus.${uploadStatus}` as never)}
+            {t(locale, `evidence.type.${evidence.type}` as never)} / {t(locale, `uploadStatus.${uploadStatus}` as never)}
           </p>
         </div>
         <span className="taskBadge">{mediaAsset?.fileName ?? evidence.id}</span>
@@ -497,23 +500,23 @@ function EvidenceCard({
         <div className="evidenceReviewDetails">
           <dl className="taskMetaGrid">
             <div>
-              <dt>{t("en", "evidence.capturedAt")}</dt>
+              <dt>{t(locale, "evidence.capturedAt")}</dt>
               <dd>{evidence.capturedAt}</dd>
             </div>
             <div>
-              <dt>{t("en", "evidence.originalPath")}</dt>
+              <dt>{t(locale, "evidence.originalPath")}</dt>
               <dd>{mediaAsset?.originalStoragePath ?? "Pending"}</dd>
             </div>
             <div>
-              <dt>{t("en", "evidence.thumbnailPath")}</dt>
+              <dt>{t(locale, "evidence.thumbnailPath")}</dt>
               <dd>{mediaAsset?.thumbnailStoragePath ?? "Pending"}</dd>
             </div>
             <div>
-              <dt>{t("en", "evidence.uploadStatus")}</dt>
-              <dd>{t("en", `uploadStatus.${uploadStatus}` as never)}</dd>
+              <dt>{t(locale, "evidence.uploadStatus")}</dt>
+              <dd>{t(locale, `uploadStatus.${uploadStatus}` as never)}</dd>
             </div>
             <div>
-              <dt>{t("en", "evidence.requirements")}</dt>
+              <dt>{t(locale, "evidence.requirements")}</dt>
               <dd>{missingTypes.length > 0 ? `Missing: ${missingTypes.join(", ")}` : "Complete"}</dd>
             </div>
             <div>
@@ -565,7 +568,7 @@ function EvidenceCard({
               type="button"
               onClick={() => void onUploadStatusChange(mediaAsset, nextStatus)}
             >
-              Move to {t("en", `uploadStatus.${nextStatus}` as never)}
+              Move to {t(locale, `uploadStatus.${nextStatus}` as never)}
             </button>
           ))}
         </div>
@@ -674,3 +677,4 @@ async function extractErrorMessage(response: Response, fallback: string) {
   const text = await response.text();
   return text || fallback;
 }
+

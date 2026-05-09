@@ -3,6 +3,7 @@ import type { Activity, ActivityMutationResult, CreateActivityInput } from "@cap
 import { ActorAccessService } from "../auth/actor-access.service";
 import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { PrismaService } from "../database/prisma.service";
+import { ReplayProtectionService } from "../replay-protection/replay-protection.service";
 
 type ActivitiesPrisma = PrismaService & {
   activation: any;
@@ -16,7 +17,8 @@ type ActivitiesPrisma = PrismaService & {
 export class ActivitiesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly actorAccessService: ActorAccessService
+    private readonly actorAccessService: ActorAccessService,
+    private readonly replayProtectionService: ReplayProtectionService
   ) {}
 
   async getActivities(): Promise<Activity[]> {
@@ -28,6 +30,15 @@ export class ActivitiesService {
   }
 
   async createActivity(input: CreateActivityInput, actor?: AuthJwtPayload): Promise<ActivityMutationResult> {
+    const cached = await this.replayProtectionService.getCachedResult<ActivityMutationResult>(
+      input.organizationId,
+      "activity_create",
+      input.clientOperationId
+    );
+    if (cached) {
+      return cached;
+    }
+
     const task = await this.assertReferences(input);
     if (actor) {
       await this.actorAccessService.assertOperationAccess(actor, {
@@ -53,10 +64,12 @@ export class ActivitiesService {
       }
     });
 
-    return {
+    const result = {
       item: this.toActivity(created),
       message: `Activity ${created.id} recorded for task ${created.taskId}.`
     };
+    await this.replayProtectionService.recordResult(input.organizationId, "activity_create", input.clientOperationId, result);
+    return result;
   }
 
   private async assertReferences(input: CreateActivityInput) {

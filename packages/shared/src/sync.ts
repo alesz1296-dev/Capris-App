@@ -46,11 +46,13 @@ export interface VisitCheckOutSyncPayload {
 }
 
 export interface PhotoUploadSyncPayload {
+  clientOperationId: string;
   uploadRequest: {
     organizationId: string;
     taskId: string;
     visitId?: string;
     uploaderUserId: string;
+    clientOperationId?: string;
     type: "before" | "after" | "supporting";
     capturedAt: string;
     latitude?: number;
@@ -71,6 +73,7 @@ export interface CommentCreateSyncPayload {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId: string;
   body: string;
   createdAt: string;
 }
@@ -79,6 +82,7 @@ export interface ObservationCreateSyncPayload {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId: string;
   body: string;
   createdAt: string;
 }
@@ -88,6 +92,7 @@ export interface ConsignationPrepareSyncPayload {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId: string;
   visitId?: string;
   note?: string;
   preparedAt: string;
@@ -95,12 +100,14 @@ export interface ConsignationPrepareSyncPayload {
 
 export interface ConsignationSendSyncPayload {
   consignationId: string;
+  clientOperationId: string;
   sentAt: string;
   localConsignationId?: string;
 }
 
 export interface ConsignationReviewSyncPayload {
   consignationId: string;
+  clientOperationId: string;
   reviewedAt: string;
   recipientEmails: string[];
   emailSubject: string;
@@ -112,6 +119,7 @@ export interface ConsignationReviewSyncPayload {
 
 export interface ConsignationFailSyncPayload {
   consignationId: string;
+  clientOperationId: string;
   failedAt: string;
   reason: string;
   localConsignationId?: string;
@@ -121,6 +129,7 @@ export interface ActivityCreateSyncPayload {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId: string;
   visitId?: string;
   pointOfSaleId?: string;
   quantity: number;
@@ -132,6 +141,7 @@ export interface ExhibitionCreateSyncPayload {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId: string;
   visitId?: string;
   pointOfSaleId?: string;
   quantity: number;

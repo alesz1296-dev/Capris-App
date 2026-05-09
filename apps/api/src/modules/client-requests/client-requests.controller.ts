@@ -22,14 +22,14 @@ export class ClientRequestsController {
 
   @Get("bootstrap")
   @RequirePermissions("client_requests.view")
-  getBootstrap() {
-    return this.service.getClientRequestBootstrap();
+  getBootstrap(@Req() request: AuthenticatedRequest) {
+    return this.service.getClientRequestBootstrap(this.actorAccessService.getActor(request));
   }
 
   @Get()
   @RequirePermissions("client_requests.view")
-  getRequests() {
-    return this.service.getClientRequests();
+  getRequests(@Req() request: AuthenticatedRequest) {
+    return this.service.getClientRequests(this.actorAccessService.getActor(request));
   }
 
   @Post()

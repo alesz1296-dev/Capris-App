@@ -39,6 +39,7 @@ export const createEvidenceSchema = z
     taskId: identifierSchema,
     visitId: identifierSchema.optional(),
     uploaderUserId: identifierSchema,
+    clientOperationId: identifierSchema.optional(),
     type: z.enum(EVIDENCE_TYPES),
     capturedAt: isoTimestampSchema,
     latitude: latitudeSchema.optional(),
@@ -122,6 +123,7 @@ export const uploadCapturedEvidenceSchema = z.object({
   taskId: identifierSchema,
   visitId: identifierSchema.optional(),
   uploaderUserId: identifierSchema,
+  clientOperationId: identifierSchema.optional(),
   type: z.enum(EVIDENCE_TYPES),
   capturedAt: isoTimestampSchema,
   latitude: latitudeSchema.optional(),
@@ -140,6 +142,7 @@ export interface CreateEvidenceInput {
   taskId: string;
   visitId?: string;
   uploaderUserId: string;
+  clientOperationId?: string;
   type: EvidenceType;
   capturedAt: string;
   latitude?: number;
@@ -184,6 +187,7 @@ export interface UploadCapturedEvidenceInput {
   taskId: string;
   visitId?: string;
   uploaderUserId: string;
+  clientOperationId?: string;
   type: EvidenceType;
   capturedAt: string;
   latitude?: number;

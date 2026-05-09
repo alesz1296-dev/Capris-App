@@ -2,6 +2,15 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { FieldOperationsService } from "../src/modules/field-operations/field-operations.service";
 
+const auditServiceStub = {
+  recordAudit: async () => undefined
+};
+
+const actorAccessStub = {
+  filterReadable: async (_actor: unknown, items: any[], resolveTarget: (item: any) => { zoneId?: string }) =>
+    items.filter((item) => resolveTarget(item).zoneId !== "zone_blocked")
+};
+
 async function testDashboardAggregation() {
   const service = new FieldOperationsService(
     {
@@ -24,7 +33,7 @@ async function testDashboardAggregation() {
         findMany: async () => [{ id: "exhibition_1", taskId: "task_1", userId: "user_field_001", quantity: 2 }]
       },
       consignation: {
-        findMany: async () => [{ id: "cons_1", status: "failed" }]
+        findMany: async () => [{ id: "cons_1", taskId: "task_1", status: "failed" }]
       },
       clientRequest: {
         findMany: async () => [
@@ -93,7 +102,9 @@ async function testDashboardAggregation() {
           difficulty: "standard"
         }
       ]
-    } as never
+    } as never,
+    actorAccessStub as never,
+    auditServiceStub as never
   );
 
   const dashboard = await service.getDashboard("en");
@@ -106,8 +117,78 @@ async function testDashboardAggregation() {
   assert.equal(dashboard.productivity.fieldUsers[0]?.completedTasks, 1);
 }
 
+async function testDashboardSupervisorScopeFiltering() {
+  const service = new FieldOperationsService(
+    {
+      visit: {
+        findMany: async () => [
+          { id: "visit_allowed", taskId: "task_allowed", assigneeId: "user_field_001", provinceId: "province_san_jose", zoneId: "zone_central", status: "checked_out", scheduledFor: "2026-05-08" },
+          { id: "visit_blocked", taskId: "task_blocked", assigneeId: "user_field_002", provinceId: "province_alajuela", zoneId: "zone_blocked", status: "checked_out", scheduledFor: "2026-05-08" }
+        ]
+      },
+      evidencePhoto: { findMany: async () => [] },
+      mediaAsset: { findMany: async () => [] },
+      activation: { findMany: async () => [] },
+      exhibitionInstallation: { findMany: async () => [] },
+      consignation: { findMany: async () => [] },
+      clientRequest: {
+        findMany: async () => [
+          { id: "request_allowed", organizationId: "org_capris", ownerUserId: "user_supervisor_001", clientId: "client_auto_mercado", provinceId: "province_san_jose", zoneId: "zone_central", status: "open", dueDate: "2026-05-07", openedAt: "2026-05-01T14:00:00.000Z" },
+          { id: "request_blocked", organizationId: "org_capris", ownerUserId: "user_supervisor_002", clientId: "client_blocked", provinceId: "province_alajuela", zoneId: "zone_blocked", status: "open", dueDate: "2026-05-07", openedAt: "2026-05-01T14:00:00.000Z" }
+        ]
+      }
+    } as never,
+    {
+      getCatalogBootstrap: async () => ({
+        provinces: [{ id: "province_san_jose", name: "San Jose" }, { id: "province_alajuela", name: "Alajuela" }],
+        zones: [{ id: "zone_central", name: "Central" }, { id: "zone_blocked", name: "Blocked" }],
+        clients: [{ id: "client_auto_mercado", name: "Auto Mercado" }, { id: "client_blocked", name: "Blocked Client" }],
+        workflowRules: [],
+        pointsOfSale: [],
+        activityTypes: [],
+        taskTypes: []
+      })
+    } as never,
+    {
+      getUsers: async () => [
+        { id: "user_field_001", name: "Lucia Vargas", permissions: [] },
+        { id: "user_field_002", name: "Blocked User", permissions: [] },
+        { id: "user_supervisor_001", name: "Daniel Rojas", permissions: [] }
+      ]
+    } as never,
+    {
+      getTasks: async () => [
+        {
+          id: "task_allowed",
+          organizationId: "org_capris",
+          title: "Allowed Task",
+          requesterId: "user_admin_001",
+          assigneeId: "user_field_001",
+          scheduledFor: "2026-05-08",
+          provinceId: "province_san_jose",
+          zoneId: "zone_central",
+          clientId: "client_auto_mercado",
+          activityTypeId: "activity_exhibition",
+          taskTypeId: "task_visit",
+          status: "completed",
+          priority: "high",
+          difficulty: "standard"
+        }
+      ]
+    } as never,
+    actorAccessStub as never,
+    auditServiceStub as never
+  );
+
+  const dashboard = await service.getDashboard("en", { sub: "user_supervisor_001", organizationId: "org_capris", role: "supervisor" } as never);
+  assert.equal(dashboard.summary.totalTasks, 1);
+  assert.equal(dashboard.summary.totalVisits, 1);
+  assert.equal(dashboard.summary.openClientRequests, 1);
+}
+
 async function main() {
   await testDashboardAggregation();
+  await testDashboardSupervisorScopeFiltering();
   console.log("Dashboard tests passed.");
 }
 

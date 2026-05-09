@@ -10,6 +10,7 @@ import type {
 import { ActorAccessService } from "../auth/actor-access.service";
 import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { PrismaService } from "../database/prisma.service";
+import { ReplayProtectionService } from "../replay-protection/replay-protection.service";
 
 type NotesPrisma = PrismaService & {
   comment: any;
@@ -22,7 +23,8 @@ type NotesPrisma = PrismaService & {
 export class NotesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly actorAccessService: ActorAccessService
+    private readonly actorAccessService: ActorAccessService,
+    private readonly replayProtectionService: ReplayProtectionService
   ) {}
 
   async getComments(): Promise<Comment[]> {
@@ -42,6 +44,15 @@ export class NotesService {
   }
 
   async createComment(input: CreateCommentInput, actor?: AuthJwtPayload): Promise<CommentMutationResult> {
+    const cached = await this.replayProtectionService.getCachedResult<CommentMutationResult>(
+      input.organizationId,
+      "comment_create",
+      input.clientOperationId
+    );
+    if (cached) {
+      return cached;
+    }
+
     const task = await this.assertReferences(input.organizationId, input.taskId, input.userId);
     if (actor) {
       await this.actorAccessService.assertOperationAccess(actor, {
@@ -64,13 +75,24 @@ export class NotesService {
       }
     });
 
-    return {
+    const result = {
       item: this.toComment(created),
       message: `Comment ${created.id} created for task ${created.taskId}.`
     };
+    await this.replayProtectionService.recordResult(input.organizationId, "comment_create", input.clientOperationId, result);
+    return result;
   }
 
   async createObservation(input: CreateObservationInput, actor?: AuthJwtPayload): Promise<ObservationMutationResult> {
+    const cached = await this.replayProtectionService.getCachedResult<ObservationMutationResult>(
+      input.organizationId,
+      "observation_create",
+      input.clientOperationId
+    );
+    if (cached) {
+      return cached;
+    }
+
     const task = await this.assertReferences(input.organizationId, input.taskId, input.userId);
     if (actor) {
       await this.actorAccessService.assertOperationAccess(actor, {
@@ -93,10 +115,12 @@ export class NotesService {
       }
     });
 
-    return {
+    const result = {
       item: this.toObservation(created),
       message: `Observation ${created.id} created for task ${created.taskId}.`
     };
+    await this.replayProtectionService.recordResult(input.organizationId, "observation_create", input.clientOperationId, result);
+    return result;
   }
 
   private async assertReferences(organizationId: string, taskId: string, userId: string) {

@@ -10,7 +10,7 @@ const config: ExpoConfig = {
   version: "0.1.0",
   orientation: "portrait",
   userInterfaceStyle: "light",
-  plugins: ["expo-dev-client"],
+  plugins: ["expo-dev-client", "expo-secure-store"],
   extra: {
     apiBaseUrl,
     appVariant

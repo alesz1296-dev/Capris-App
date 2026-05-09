@@ -7,6 +7,7 @@ import type {
 import { ActorAccessService } from "../auth/actor-access.service";
 import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { PrismaService } from "../database/prisma.service";
+import { ReplayProtectionService } from "../replay-protection/replay-protection.service";
 
 type ExhibitionsPrisma = PrismaService & {
   exhibitionInstallation: any;
@@ -20,7 +21,8 @@ type ExhibitionsPrisma = PrismaService & {
 export class ExhibitionsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly actorAccessService: ActorAccessService
+    private readonly actorAccessService: ActorAccessService,
+    private readonly replayProtectionService: ReplayProtectionService
   ) {}
 
   async getExhibitions(): Promise<ExhibitionInstallation[]> {
@@ -32,6 +34,15 @@ export class ExhibitionsService {
   }
 
   async createExhibition(input: CreateExhibitionInstallationInput, actor?: AuthJwtPayload): Promise<ExhibitionMutationResult> {
+    const cached = await this.replayProtectionService.getCachedResult<ExhibitionMutationResult>(
+      input.organizationId,
+      "exhibition_create",
+      input.clientOperationId
+    );
+    if (cached) {
+      return cached;
+    }
+
     const task = await this.assertReferences(input);
     if (actor) {
       await this.actorAccessService.assertOperationAccess(actor, {
@@ -57,10 +68,12 @@ export class ExhibitionsService {
       }
     });
 
-    return {
+    const result = {
       item: this.toExhibition(created),
       message: `Exhibition installation ${created.id} recorded for task ${created.taskId}.`
     };
+    await this.replayProtectionService.recordResult(input.organizationId, "exhibition_create", input.clientOperationId, result);
+    return result;
   }
 
   private async assertReferences(input: CreateExhibitionInstallationInput) {

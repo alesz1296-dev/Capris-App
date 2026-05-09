@@ -22,6 +22,7 @@ import {
   type UpdateAdminSettingsInput,
   type UpdateReminderRuleInput
 } from "@capris/shared";
+import { ActorAccessService } from "../auth/actor-access.service";
 import { type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { RequirePermissions } from "../auth/require-permission.decorator";
 import { AdminConfigService } from "./admin-config.service";
@@ -29,7 +30,10 @@ import { AdminConfigService } from "./admin-config.service";
 @Controller("admin-config")
 @RequirePermissions("catalogs.manage")
 export class AdminConfigController {
-  constructor(private readonly service: AdminConfigService) {}
+  constructor(
+    private readonly service: AdminConfigService,
+    private readonly actorAccessService: ActorAccessService
+  ) {}
 
   @Get("bootstrap")
   getBootstrap(@Req() request: AuthenticatedRequest) {
@@ -40,13 +44,13 @@ export class AdminConfigController {
   @Post("imports")
   runImport(@Body() input: ImportCsvInput, @Req() request: AuthenticatedRequest) {
     assertAdmin(request);
-    return this.service.runImport(parseInput(importCsvSchema, input));
+    return this.service.runImport(parseInput(importCsvSchema, input), this.actorAccessService.getActor(request));
   }
 
   @Post("reminder-rules")
   createReminderRule(@Body() input: CreateReminderRuleInput, @Req() request: AuthenticatedRequest) {
     assertAdmin(request);
-    return this.service.createReminderRule(parseInput(reminderRuleSchema, input));
+    return this.service.createReminderRule(parseInput(reminderRuleSchema, input), this.actorAccessService.getActor(request));
   }
 
   @Patch("reminder-rules/:id")
@@ -56,13 +60,13 @@ export class AdminConfigController {
     @Req() request: AuthenticatedRequest
   ) {
     assertAdmin(request);
-    return this.service.updateReminderRule(id, parseInput(updateReminderRuleSchema, input));
+    return this.service.updateReminderRule(id, parseInput(updateReminderRuleSchema, input), this.actorAccessService.getActor(request));
   }
 
   @Put("settings")
   updateSettings(@Body() input: UpdateAdminSettingsInput, @Req() request: AuthenticatedRequest) {
     assertAdmin(request);
-    return this.service.updateSettings(parseInput(adminSettingsSchema, input));
+    return this.service.updateSettings(parseInput(adminSettingsSchema, input), this.actorAccessService.getActor(request));
   }
 }
 

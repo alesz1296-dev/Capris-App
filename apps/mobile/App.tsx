@@ -5,6 +5,7 @@ import {
   type Activity,
   type ActivityCreateSyncPayload,
   type Client,
+  type Locale,
   t,
   type Comment,
   type CommentCreateSyncPayload,
@@ -70,6 +71,10 @@ type ConsignationReviewDraft = {
   afterEvidenceId?: string;
 };
 
+function textByLocale(locale: Locale, english: string, spanish: string) {
+  return locale === "es" ? spanish : english;
+}
+
 const fallbackTasks: Task[] = [
   {
     id: "task_launch_display",
@@ -118,6 +123,9 @@ export default function App() {
   const [syncingQueue, setSyncingQueue] = useState(false);
   const autoSyncEnabledRef = useRef(true);
   const effectiveUserId = mobileSession?.profile?.user.id ?? FIELD_USER_ID;
+  const locale: Locale = mobileSession?.profile?.user.locale ?? "en";
+  const localeTag = locale === "es" ? "es-CR" : "en-US";
+  const formatTime = (value: Date) => value.toLocaleTimeString(localeTag);
 
   const tasks = bootstrap?.tasks.length ? bootstrap.tasks : fallbackTasks;
   const visits = bootstrap?.visits.length ? bootstrap.visits : fallbackVisits;
@@ -144,7 +152,7 @@ export default function App() {
 
     const idToken = response.params.id_token;
     if (!idToken) {
-      setError("Google sign-in did not return an ID token.");
+      setError(textByLocale(locale, "Google sign-in did not return an ID token.", "El inicio de sesion con Google no devolvio un token de identificacion."));
       return;
     }
 
@@ -196,7 +204,7 @@ export default function App() {
       if (storedSession) {
         await loadRouteDay();
       } else {
-        setStatusMessage("Sign in with Google to sync live route data.");
+        setStatusMessage(textByLocale(locale, "Sign in with Google to sync live route data.", "Inicia sesion con Google para sincronizar datos de ruta en vivo."));
       }
     } finally {
       setLoading(false);
@@ -209,10 +217,10 @@ export default function App() {
       setError(null);
       const session = await exchangeGoogleIdToken(idToken);
       setMobileSession(session);
-      setStatusMessage("Signed in on mobile.");
+      setStatusMessage(textByLocale(locale, "Signed in on mobile.", "Sesion iniciada en movil."));
       await loadRouteDay();
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Unable to sign in on mobile.");
+      setError(authError instanceof Error ? authError.message : textByLocale(locale, "Unable to sign in on mobile.", "No se pudo iniciar sesion en movil."));
     } finally {
       setAuthBusy(false);
     }
@@ -220,7 +228,7 @@ export default function App() {
 
   async function startGoogleSignIn() {
     if (!GOOGLE_CLIENT_ID || !request) {
-      setError("Google sign-in is not configured for this mobile environment.");
+      setError(textByLocale(locale, "Google sign-in is not configured for this mobile environment.", "El inicio de sesion con Google no esta configurado para este entorno movil."));
       return;
     }
 
@@ -237,7 +245,7 @@ export default function App() {
     await signOutMobileSession(mobileSession?.refreshToken);
     await clearAuthSession();
     setMobileSession(null);
-    setStatusMessage("Signed out on mobile.");
+    setStatusMessage(textByLocale(locale, "Signed out on mobile.", "Sesion cerrada en movil."));
   }
 
   async function persistBootstrap(nextBootstrap: EvidenceBootstrap) {
@@ -267,7 +275,11 @@ export default function App() {
     } catch (loadError) {
       const cached = (await loadCachedBootstrap()) ?? createFallbackBootstrap();
       await persistBootstrap(applyPendingOperationsToBootstrap(cached, storedOperations));
-      setError(loadError instanceof Error ? `${loadError.message} Using offline cache.` : "Unable to load route day. Using offline cache.");
+      setError(
+        loadError instanceof Error
+          ? `${loadError.message} ${textByLocale(locale, "Using offline cache.", "Usando cache sin conexion.")}`
+          : textByLocale(locale, "Unable to load route day. Using offline cache.", "No se pudo cargar la ruta del dia. Usando cache sin conexion.")
+      );
     } finally {
       setLoading(false);
     }
@@ -303,7 +315,11 @@ export default function App() {
 
     try {
       await syncJsonRequest(`${API_BASE_URL}/visits/${visit.id}/${endpoint}`, "PATCH", payload);
-      setStatusMessage(action === "check_in" ? "Visit checked in." : "Visit checked out.");
+      setStatusMessage(
+        action === "check_in"
+          ? textByLocale(locale, "Visit checked in.", "Visita registrada al entrar.")
+          : textByLocale(locale, "Visit checked out.", "Visita registrada al salir.")
+      );
       await loadRouteDay();
     } catch {
       await queueOperation(
@@ -315,7 +331,9 @@ export default function App() {
           retryCount: 0,
           createdAt: new Date().toISOString()
         },
-        action === "check_in" ? "Visit check-in queued for sync." : "Visit check-out queued for sync."
+        action === "check_in"
+          ? textByLocale(locale, "Visit check-in queued for sync.", "Entrada de visita en cola para sincronizacion.")
+          : textByLocale(locale, "Visit check-out queued for sync.", "Salida de visita en cola para sincronizacion.")
       );
     }
   }
@@ -330,7 +348,12 @@ export default function App() {
       const permission =
         source === "camera" ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permission needed", source === "camera" ? "Camera permission is required." : "Photo library permission is required.");
+        Alert.alert(
+          textByLocale(locale, "Permission needed", "Permiso requerido"),
+          source === "camera"
+            ? textByLocale(locale, "Camera permission is required.", "Se requiere permiso para usar la camara.")
+            : textByLocale(locale, "Photo library permission is required.", "Se requiere permiso para usar la galeria.")
+        );
         return;
       }
 
@@ -351,13 +374,15 @@ export default function App() {
       const asset = result.assets[0];
       const fileBase64 = asset.base64;
       if (!fileBase64) {
-        throw new Error("Selected image is missing base64 data.");
+        throw new Error(textByLocale(locale, "Selected image is missing base64 data.", "La imagen seleccionada no incluye datos base64."));
       }
+      const clientOperationId = `sync_photo_upload_${Date.now()}`;
       const uploadRequest: UploadCapturedEvidenceInput = {
         organizationId: ORGANIZATION_ID,
         taskId,
         visitId,
         uploaderUserId: effectiveUserId,
+        clientOperationId,
         type,
         capturedAt: new Date().toISOString(),
         latitude: FALLBACK_LATITUDE,
@@ -373,17 +398,22 @@ export default function App() {
 
       try {
         await syncJsonRequest(`${API_BASE_URL}/evidence/upload`, "POST", uploadRequest);
-        setStatusMessage(`${t("en", `evidence.type.${type}` as never)} uploaded from ${source}.`);
+        setStatusMessage(
+          locale === "es"
+            ? `${t(locale, `evidence.type.${type}` as never)} cargada desde ${source === "camera" ? "camara" : "galeria"}.`
+            : `${t(locale, `evidence.type.${type}` as never)} uploaded from ${source}.`
+        );
         await loadRouteDay();
       } catch {
         const localMediaAssetId = `media_local_${Date.now()}`;
         const localEvidenceId = `evidence_local_${Date.now()}`;
         await queueOperation(
           {
-            id: `sync_photo_upload_${Date.now()}`,
+            id: clientOperationId,
             type: "photo_upload",
             state: "pending_sync",
             payload: {
+              clientOperationId,
               uploadRequest,
               localEvidenceId,
               localMediaAssetId
@@ -391,143 +421,155 @@ export default function App() {
             retryCount: 0,
             createdAt: uploadRequest.capturedAt
           },
-          `${t("en", `evidence.type.${type}` as never)} queued for offline upload.`
+          locale === "es"
+            ? `${t(locale, `evidence.type.${type}` as never)} en cola para carga sin conexion.`
+            : `${t(locale, `evidence.type.${type}` as never)} queued for offline upload.`
         );
       }
     } catch (captureError) {
-      setError(captureError instanceof Error ? captureError.message : "Unable to capture evidence.");
+      setError(captureError instanceof Error ? captureError.message : textByLocale(locale, "Unable to capture evidence.", "No se pudo capturar la evidencia."));
     } finally {
       setCaptureBusyKey(null);
     }
   }
 
   async function addQuickComment(taskId: string) {
+    const clientOperationId = `sync_comment_${Date.now()}`;
     const payload: CommentCreateSyncPayload = {
       organizationId: ORGANIZATION_ID,
       taskId,
       userId: effectiveUserId,
-      body: `Field comment at ${new Date().toLocaleTimeString("en-US")}`,
+      clientOperationId,
+      body: `${textByLocale(locale, "Field comment", "Comentario de campo")} ${formatTime(new Date())}`,
       createdAt: new Date().toISOString()
     };
 
     try {
       await syncJsonRequest(`${API_BASE_URL}/notes/comments`, "POST", payload);
-      setStatusMessage("Comment saved.");
+      setStatusMessage(textByLocale(locale, "Comment saved.", "Comentario guardado."));
       await loadRouteDay();
     } catch {
       await queueOperation(
         {
-          id: `sync_comment_${Date.now()}`,
+          id: clientOperationId,
           type: "comment_create",
           state: "pending_sync",
           payload,
           retryCount: 0,
           createdAt: payload.createdAt
         },
-        "Comment queued for sync."
+        textByLocale(locale, "Comment queued for sync.", "Comentario en cola para sincronizacion.")
       );
     }
   }
 
   async function addQuickObservation(taskId: string) {
+    const clientOperationId = `sync_observation_${Date.now()}`;
     const payload: ObservationCreateSyncPayload = {
       organizationId: ORGANIZATION_ID,
       taskId,
       userId: effectiveUserId,
-      body: `Field observation at ${new Date().toLocaleTimeString("en-US")}`,
+      clientOperationId,
+      body: `${textByLocale(locale, "Field observation", "Observacion de campo")} ${formatTime(new Date())}`,
       createdAt: new Date().toISOString()
     };
 
     try {
       await syncJsonRequest(`${API_BASE_URL}/notes/observations`, "POST", payload);
-      setStatusMessage("Observation saved.");
+      setStatusMessage(textByLocale(locale, "Observation saved.", "Observacion guardada."));
       await loadRouteDay();
     } catch {
       await queueOperation(
         {
-          id: `sync_observation_${Date.now()}`,
+          id: clientOperationId,
           type: "observation_create",
           state: "pending_sync",
           payload,
           retryCount: 0,
           createdAt: payload.createdAt
         },
-        "Observation queued for sync."
+        textByLocale(locale, "Observation queued for sync.", "Observacion en cola para sincronizacion.")
       );
     }
   }
 
   async function recordActivity(taskId: string, visitId?: string, pointOfSaleId?: string) {
+    const clientOperationId = `sync_activity_${Date.now()}`;
     const payload: ActivityCreateSyncPayload = {
       organizationId: ORGANIZATION_ID,
       taskId,
       userId: effectiveUserId,
+      clientOperationId,
       visitId,
       pointOfSaleId,
       quantity: 1,
-      note: `Activity recorded at ${new Date().toLocaleTimeString("en-US")}`,
+      note: `${textByLocale(locale, "Activity recorded", "Actividad registrada")} ${formatTime(new Date())}`,
       recordedAt: new Date().toISOString()
     };
 
     try {
       await syncJsonRequest(`${API_BASE_URL}/activities`, "POST", payload satisfies CreateActivityInput);
-      setStatusMessage("Activity recorded.");
+      setStatusMessage(textByLocale(locale, "Activity recorded.", "Actividad registrada."));
       await loadRouteDay();
     } catch {
       await queueOperation(
         {
-          id: `sync_activity_${Date.now()}`,
+          id: clientOperationId,
           type: "activity_create",
           state: "pending_sync",
           payload,
           retryCount: 0,
           createdAt: payload.recordedAt
         },
-        "Activity queued for sync."
+        textByLocale(locale, "Activity queued for sync.", "Actividad en cola para sincronizacion.")
       );
     }
   }
 
   async function recordExhibition(taskId: string, visitId?: string, pointOfSaleId?: string) {
+    const clientOperationId = `sync_exhibition_${Date.now()}`;
     const payload: ExhibitionCreateSyncPayload = {
       organizationId: ORGANIZATION_ID,
       taskId,
       userId: effectiveUserId,
+      clientOperationId,
       visitId,
       pointOfSaleId,
       quantity: 1,
-      note: `Exhibition installation recorded at ${new Date().toLocaleTimeString("en-US")}`,
+      note: `${textByLocale(locale, "Exhibition installation recorded", "Instalacion de exhibicion registrada")} ${formatTime(new Date())}`,
       recordedAt: new Date().toISOString()
     };
 
     try {
       await syncJsonRequest(`${API_BASE_URL}/exhibitions`, "POST", payload satisfies CreateExhibitionInstallationInput);
-      setStatusMessage("Exhibition installation recorded.");
+      setStatusMessage(textByLocale(locale, "Exhibition installation recorded.", "Instalacion de exhibicion registrada."));
       await loadRouteDay();
     } catch {
       await queueOperation(
         {
-          id: `sync_exhibition_${Date.now()}`,
+          id: clientOperationId,
           type: "exhibition_create",
           state: "pending_sync",
           payload,
           retryCount: 0,
           createdAt: payload.recordedAt
         },
-        "Exhibition installation queued for sync."
+        textByLocale(locale, "Exhibition installation queued for sync.", "Instalacion de exhibicion en cola para sincronizacion.")
       );
     }
   }
 
   async function prepareConsignation(taskId: string, visitId?: string) {
     const localConsignationId = `consignation_local_${Date.now()}`;
+    const clientOperationId = `sync_consignation_prepare_${Date.now()}`;
     const payload: ConsignationPrepareSyncPayload = {
       localConsignationId,
       organizationId: ORGANIZATION_ID,
       taskId,
       userId: effectiveUserId,
+      clientOperationId,
       visitId,
-      note: "Prepared in field workflow.",
+      note: textByLocale(locale, "Prepared in field workflow.", "Preparado en el flujo de campo."),
       preparedAt: new Date().toISOString()
     };
 
@@ -536,23 +578,24 @@ export default function App() {
         organizationId: payload.organizationId,
         taskId: payload.taskId,
         userId: payload.userId,
+        clientOperationId: payload.clientOperationId,
         visitId: payload.visitId,
         note: payload.note,
         preparedAt: payload.preparedAt
       } satisfies PrepareConsignationInput);
-      setStatusMessage("Consignation prepared.");
+      setStatusMessage(textByLocale(locale, "Consignation prepared.", "Consignacion preparada."));
       await loadRouteDay();
     } catch {
       await queueOperation(
         {
-          id: `sync_consignation_prepare_${Date.now()}`,
+          id: clientOperationId,
           type: "consignation_prepare",
           state: "pending_sync",
           payload,
           retryCount: 0,
           createdAt: payload.preparedAt
         },
-        "Consignation preparation queued for sync."
+        textByLocale(locale, "Consignation preparation queued for sync.", "Preparacion de consignacion en cola para sincronizacion.")
       );
     }
   }
@@ -566,22 +609,23 @@ export default function App() {
       .filter(Boolean);
 
     if (recipientEmails.length === 0) {
-      setError("Add at least one recipient before reviewing the consignation.");
+      setError(textByLocale(locale, "Add at least one recipient before reviewing the consignation.", "Agrega al menos un destinatario antes de revisar la consignacion."));
       return;
     }
 
     if (!draft.emailSubject.trim()) {
-      setError("Email subject is required before reviewing the consignation.");
+      setError(textByLocale(locale, "Email subject is required before reviewing the consignation.", "El asunto del correo es obligatorio antes de revisar la consignacion."));
       return;
     }
 
     if (!draft.emailBody.trim()) {
-      setError("Email body is required before reviewing the consignation.");
+      setError(textByLocale(locale, "Email body is required before reviewing the consignation.", "El cuerpo del correo es obligatorio antes de revisar la consignacion."));
       return;
     }
 
     const payload: ConsignationReviewSyncPayload = {
       consignationId: consignation.id,
+      clientOperationId: `sync_consignation_review_${Date.now()}`,
       localConsignationId: consignation.id.startsWith("consignation_local_") ? consignation.id : undefined,
       reviewedAt: new Date().toISOString(),
       recipientEmails,
@@ -594,6 +638,7 @@ export default function App() {
     try {
       const resolvedId = payload.localConsignationId ?? payload.consignationId;
       await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/review`, "PATCH", {
+        clientOperationId: payload.clientOperationId,
         reviewedAt: payload.reviewedAt,
         recipientEmails: payload.recipientEmails,
         emailSubject: payload.emailSubject,
@@ -601,19 +646,19 @@ export default function App() {
         beforeEvidenceId: payload.beforeEvidenceId,
         afterEvidenceId: payload.afterEvidenceId
       } satisfies ReviewConsignationInput);
-      setStatusMessage("Consignation reviewed and ready to send.");
+      setStatusMessage(textByLocale(locale, "Consignation reviewed and ready to send.", "Consignacion revisada y lista para enviar."));
       await loadRouteDay();
     } catch {
       await queueOperation(
         {
-          id: `sync_consignation_review_${Date.now()}`,
+          id: payload.clientOperationId,
           type: "consignation_review",
           state: "pending_sync",
           payload,
           retryCount: 0,
           createdAt: payload.reviewedAt
         },
-        "Consignation review queued for sync."
+        textByLocale(locale, "Consignation review queued for sync.", "Revision de consignacion en cola para sincronizacion.")
       );
     }
   }
@@ -621,25 +666,29 @@ export default function App() {
   async function sendConsignation(consignation: Consignation) {
     const payload: ConsignationSendSyncPayload = {
       consignationId: consignation.id,
+      clientOperationId: `sync_consignation_send_${Date.now()}`,
       localConsignationId: consignation.id.startsWith("consignation_local_") ? consignation.id : undefined,
       sentAt: new Date().toISOString()
     };
 
     try {
-      await syncJsonRequest(`${API_BASE_URL}/consignations/${consignation.id}/send`, "PATCH", { sentAt: payload.sentAt });
-      setStatusMessage("Consignation marked as sent.");
+      await syncJsonRequest(`${API_BASE_URL}/consignations/${consignation.id}/send`, "PATCH", {
+        sentAt: payload.sentAt,
+        clientOperationId: payload.clientOperationId
+      });
+      setStatusMessage(textByLocale(locale, "Consignation marked as sent.", "Consignacion marcada como enviada."));
       await loadRouteDay();
     } catch {
       await queueOperation(
         {
-          id: `sync_consignation_send_${Date.now()}`,
+          id: payload.clientOperationId,
           type: "consignation_send",
           state: "pending_sync",
           payload,
           retryCount: 0,
           createdAt: payload.sentAt
         },
-        "Consignation send queued for sync."
+        textByLocale(locale, "Consignation send queued for sync.", "Envio de consignacion en cola para sincronizacion.")
       );
     }
   }
@@ -647,30 +696,32 @@ export default function App() {
   async function failConsignation(consignation: Consignation) {
     const payload: ConsignationFailSyncPayload = {
       consignationId: consignation.id,
+      clientOperationId: `sync_consignation_fail_${Date.now()}`,
       localConsignationId: consignation.id.startsWith("consignation_local_") ? consignation.id : undefined,
       failedAt: new Date().toISOString(),
-      reason: "Field user flagged send failure before delivery confirmation."
+      reason: textByLocale(locale, "Field user flagged send failure before delivery confirmation.", "El usuario de campo marco una falla de envio antes de la confirmacion de entrega.")
     };
 
     try {
       const resolvedId = payload.localConsignationId ?? payload.consignationId;
       await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/fail`, "PATCH", {
         failedAt: payload.failedAt,
+        clientOperationId: payload.clientOperationId,
         reason: payload.reason
       });
-      setStatusMessage("Consignation marked as failed.");
+      setStatusMessage(textByLocale(locale, "Consignation marked as failed.", "Consignacion marcada como fallida."));
       await loadRouteDay();
     } catch {
       await queueOperation(
         {
-          id: `sync_consignation_fail_${Date.now()}`,
+          id: payload.clientOperationId,
           type: "consignation_fail",
           state: "pending_sync",
           payload,
           retryCount: 0,
           createdAt: payload.failedAt
         },
-        "Consignation failure queued for sync."
+        textByLocale(locale, "Consignation failure queued for sync.", "Falla de consignacion en cola para sincronizacion.")
       );
     }
   }
@@ -683,22 +734,22 @@ export default function App() {
         ...queueOperation,
         state: nextState,
         retryCount: nextStatus === "failed" ? queueOperation.retryCount + 1 : queueOperation.retryCount,
-        errorMessage: nextStatus === "failed" ? "Upload interrupted while offline." : undefined
+        errorMessage: nextStatus === "failed" ? textByLocale(locale, "Upload interrupted while offline.", "La carga se interrumpio sin conexion.") : undefined
       };
       await updateSyncOperation(updatedOperation);
       const nextOperations = localSyncOperations.map((operation) => (operation.id === queueOperation.id ? updatedOperation : operation));
       setLocalSyncOperations(nextOperations);
       await persistBootstrap(applyPendingOperationsToBootstrap(bootstrap ?? createFallbackBootstrap(), nextOperations));
-      setStatusMessage(`${mediaAsset.fileName} updated locally to ${nextStatus}.`);
+      setStatusMessage(locale === "es" ? `${mediaAsset.fileName} actualizado localmente a ${nextStatus}.` : `${mediaAsset.fileName} updated locally to ${nextStatus}.`);
       return;
     }
 
     try {
       await syncJsonRequest(`${API_BASE_URL}/evidence/media/${mediaAsset.id}/upload-status`, "PATCH", buildUploadStatusPayload(mediaAsset, nextStatus));
-      setStatusMessage(`${mediaAsset.fileName} moved to ${nextStatus}.`);
+      setStatusMessage(locale === "es" ? `${mediaAsset.fileName} cambio a ${nextStatus}.` : `${mediaAsset.fileName} moved to ${nextStatus}.`);
       await loadRouteDay();
     } catch (transitionError) {
-      setError(transitionError instanceof Error ? transitionError.message : "Unable to update upload.");
+      setError(transitionError instanceof Error ? transitionError.message : textByLocale(locale, "Unable to update upload.", "No se pudo actualizar la carga."));
     }
   }
 
@@ -715,19 +766,19 @@ export default function App() {
       const nextOperations = localSyncOperations.map((operation) => (operation.id === queueOperation.id ? updatedOperation : operation));
       setLocalSyncOperations(nextOperations);
       await persistBootstrap(applyPendingOperationsToBootstrap(bootstrap ?? createFallbackBootstrap(), nextOperations));
-      setStatusMessage(`Retry queued for ${mediaAsset.fileName}.`);
+      setStatusMessage(locale === "es" ? `Reintento en cola para ${mediaAsset.fileName}.` : `Retry queued for ${mediaAsset.fileName}.`);
       return;
     }
 
     try {
       await syncJsonRequest(`${API_BASE_URL}/evidence/media/${mediaAsset.id}/retry`, "POST", {
-        reason: "Mobile retry requested after offline interruption",
+        reason: textByLocale(locale, "Mobile retry requested after offline interruption", "Se solicito reintento movil despues de una interrupcion sin conexion"),
         chunkCount: mediaAsset.chunkCount ?? 4
       });
-      setStatusMessage(`Retry queued for ${mediaAsset.fileName}.`);
+      setStatusMessage(locale === "es" ? `Reintento en cola para ${mediaAsset.fileName}.` : `Retry queued for ${mediaAsset.fileName}.`);
       await loadRouteDay();
     } catch (retryError) {
-      setError(retryError instanceof Error ? retryError.message : "Unable to request retry.");
+      setError(retryError instanceof Error ? retryError.message : textByLocale(locale, "Unable to request retry.", "No se pudo solicitar el reintento."));
     }
   }
 
@@ -767,6 +818,7 @@ export default function App() {
               organizationId: payload.organizationId,
               taskId: payload.taskId,
               userId: payload.userId,
+              clientOperationId: payload.clientOperationId,
               visitId: payload.visitId,
               note: payload.note,
               preparedAt: payload.preparedAt
@@ -777,6 +829,7 @@ export default function App() {
             const resolvedId = payload.localConsignationId ? localConsignationIdMap.get(payload.localConsignationId) ?? payload.localConsignationId : payload.consignationId;
             await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/review`, "PATCH", {
               reviewedAt: payload.reviewedAt,
+              clientOperationId: payload.clientOperationId,
               recipientEmails: payload.recipientEmails,
               emailSubject: payload.emailSubject,
               emailBody: payload.emailBody,
@@ -788,12 +841,13 @@ export default function App() {
             const resolvedId = payload.localConsignationId ? localConsignationIdMap.get(payload.localConsignationId) ?? payload.localConsignationId : payload.consignationId;
             await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/fail`, "PATCH", {
               failedAt: payload.failedAt,
+              clientOperationId: payload.clientOperationId,
               reason: payload.reason
             });
           } else if (operation.type === "consignation_send") {
             const payload = operation.payload as ConsignationSendSyncPayload;
             const resolvedId = payload.localConsignationId ? localConsignationIdMap.get(payload.localConsignationId) ?? payload.localConsignationId : payload.consignationId;
-            await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/send`, "PATCH", { sentAt: payload.sentAt });
+            await syncJsonRequest(`${API_BASE_URL}/consignations/${resolvedId}/send`, "PATCH", { sentAt: payload.sentAt, clientOperationId: payload.clientOperationId });
           } else if (operation.type === "activity_create") {
             await syncJsonRequest(`${API_BASE_URL}/activities`, "POST", operation.payload);
           } else if (operation.type === "exhibition_create") {
@@ -808,7 +862,7 @@ export default function App() {
             state: "sync_failed",
             retryCount: operation.retryCount + 1,
             lastAttemptAt: new Date().toISOString(),
-            errorMessage: syncError instanceof Error ? syncError.message : "Sync attempt failed."
+            errorMessage: syncError instanceof Error ? syncError.message : textByLocale(locale, "Sync attempt failed.", "El intento de sincronizacion fallo.")
           };
           await updateSyncOperation(failedOperation);
           currentOperations = currentOperations.map((item) => (item.id === operation.id ? failedOperation : item));
@@ -817,12 +871,16 @@ export default function App() {
 
       setLocalSyncOperations(currentOperations);
       if (mode === "manual" || currentOperations.length === 0) {
-        setStatusMessage(currentOperations.length === 0 ? "Queued offline actions synced." : "Some actions still need another retry.");
+        setStatusMessage(
+          currentOperations.length === 0
+            ? textByLocale(locale, "Queued offline actions synced.", "Las acciones en cola se sincronizaron.")
+            : textByLocale(locale, "Some actions still need another retry.", "Algunas acciones todavia necesitan otro reintento.")
+        );
       }
       await loadRouteDay();
     } catch (syncError) {
       if (mode === "manual") {
-        setError(syncError instanceof Error ? syncError.message : "Unable to sync queued actions.");
+        setError(syncError instanceof Error ? syncError.message : textByLocale(locale, "Unable to sync queued actions.", "No se pudieron sincronizar las acciones en cola."));
       }
     } finally {
       setSyncingQueue(false);
@@ -833,13 +891,19 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>Costa Rica</Text>
-          <Text style={styles.title}>{t("en", "app.name")}</Text>
-          <Text style={styles.subtitle}>Session 9 caches route data in SQLite, and Session 10 layers richer consignation review plus activity tracking on top of the same field workflow.</Text>
+          <Text style={styles.eyebrow}>{textByLocale(locale, "Costa Rica", "Costa Rica")}</Text>
+          <Text style={styles.title}>{t(locale, "app.name")}</Text>
+          <Text style={styles.subtitle}>
+            {textByLocale(
+              locale,
+              "Review today's route, keep evidence moving, and recover safely when work has to continue offline.",
+              "Revisa la ruta del dia, manten la evidencia avanzando y recupera el trabajo de forma segura cuando debas continuar sin conexion."
+            )}
+          </Text>
         </View>
 
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Authentication</Text>
+          <Text style={styles.sectionTitle}>{textByLocale(locale, "Authentication", "Autenticacion")}</Text>
           {mobileSession?.profile ? (
             <View style={styles.notePanel}>
               <Text style={styles.taskTitle}>{mobileSession.profile.user.name}</Text>
@@ -848,19 +912,19 @@ export default function App() {
                 {mobileSession.profile.user.role} / {mobileSession.profile.session.provider}
               </Text>
               <TouchableOpacity style={styles.secondaryButton} onPress={() => void signOut()}>
-                <Text style={styles.secondaryButtonText}>{t("en", "auth.signOut")}</Text>
+                <Text style={styles.secondaryButtonText}>{t(locale, "auth.signOut")}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.notePanel}>
-              <Text style={styles.taskMeta}>{t("en", "auth.loginRequired")}</Text>
+              <Text style={styles.taskMeta}>{t(locale, "auth.loginRequired")}</Text>
               <TouchableOpacity
                 disabled={authBusy || !GOOGLE_CLIENT_ID || !request}
                 style={styles.primaryButton}
                 onPress={() => void startGoogleSignIn()}
               >
                 <Text style={styles.primaryButtonText}>
-                  {authBusy ? "Opening Google..." : t("en", "auth.signIn")}
+                  {authBusy ? textByLocale(locale, "Opening Google...", "Abriendo Google...") : t(locale, "auth.signIn")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -870,13 +934,13 @@ export default function App() {
         {loading ? (
           <View style={styles.loadingPanel}>
             <ActivityIndicator color="#1f7a5b" />
-            <Text style={styles.loadingText}>Loading route day...</Text>
+            <Text style={styles.loadingText}>{textByLocale(locale, "Loading route day...", "Cargando ruta del dia...")}</Text>
           </View>
         ) : null}
 
         {error ? (
           <View style={styles.errorPanel}>
-            <Text style={styles.errorTitle}>{t("en", "visits.mobileFallback")}</Text>
+            <Text style={styles.errorTitle}>{t(locale, "visits.mobileFallback")}</Text>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
@@ -888,27 +952,31 @@ export default function App() {
         ) : null}
 
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Pending sync queue</Text>
+          <Text style={styles.sectionTitle}>{textByLocale(locale, "Pending sync queue", "Cola de sincronizacion pendiente")}</Text>
           {pendingSyncOperations.length > 0 ? (
             pendingSyncOperations.map((operation) => (
               <View key={operation.id} style={styles.syncCard}>
-                <Text style={styles.syncTitle}>{operation.type}</Text>
+                <Text style={styles.syncTitle}>{formatSyncOperationLabel(locale, operation)}</Text>
                 <Text style={styles.syncMeta}>
-                  {operation.state} / retries {operation.retryCount}
+                  {operation.state} / {textByLocale(locale, "retries", "reintentos")} {operation.retryCount}
                 </Text>
-                <Text style={styles.syncMeta}>{JSON.stringify(operation.payload)}</Text>
+                <Text style={styles.syncMeta}>{formatSyncOperationDetail(locale, operation)}</Text>
               </View>
             ))
           ) : (
-            <Text style={styles.syncMeta}>No queued offline actions.</Text>
+            <Text style={styles.syncMeta}>{textByLocale(locale, "No queued offline actions.", "No hay acciones en cola sin conexion.")}</Text>
           )}
           <TouchableOpacity disabled={syncingQueue || pendingSyncOperations.length === 0} style={styles.primaryButton} onPress={() => void syncQueuedOperationsNow("manual")}>
-            <Text style={styles.primaryButtonText}>{syncingQueue ? "Syncing queued actions..." : "Sync queued actions"}</Text>
+            <Text style={styles.primaryButtonText}>
+              {syncingQueue
+                ? textByLocale(locale, "Syncing queued actions...", "Sincronizando acciones en cola...")
+                : textByLocale(locale, "Sync queued actions", "Sincronizar acciones en cola")}
+            </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>{t("en", "visits.routeDay")}</Text>
+          <Text style={styles.sectionTitle}>{t(locale, "visits.routeDay")}</Text>
           {visibleVisits.map((visit) => {
             const linkedTask = visibleTasks.find((task) => task.id === visit.taskId);
             const pointOfSale = pointsOfSale.find((item) => item.id === visit.pointOfSaleId)?.name ?? "Escazu Plaza";
@@ -926,7 +994,7 @@ export default function App() {
                   <View style={styles.taskHeaderCopy}>
                     <Text style={styles.taskTitle}>{linkedTask?.title ?? visit.taskId}</Text>
                     <Text style={styles.taskMeta}>
-                      {visit.scheduledFor} - {t("en", `visitStatus.${visit.status}` as never)}
+                      {visit.scheduledFor} - {t(locale, `visitStatus.${visit.status}` as never)}
                     </Text>
                   </View>
                   <View style={styles.taskBadge}>
@@ -935,14 +1003,14 @@ export default function App() {
                 </View>
 
                 <View style={styles.routePanel}>
-                  <Text style={styles.routeLabel}>Route scope</Text>
+                  <Text style={styles.routeLabel}>{textByLocale(locale, "Route scope", "Alcance de ruta")}</Text>
                   <Text style={styles.routeValue}>San Jose / Central / {pointOfSale}</Text>
                   <Text style={styles.routeValue}>
-                    Check-in: {visit.checkedInAt ?? "Pending"} {"\n"}
-                    Check-out: {visit.checkedOutAt ?? "Pending"}
+                    {textByLocale(locale, "Check-in", "Entrada")}: {visit.checkedInAt ?? textByLocale(locale, "Pending", "Pendiente")} {"\n"}
+                    {textByLocale(locale, "Check-out", "Salida")}: {visit.checkedOutAt ?? textByLocale(locale, "Pending", "Pendiente")}
                   </Text>
                   <Text style={styles.routeValue}>
-                    {t("en", "evidence.requirements")}: {summary?.missingTypes.length ? `Missing ${summary.missingTypes.join(", ")}` : "Complete"}
+                    {t(locale, "evidence.requirements")}: {summary?.missingTypes.length ? `${textByLocale(locale, "Missing", "Falta")} ${summary.missingTypes.join(", ")}` : textByLocale(locale, "Complete", "Completo")}
                   </Text>
                 </View>
 
@@ -956,13 +1024,13 @@ export default function App() {
                         </View>
                         <View style={styles.evidenceCopy}>
                           <Text style={styles.requirement}>
-                            {t("en", `evidence.type.${item.type}` as never)} - {t("en", `uploadStatus.${item.uploadStatus}` as never)}
+                            {t(locale, `evidence.type.${item.type}` as never)} - {t(locale, `uploadStatus.${item.uploadStatus}` as never)}
                           </Text>
                           <Text style={styles.syncMeta}>
-                            Progress {Math.round(mediaAsset?.uploadProgress ?? 0)}% / chunks {mediaAsset?.uploadedChunkCount ?? 0} of {mediaAsset?.chunkCount ?? 0}
+                            {textByLocale(locale, "Progress", "Progreso")} {Math.round(mediaAsset?.uploadProgress ?? 0)}% / {textByLocale(locale, "chunks", "bloques")} {mediaAsset?.uploadedChunkCount ?? 0} {textByLocale(locale, "of", "de")} {mediaAsset?.chunkCount ?? 0}
                           </Text>
-                          <Text style={styles.syncMeta}>Session {mediaAsset?.uploadSessionId ?? "pending"}</Text>
-                          <Text style={styles.syncMeta}>Retry count {mediaAsset?.retryCount ?? 0}</Text>
+                          <Text style={styles.syncMeta}>{textByLocale(locale, "Session", "Sesion")} {mediaAsset?.uploadSessionId ?? textByLocale(locale, "pending", "pendiente")}</Text>
+                          <Text style={styles.syncMeta}>{textByLocale(locale, "Retry count", "Cantidad de reintentos")} {mediaAsset?.retryCount ?? 0}</Text>
                           {mediaAsset?.lastError ? <Text style={styles.errorText}>{mediaAsset.lastError}</Text> : null}
                         </View>
                       </View>
@@ -971,34 +1039,34 @@ export default function App() {
                 </View>
 
                 <View style={styles.notePanel}>
-                  <Text style={styles.captureHeading}>Notes</Text>
+                  <Text style={styles.captureHeading}>{textByLocale(locale, "Notes", "Notas")}</Text>
                   {taskComments.map((item: Comment) => (
                     <Text key={item.id} style={styles.syncMeta}>
-                      {t("en", "notes.comment")}: {item.body}
+                      {t(locale, "notes.comment")}: {item.body}
                     </Text>
                   ))}
                   {taskObservations.map((item: Observation) => (
                     <Text key={item.id} style={styles.syncMeta}>
-                      {t("en", "notes.observation")}: {item.body}
+                      {t(locale, "notes.observation")}: {item.body}
                     </Text>
                   ))}
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => void addQuickComment(visit.taskId)}>
-                    <Text style={styles.secondaryButtonText}>{t("en", "notes.addComment")}</Text>
+                    <Text style={styles.secondaryButtonText}>{t(locale, "notes.addComment")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => void addQuickObservation(visit.taskId)}>
-                    <Text style={styles.secondaryButtonText}>{t("en", "notes.addObservation")}</Text>
+                    <Text style={styles.secondaryButtonText}>{t(locale, "notes.addObservation")}</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.notePanel}>
-                  <Text style={styles.captureHeading}>Consignations</Text>
+                  <Text style={styles.captureHeading}>{textByLocale(locale, "Consignations", "Consignaciones")}</Text>
                   {taskConsignations.map((item: Consignation) => (
                     <View key={item.id} style={styles.inlineActions}>
                       <Text style={styles.syncMeta}>
-                        {t("en", `consignation.status.${item.status}` as never)} / {item.preparedAt}
+                        {t(locale, `consignation.status.${item.status}` as never)} / {item.preparedAt}
                       </Text>
                       <Text style={styles.syncMeta}>
-                        {t("en", "consignation.recipients")}: {consignationReviewDrafts[item.id]?.recipientEmails || "cliente@capris.example"}
+                        {t(locale, "consignation.recipients")}: {consignationReviewDrafts[item.id]?.recipientEmails || "cliente@capris.example"}
                       </Text>
                       <TextInput
                         autoCapitalize="none"
@@ -1010,7 +1078,7 @@ export default function App() {
                         onChangeText={(value) => updateConsignationReviewDraft(item.id, { recipientEmails: value }, setConsignationReviewDrafts)}
                       />
                       <TextInput
-                        placeholder={t("en", "consignation.subject")}
+                        placeholder={t(locale, "consignation.subject")}
                         placeholderTextColor="#9b8b8e"
                         style={styles.textInput}
                         value={consignationReviewDrafts[item.id]?.emailSubject ?? ""}
@@ -1018,7 +1086,7 @@ export default function App() {
                       />
                       <TextInput
                         multiline
-                        placeholder={t("en", "consignation.body")}
+                        placeholder={t(locale, "consignation.body")}
                         placeholderTextColor="#9b8b8e"
                         style={[styles.textInput, styles.textAreaInput]}
                         textAlignVertical="top"
@@ -1027,80 +1095,83 @@ export default function App() {
                       />
                       {item.status === "prepared" || item.status === "failed" ? (
                         <TouchableOpacity style={styles.secondaryButton} onPress={() => void reviewConsignation(item)}>
-                          <Text style={styles.secondaryButtonText}>{t("en", "consignation.review")}</Text>
+                          <Text style={styles.secondaryButtonText}>{t(locale, "consignation.review")}</Text>
                         </TouchableOpacity>
                       ) : null}
                       {item.status === "ready_to_send" ? (
                         <>
                           <TouchableOpacity style={styles.secondaryButton} onPress={() => void sendConsignation(item)}>
-                            <Text style={styles.secondaryButtonText}>{t("en", "consignation.send")}</Text>
+                            <Text style={styles.secondaryButtonText}>{t(locale, "consignation.send")}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={styles.secondaryButton} onPress={() => void failConsignation(item)}>
-                            <Text style={styles.secondaryButtonText}>{t("en", "consignation.fail")}</Text>
+                            <Text style={styles.secondaryButtonText}>{t(locale, "consignation.fail")}</Text>
                           </TouchableOpacity>
                         </>
                       ) : null}
                     </View>
                   ))}
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => void prepareConsignation(visit.taskId, visit.id)}>
-                    <Text style={styles.secondaryButtonText}>{t("en", "consignation.prepare")}</Text>
+                    <Text style={styles.secondaryButtonText}>{t(locale, "consignation.prepare")}</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.notePanel}>
-                  <Text style={styles.captureHeading}>{t("en", "activity.activities")}</Text>
+                  <Text style={styles.captureHeading}>{t(locale, "activity.activities")}</Text>
                   {taskActivities.map((item: Activity) => (
                     <Text key={item.id} style={styles.syncMeta}>
-                      {item.recordedAt}: {item.quantity} {t("en", "activity.activities").toLowerCase()}
+                      {item.recordedAt}: {item.quantity} {t(locale, "activity.activities").toLowerCase()}
                     </Text>
                   ))}
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => void recordActivity(visit.taskId, visit.id, visit.pointOfSaleId)}>
-                    <Text style={styles.secondaryButtonText}>{t("en", "activity.recordActivity")}</Text>
+                    <Text style={styles.secondaryButtonText}>{t(locale, "activity.recordActivity")}</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.notePanel}>
-                  <Text style={styles.captureHeading}>{t("en", "activity.exhibitions")}</Text>
+                  <Text style={styles.captureHeading}>{t(locale, "activity.exhibitions")}</Text>
                   {taskExhibitions.map((item: ExhibitionInstallation) => (
                     <Text key={item.id} style={styles.syncMeta}>
-                      {item.recordedAt}: {item.quantity} {t("en", "activity.exhibitions").toLowerCase()}
+                      {item.recordedAt}: {item.quantity} {t(locale, "activity.exhibitions").toLowerCase()}
                     </Text>
                   ))}
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => void recordExhibition(visit.taskId, visit.id, visit.pointOfSaleId)}>
-                    <Text style={styles.secondaryButtonText}>{t("en", "activity.recordExhibition")}</Text>
+                    <Text style={styles.secondaryButtonText}>{t(locale, "activity.recordExhibition")}</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.actions}>
                   {visit.status === "scheduled" ? (
                     <TouchableOpacity style={styles.primaryButton} onPress={() => void transitionVisit(visit, "check_in")}>
-                      <Text style={styles.primaryButtonText}>{t("en", "visits.checkIn")}</Text>
+                      <Text style={styles.primaryButtonText}>{t(locale, "visits.checkIn")}</Text>
                     </TouchableOpacity>
                   ) : null}
                   {visit.status === "checked_in" ? (
                     <TouchableOpacity style={styles.primaryButton} onPress={() => void transitionVisit(visit, "check_out")}>
-                      <Text style={styles.primaryButtonText}>{t("en", "visits.checkOut")}</Text>
+                      <Text style={styles.primaryButtonText}>{t(locale, "visits.checkOut")}</Text>
                     </TouchableOpacity>
                   ) : null}
 
-                  <Text style={styles.captureHeading}>Before evidence</Text>
+                  <Text style={styles.captureHeading}>{textByLocale(locale, "Before evidence", "Evidencia antes")}</Text>
                   <CaptureActionRow
+                    locale={locale}
                     cameraBusy={captureBusyKey === `${visit.taskId}:before:camera`}
                     libraryBusy={captureBusyKey === `${visit.taskId}:before:library`}
                     onCamera={() => void captureEvidence(visit.taskId, visit.id, "before", "camera")}
                     onLibrary={() => void captureEvidence(visit.taskId, visit.id, "before", "library")}
                   />
 
-                  <Text style={styles.captureHeading}>After evidence</Text>
+                  <Text style={styles.captureHeading}>{textByLocale(locale, "After evidence", "Evidencia despues")}</Text>
                   <CaptureActionRow
+                    locale={locale}
                     cameraBusy={captureBusyKey === `${visit.taskId}:after:camera`}
                     libraryBusy={captureBusyKey === `${visit.taskId}:after:library`}
                     onCamera={() => void captureEvidence(visit.taskId, visit.id, "after", "camera")}
                     onLibrary={() => void captureEvidence(visit.taskId, visit.id, "after", "library")}
                   />
 
-                  <Text style={styles.captureHeading}>Supporting evidence</Text>
+                  <Text style={styles.captureHeading}>{textByLocale(locale, "Supporting evidence", "Evidencia de apoyo")}</Text>
                   <CaptureActionRow
+                    locale={locale}
                     cameraBusy={captureBusyKey === `${visit.taskId}:supporting:camera`}
                     libraryBusy={captureBusyKey === `${visit.taskId}:supporting:library`}
                     onCamera={() => void captureEvidence(visit.taskId, visit.id, "supporting", "camera")}
@@ -1117,17 +1188,17 @@ export default function App() {
                       <View key={`actions-${item.id}`} style={styles.inlineActions}>
                         {mediaAsset.uploadStatus === "failed" ? (
                           <TouchableOpacity style={styles.primaryButton} onPress={() => void requestRetry(mediaAsset)}>
-                            <Text style={styles.primaryButtonText}>Retry upload</Text>
+                            <Text style={styles.primaryButtonText}>{textByLocale(locale, "Retry upload", "Reintentar carga")}</Text>
                           </TouchableOpacity>
                         ) : null}
                         {mediaAsset.uploadStatus !== "uploaded" ? (
                           <TouchableOpacity style={styles.secondaryButton} onPress={() => void updateMediaUpload(mediaAsset, "uploading")}>
-                            <Text style={styles.secondaryButtonText}>Resume upload</Text>
+                            <Text style={styles.secondaryButtonText}>{textByLocale(locale, "Resume upload", "Reanudar carga")}</Text>
                           </TouchableOpacity>
                         ) : null}
                         {mediaAsset.uploadStatus !== "failed" && mediaAsset.uploadStatus !== "uploaded" ? (
                           <TouchableOpacity style={styles.secondaryButton} onPress={() => void updateMediaUpload(mediaAsset, "failed")}>
-                            <Text style={styles.secondaryButtonText}>Mark sync failed</Text>
+                            <Text style={styles.secondaryButtonText}>{textByLocale(locale, "Mark sync failed", "Marcar sincronizacion fallida")}</Text>
                           </TouchableOpacity>
                         ) : null}
                       </View>
@@ -1140,7 +1211,7 @@ export default function App() {
         </View>
 
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Assigned tasks</Text>
+          <Text style={styles.sectionTitle}>{textByLocale(locale, "Assigned tasks", "Tareas asignadas")}</Text>
           {visibleTasks.map((task) => {
             const pointOfSale = pointsOfSale.find((item) => item.id === task.pointOfSaleId)?.name ?? "Escazu Plaza";
             const summary = requirementSummaries.find((item) => item.taskId === task.id);
@@ -1151,19 +1222,19 @@ export default function App() {
                   <View style={styles.taskHeaderCopy}>
                     <Text style={styles.taskTitle}>{task.title}</Text>
                     <Text style={styles.taskMeta}>
-                      {task.scheduledFor} - {t("en", `status.${task.status}` as never)}
+                      {task.scheduledFor} - {t(locale, `status.${task.status}` as never)}
                     </Text>
                   </View>
                   <View style={styles.taskBadge}>
-                    <Text style={styles.taskBadgeText}>{t("en", `priority.${task.priority}` as never)}</Text>
+                    <Text style={styles.taskBadgeText}>{t(locale, `priority.${task.priority}` as never)}</Text>
                   </View>
                 </View>
 
                 <View style={styles.routePanel}>
-                  <Text style={styles.routeLabel}>Route scope</Text>
+                  <Text style={styles.routeLabel}>{textByLocale(locale, "Route scope", "Alcance de ruta")}</Text>
                   <Text style={styles.routeValue}>San Jose / Central / {pointOfSale}</Text>
                   <Text style={styles.routeValue}>
-                    {t("en", "evidence.requirements")}: {summary?.missingTypes.length ? summary.missingTypes.join(", ") : "Complete"}
+                    {t(locale, "evidence.requirements")}: {summary?.missingTypes.length ? summary.missingTypes.join(", ") : textByLocale(locale, "Complete", "Completo")}
                   </Text>
                 </View>
               </View>
@@ -1173,7 +1244,7 @@ export default function App() {
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.primaryButton} onPress={() => void loadRouteDay()}>
-            <Text style={styles.primaryButtonText}>Refresh route day</Text>
+            <Text style={styles.primaryButtonText}>{textByLocale(locale, "Refresh route day", "Actualizar ruta del dia")}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -1182,11 +1253,13 @@ export default function App() {
 }
 
 function CaptureActionRow({
+  locale,
   cameraBusy,
   libraryBusy,
   onCamera,
   onLibrary
 }: {
+  locale: Locale;
   cameraBusy: boolean;
   libraryBusy: boolean;
   onCamera: () => void;
@@ -1195,13 +1268,84 @@ function CaptureActionRow({
   return (
     <View style={styles.captureRow}>
       <TouchableOpacity disabled={cameraBusy || libraryBusy} style={styles.primaryButton} onPress={onCamera}>
-        <Text style={styles.primaryButtonText}>{cameraBusy ? "Opening camera..." : "Use camera"}</Text>
+        <Text style={styles.primaryButtonText}>{cameraBusy ? textByLocale(locale, "Opening camera...", "Abriendo camara...") : textByLocale(locale, "Use camera", "Usar camara")}</Text>
       </TouchableOpacity>
       <TouchableOpacity disabled={cameraBusy || libraryBusy} style={styles.secondaryButton} onPress={onLibrary}>
-        <Text style={styles.secondaryButtonText}>{libraryBusy ? "Opening library..." : "Use library"}</Text>
+        <Text style={styles.secondaryButtonText}>{libraryBusy ? textByLocale(locale, "Opening library...", "Abriendo galeria...") : textByLocale(locale, "Use library", "Usar galeria")}</Text>
       </TouchableOpacity>
     </View>
   );
+}
+
+function formatSyncOperationLabel(locale: Locale, operation: SyncOperation) {
+  switch (operation.type) {
+    case "visit_check_in":
+      return textByLocale(locale, "Visit check-in", "Entrada de visita");
+    case "visit_check_out":
+      return textByLocale(locale, "Visit check-out", "Salida de visita");
+    case "photo_upload":
+      return textByLocale(locale, "Evidence upload", "Carga de evidencia");
+    case "comment_create":
+      return textByLocale(locale, "Comment", "Comentario");
+    case "observation_create":
+      return textByLocale(locale, "Observation", "Observacion");
+    case "consignation_prepare":
+      return textByLocale(locale, "Consignation prepare", "Preparar consignacion");
+    case "consignation_review":
+      return textByLocale(locale, "Consignation review", "Revision de consignacion");
+    case "consignation_send":
+      return textByLocale(locale, "Consignation send", "Envio de consignacion");
+    case "consignation_fail":
+      return textByLocale(locale, "Consignation failure", "Falla de consignacion");
+    case "activity_create":
+      return textByLocale(locale, "Activity record", "Registro de actividad");
+    case "exhibition_create":
+      return textByLocale(locale, "Exhibition record", "Registro de exhibicion");
+    default:
+      return operation.type;
+  }
+}
+
+function formatSyncOperationDetail(locale: Locale, operation: SyncOperation) {
+  switch (operation.type) {
+    case "visit_check_in":
+    case "visit_check_out": {
+      const payload = operation.payload as VisitCheckInSyncPayload | VisitCheckOutSyncPayload;
+      return `${textByLocale(locale, "Visit", "Visita")} ${payload.visitId}`;
+    }
+    case "photo_upload": {
+      const payload = operation.payload as PhotoUploadSyncPayload;
+      return payload.uploadRequest.fileName;
+    }
+    case "comment_create": {
+      const payload = operation.payload as CommentCreateSyncPayload;
+      return `${textByLocale(locale, "Task", "Tarea")} ${payload.taskId}`;
+    }
+    case "observation_create": {
+      const payload = operation.payload as ObservationCreateSyncPayload;
+      return `${textByLocale(locale, "Task", "Tarea")} ${payload.taskId}`;
+    }
+    case "consignation_prepare": {
+      const payload = operation.payload as ConsignationPrepareSyncPayload;
+      return `${textByLocale(locale, "Task", "Tarea")} ${payload.taskId}`;
+    }
+    case "consignation_review":
+    case "consignation_send":
+    case "consignation_fail": {
+      const payload = operation.payload as ConsignationReviewSyncPayload | ConsignationSendSyncPayload | ConsignationFailSyncPayload;
+      return `${textByLocale(locale, "Consignation", "Consignacion")} ${payload.consignationId}`;
+    }
+    case "activity_create": {
+      const payload = operation.payload as ActivityCreateSyncPayload;
+      return `${textByLocale(locale, "Task", "Tarea")} ${payload.taskId}`;
+    }
+    case "exhibition_create": {
+      const payload = operation.payload as ExhibitionCreateSyncPayload;
+      return `${textByLocale(locale, "Task", "Tarea")} ${payload.taskId}`;
+    }
+    default:
+      return operation.id;
+  }
 }
 
 function createFallbackBootstrap(): EvidenceBootstrap {
@@ -1631,3 +1775,4 @@ const styles = StyleSheet.create({
   secondaryButton: { alignItems: "center", borderColor: "#c5333f", borderRadius: 8, borderWidth: 1, padding: 14 },
   secondaryButtonText: { color: "#c5333f", fontWeight: "700" }
 });
+

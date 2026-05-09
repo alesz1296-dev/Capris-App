@@ -24,14 +24,14 @@ export class EvidenceController {
 
   @Get("bootstrap")
   @RequirePermissions("evidence.view")
-  getBootstrap() {
-    return this.service.getEvidenceBootstrap();
+  getBootstrap(@Req() request: AuthenticatedRequest) {
+    return this.service.getEvidenceBootstrap(this.actorAccessService.getActor(request));
   }
 
   @Get()
   @RequirePermissions("evidence.view")
-  getEvidence() {
-    return this.service.getEvidence();
+  getEvidence(@Req() request: AuthenticatedRequest) {
+    return this.service.getEvidence(this.actorAccessService.getActor(request));
   }
 
   @Post()

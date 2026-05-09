@@ -1,15 +1,35 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
-import { BadRequestException, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { ExceptionsController } from "../src/modules/exceptions/exceptions.controller";
 import { ExceptionsService } from "../src/modules/exceptions/exceptions.service";
 
+const auditServiceStub = {
+  recordAudit: async () => undefined
+};
+
 async function testExceptionValidation() {
-  const controller = new ExceptionsController({
-    createException: async () => {
-      throw new Error("Service should not be reached for invalid exception payloads.");
-    }
-  } as never);
+  const controller = new ExceptionsController(
+    {
+      createException: async () => {
+        throw new Error("Service should not be reached for invalid exception payloads.");
+      }
+    } as never,
+    {
+      getActor: () => ({
+        sub: "user_field_001",
+        organizationId: "org_capris",
+        email: "field@example.com",
+        role: "field_user",
+        locale: "es",
+        name: "Field User",
+        sessionId: "session_1",
+        type: "access",
+        iat: 1,
+        exp: 9999999999
+      })
+    } as never
+  );
 
   assert.throws(
     () =>
@@ -51,7 +71,9 @@ async function testExceptionReferenceValidation() {
         findFirst: async () => null
       }
     } as never,
-    {} as never
+    {} as never,
+    {} as never,
+    auditServiceStub as never
   );
 
   await assert.rejects(
@@ -88,7 +110,9 @@ async function testRejectedExceptionRequiresReviewNote() {
         })
       }
     } as never,
-    {} as never
+    {} as never,
+    {} as never,
+    auditServiceStub as never
   );
 
   await assert.rejects(
@@ -104,38 +128,54 @@ async function testRejectedExceptionRequiresReviewNote() {
   );
 }
 
-async function testControllerReviewRequiresSupervisorPermission() {
-  const controller = new ExceptionsController({
-    reviewException: async () => {
-      throw new Error("Service should not be reached without review permission.");
-    }
-  } as never);
+async function testControllerReviewUsesAuthenticatedReviewer() {
+  let capturedInput: unknown;
 
-  assert.throws(
-    () =>
-      controller.reviewException(
-        "exception_001",
-        {
-          status: "approved",
-          reviewedByUserId: "user_field_001",
-          reviewedAt: "2026-05-08T15:00:00.000Z"
-        },
-        {
-          auth: {
-            sub: "user_field_001",
-            role: "field_user"
-          }
-        } as never
-      ),
-    (error: unknown) => error instanceof UnauthorizedException
+  const controller = new ExceptionsController(
+    {
+      reviewException: async (_id: string, input: unknown) => {
+        capturedInput = input;
+        return { ok: true };
+      }
+    } as never,
+    {
+      getActor: () => ({
+        sub: "user_supervisor_001",
+        organizationId: "org_capris",
+        email: "supervisor@example.com",
+        role: "supervisor",
+        locale: "es",
+        name: "Supervisor User",
+        sessionId: "session_2",
+        type: "access",
+        iat: 1,
+        exp: 9999999999
+      })
+    } as never
   );
+
+  await controller.reviewException(
+    "exception_001",
+    {
+      status: "approved",
+      reviewedByUserId: "user_other",
+      reviewedAt: "2026-05-08T15:00:00.000Z"
+    },
+    { auth: {} } as never
+  );
+
+  assert.deepEqual(capturedInput, {
+    status: "approved",
+    reviewedByUserId: "user_supervisor_001",
+    reviewedAt: "2026-05-08T15:00:00.000Z"
+  });
 }
 
 async function main() {
   await testExceptionValidation();
   await testExceptionReferenceValidation();
   await testRejectedExceptionRequiresReviewNote();
-  await testControllerReviewRequiresSupervisorPermission();
+  await testControllerReviewUsesAuthenticatedReviewer();
   console.log("Exception tests passed.");
 }
 

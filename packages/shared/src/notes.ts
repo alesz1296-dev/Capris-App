@@ -9,6 +9,7 @@ export const createCommentSchema = z.object({
   organizationId: identifierSchema,
   taskId: identifierSchema,
   userId: identifierSchema,
+  clientOperationId: identifierSchema.optional(),
   body: noteBodySchema,
   createdAt: isoTimestampSchema
 });
@@ -17,6 +18,7 @@ export const createObservationSchema = z.object({
   organizationId: identifierSchema,
   taskId: identifierSchema,
   userId: identifierSchema,
+  clientOperationId: identifierSchema.optional(),
   body: noteBodySchema,
   createdAt: isoTimestampSchema
 });
@@ -25,6 +27,7 @@ export interface CreateCommentInput {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId?: string;
   body: string;
   createdAt: string;
 }
@@ -33,6 +36,7 @@ export interface CreateObservationInput {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId?: string;
   body: string;
   createdAt: string;
 }

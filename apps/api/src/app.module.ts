@@ -20,10 +20,15 @@ import { TasksModule } from "./modules/tasks/tasks.module";
 import { VisitsModule } from "./modules/visits/visits.module";
 import { JwtAuthGuard } from "./modules/auth/jwt-auth.guard";
 import { PermissionGuard } from "./modules/auth/permission.guard";
+import { AuditModule } from "./modules/audit/audit.module";
+import { EmailModule } from "./modules/email/email.module";
+import { ReplayProtectionModule } from "./modules/replay-protection/replay-protection.module";
 
 @Module({
   imports: [
     AuthModule,
+    AuditModule,
+    EmailModule,
     AdminConfigModule,
     ActivitiesModule,
     CalendarModule,
@@ -40,7 +45,8 @@ import { PermissionGuard } from "./modules/auth/permission.guard";
     ObjectStorageModule,
     SystemHealthModule,
     TasksModule,
-    VisitsModule
+    VisitsModule,
+    ReplayProtectionModule
   ],
   providers: [
     {

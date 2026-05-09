@@ -19,6 +19,7 @@ import {
   type RevokeDeviceSessionInput,
   type SignOutInput
 } from "@capris/shared";
+import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../database/prisma.service";
 import { AuthTokenService } from "./auth-token.service";
 import { GoogleIdentityService } from "./google-identity.service";
@@ -30,7 +31,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokenService: AuthTokenService,
     private readonly googleIdentityService: GoogleIdentityService,
-    private readonly identityAccessService: IdentityAccessService
+    private readonly identityAccessService: IdentityAccessService,
+    private readonly auditService: AuditService
   ) {}
 
   async signInWithGoogle(input: GoogleSignInInput): Promise<AuthResponse> {
@@ -79,6 +81,18 @@ export class AuthService {
         refreshTokenHash: this.tokenService.hashToken(tokens.refreshToken),
         expiresAt: new Date(tokens.refreshTokenExpiresAt),
         lastUsedAt: new Date()
+      }
+    });
+
+    await this.auditService.recordAudit({
+      organizationId: linkedUser.organizationId,
+      actorUserId: linkedUser.id,
+      action: "auth.google_sign_in",
+      entityType: "device_session",
+      entityId: sessionRecord.id,
+      metadata: {
+        provider: "google",
+        deviceName: sessionRecord.deviceName ?? "Web browser"
       }
     });
 
@@ -133,6 +147,17 @@ export class AuthService {
       }
     });
 
+    await this.auditService.recordAudit({
+      organizationId: session.user.organizationId,
+      actorUserId: session.user.id,
+      action: "auth.refresh_session",
+      entityType: "device_session",
+      entityId: updatedSession.id,
+      metadata: {
+        provider: updatedSession.provider
+      }
+    });
+
     return {
       user: toAuthenticatedUser(this.toUser(session.user)),
       tokens,
@@ -147,6 +172,13 @@ export class AuthService {
   }
 
   async signOut(input: SignOutInput) {
+    const matchingSessions = await this.prisma.deviceSession.findMany({
+      where: {
+        refreshTokenHash: this.tokenService.hashToken(input.refreshToken),
+        revokedAt: null
+      }
+    });
+
     await this.prisma.deviceSession.updateMany({
       where: {
         refreshTokenHash: this.tokenService.hashToken(input.refreshToken),
@@ -156,6 +188,16 @@ export class AuthService {
         revokedAt: new Date()
       }
     });
+
+    for (const session of matchingSessions) {
+      await this.auditService.recordAudit({
+        organizationId: session.organizationId,
+        actorUserId: session.userId,
+        action: "auth.sign_out",
+        entityType: "device_session",
+        entityId: session.id
+      });
+    }
 
     return {
       success: true
@@ -234,6 +276,17 @@ export class AuthService {
         revokedAt: session.revokedAt ?? new Date(input.revokedAt)
       },
       include: { user: true }
+    });
+
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: input.revokedByUserId,
+      action: "auth.revoke_device_session",
+      entityType: "device_session",
+      entityId: updated.id,
+      metadata: {
+        revokedUserId: updated.userId
+      }
     });
 
     return {

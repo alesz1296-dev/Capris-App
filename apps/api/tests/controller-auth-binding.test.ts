@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { NotesController } from "../src/modules/notes/notes.controller";
+import { TasksController } from "../src/modules/tasks/tasks.controller";
 
 async function testNotesControllerUsesAuthenticatedContextForCommentCreation() {
   let capturedInput: unknown;
@@ -60,8 +61,63 @@ async function testNotesControllerUsesAuthenticatedContextForCommentCreation() {
   });
 }
 
+async function testTasksControllerUsesAuthenticatedContextForTaskCreation() {
+  let capturedInput: unknown;
+
+  const controller = new TasksController(
+    {
+      createTask: async (input: unknown) => {
+        capturedInput = input;
+        return { ok: true };
+      }
+    } as never,
+    {
+      getActor: () => ({
+        sub: "user_supervisor_001",
+        organizationId: "org_capris",
+        email: "supervisor@example.com",
+        role: "supervisor",
+        locale: "es",
+        name: "Supervisor User",
+        sessionId: "session_2",
+        type: "access",
+        iat: 1,
+        exp: 9999999999
+      })
+    } as never
+  );
+
+  await controller.createTask(
+    {
+      organizationId: "org_other",
+      title: "Install endcap",
+      requesterId: "user_other",
+      assigneeId: "user_field_001",
+      scheduledFor: "2026-05-09",
+      provinceId: "province_san_jose",
+      zoneId: "zone_central",
+      activityTypeId: "activity_exhibition",
+      taskTypeId: "task_visit"
+    },
+    { auth: {} } as never
+  );
+
+  assert.deepEqual(capturedInput, {
+    organizationId: "org_capris",
+    title: "Install endcap",
+    requesterId: "user_supervisor_001",
+    assigneeId: "user_field_001",
+    scheduledFor: "2026-05-09",
+    provinceId: "province_san_jose",
+    zoneId: "zone_central",
+    activityTypeId: "activity_exhibition",
+    taskTypeId: "task_visit"
+  });
+}
+
 async function main() {
   await testNotesControllerUsesAuthenticatedContextForCommentCreation();
+  await testTasksControllerUsesAuthenticatedContextForTaskCreation();
   console.log("Controller auth binding tests passed.");
 }
 

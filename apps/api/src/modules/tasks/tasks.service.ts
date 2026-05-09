@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import type {
   CreateTaskInput,
   Difficulty,
@@ -10,6 +10,9 @@ import type {
   UpdateTaskInput,
   UpdateTaskStatusInput
 } from "@capris/shared";
+import { AuditService } from "../audit/audit.service";
+import { ActorAccessService } from "../auth/actor-access.service";
+import type { AuthJwtPayload } from "../auth/auth-token.service";
 import { CatalogsService } from "../catalogs/catalogs.service";
 import { EvidenceService } from "../evidence/evidence.service";
 import { IdentityAccessService } from "../identity-access/identity-access.service";
@@ -27,12 +30,14 @@ export class TasksService {
     private readonly prisma: PrismaService,
     private readonly catalogsService: CatalogsService,
     private readonly identityAccessService: IdentityAccessService,
-    private readonly evidenceService: EvidenceService
+    private readonly evidenceService: EvidenceService,
+    private readonly actorAccessService: ActorAccessService,
+    private readonly auditService: AuditService
   ) {}
 
-  async getTaskBootstrap(): Promise<TaskBootstrap> {
+  async getTaskBootstrap(actor?: AuthJwtPayload): Promise<TaskBootstrap> {
     const [tasks, users, catalogs] = await Promise.all([
-      this.getTasks(),
+      this.getTasks(actor),
       this.identityAccessService.getUsers(),
       this.catalogsService.getCatalogBootstrap()
     ]);
@@ -50,18 +55,35 @@ export class TasksService {
     };
   }
 
-  async getTasks(): Promise<Task[]> {
+  async getTasks(actor?: AuthJwtPayload): Promise<Task[]> {
     const tasks = await this.prisma.task.findMany({
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }]
     });
-    return tasks.map((task) => this.toTask(task));
+    const normalized = tasks.map((task) => this.toTask(task));
+    return this.actorAccessService.filterReadable(actor, normalized, (task) => ({
+      organizationId: task.organizationId,
+      assigneeId: task.assigneeId,
+      provinceId: task.provinceId,
+      zoneId: task.zoneId,
+      clientId: task.clientId
+    }));
   }
 
-  async getTask(id: string): Promise<Task> {
-    return this.toTask(await this.findTask(id));
+  async getTask(id: string, actor?: AuthJwtPayload): Promise<Task> {
+    const task = this.toTask(await this.findTask(id));
+    if (actor) {
+      await this.actorAccessService.assertReadAccess(actor, {
+        organizationId: task.organizationId,
+        assigneeId: task.assigneeId,
+        provinceId: task.provinceId,
+        zoneId: task.zoneId,
+        clientId: task.clientId
+      });
+    }
+    return task;
   }
 
-  async createTask(input: CreateTaskInput): Promise<Task> {
+  async createTask(input: CreateTaskInput, actor?: AuthJwtPayload): Promise<Task> {
     this.assertRequiredString(input.organizationId, "organizationId");
     this.assertRequiredString(input.title, "title");
     this.assertRequiredString(input.requesterId, "requesterId");
@@ -84,6 +106,17 @@ export class TasksService {
       taskTypeId: input.taskTypeId
     });
 
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: input.organizationId,
+        userId: input.requesterId,
+        assigneeId: input.assigneeId,
+        provinceId: input.provinceId,
+        zoneId: input.zoneId,
+        clientId: input.clientId
+      });
+    }
+
     const task = await this.prisma.task.create({
       data: {
         id: this.createId("task"),
@@ -104,10 +137,22 @@ export class TasksService {
       }
     });
 
+    await this.auditService.recordAudit({
+      organizationId: task.organizationId,
+      actorUserId: actor?.sub ?? task.requesterId,
+      action: "task.create",
+      entityType: "task",
+      entityId: task.id,
+      metadata: {
+        assigneeId: task.assigneeId,
+        scheduledFor: task.scheduledFor
+      }
+    });
+
     return this.toTask(task);
   }
 
-  async updateTask(id: string, input: UpdateTaskInput): Promise<TaskMutationResult> {
+  async updateTask(id: string, input: UpdateTaskInput, actor?: AuthJwtPayload): Promise<TaskMutationResult> {
     const task = await this.findTask(id);
 
     const nextValues = {
@@ -123,6 +168,17 @@ export class TasksService {
     };
 
     await this.assertTaskReferences(nextValues);
+
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: task.organizationId,
+        userId: nextValues.requesterId,
+        assigneeId: nextValues.assigneeId,
+        provinceId: nextValues.provinceId,
+        zoneId: nextValues.zoneId,
+        clientId: nextValues.clientId
+      });
+    }
 
     const updated = await this.prisma.task.update({
       where: { id },
@@ -142,14 +198,40 @@ export class TasksService {
       }
     });
 
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: actor?.sub,
+      action: "task.update",
+      entityType: "task",
+      entityId: updated.id,
+      metadata: {
+        assigneeId: updated.assigneeId,
+        scheduledFor: updated.scheduledFor
+      }
+    });
+
     return {
       item: this.toTask(updated),
       message: `Task ${updated.id} updated.`
     };
   }
 
-  async updateTaskStatus(id: string, input: UpdateTaskStatusInput): Promise<TaskMutationResult> {
+  async updateTaskStatus(id: string, input: UpdateTaskStatusInput, actor?: AuthJwtPayload): Promise<TaskMutationResult> {
     const task = await this.findTask(id);
+
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: task.organizationId,
+        assigneeId: task.assigneeId,
+        provinceId: task.provinceId,
+        zoneId: task.zoneId,
+        clientId: task.clientId ?? undefined
+      });
+
+      if (actor.role === "field_user" && task.assigneeId !== actor.sub) {
+        throw new UnauthorizedException("Field users can only update status for tasks assigned to them.");
+      }
+    }
 
     if (task.status !== input.status && !ALLOWED_STATUS_TRANSITIONS[task.status as TaskStatus].includes(input.status)) {
       throw new BadRequestException(`Task ${task.id} cannot move from ${task.status} to ${input.status}.`);
@@ -168,6 +250,17 @@ export class TasksService {
       where: { id },
       data: {
         status: input.status
+      }
+    });
+
+    await this.auditService.recordAudit({
+      organizationId: updated.organizationId,
+      actorUserId: actor?.sub,
+      action: "task.update_status",
+      entityType: "task",
+      entityId: updated.id,
+      metadata: {
+        status: updated.status
       }
     });
 

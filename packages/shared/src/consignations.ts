@@ -10,12 +10,14 @@ export const prepareConsignationSchema = z.object({
   organizationId: identifierSchema,
   taskId: identifierSchema,
   userId: identifierSchema,
+  clientOperationId: identifierSchema.optional(),
   visitId: identifierSchema.optional(),
   note: noteSchema.optional(),
   preparedAt: isoTimestampSchema
 });
 
 export const reviewConsignationSchema = z.object({
+  clientOperationId: identifierSchema.optional(),
   reviewedAt: isoTimestampSchema,
   recipientEmails: z.array(emailSchema).min(1),
   emailSubject: z.string().trim().min(3).max(200),
@@ -25,10 +27,12 @@ export const reviewConsignationSchema = z.object({
 });
 
 export const sendConsignationSchema = z.object({
+  clientOperationId: identifierSchema.optional(),
   sentAt: isoTimestampSchema
 });
 
 export const failConsignationSchema = z.object({
+  clientOperationId: identifierSchema.optional(),
   failedAt: isoTimestampSchema,
   reason: z.string().trim().min(3).max(1000)
 });
@@ -37,12 +41,14 @@ export interface PrepareConsignationInput {
   organizationId: string;
   taskId: string;
   userId: string;
+  clientOperationId?: string;
   visitId?: string;
   note?: string;
   preparedAt: string;
 }
 
 export interface ReviewConsignationInput {
+  clientOperationId?: string;
   reviewedAt: string;
   recipientEmails: string[];
   emailSubject: string;
@@ -52,10 +58,12 @@ export interface ReviewConsignationInput {
 }
 
 export interface SendConsignationInput {
+  clientOperationId?: string;
   sentAt: string;
 }
 
 export interface FailConsignationInput {
+  clientOperationId?: string;
   failedAt: string;
   reason: string;
 }

@@ -5,11 +5,14 @@ import { CalendarController } from "../src/modules/calendar/calendar.controller"
 import { CalendarService } from "../src/modules/calendar/calendar.service";
 
 async function testCalendarQueryValidation() {
-  const controller = new CalendarController({
-    getCalendarBootstrap: () => {
-      throw new Error("Service should not be reached for invalid calendar query.");
-    }
-  } as never);
+  const controller = new CalendarController(
+    {
+      getCalendarBootstrap: () => {
+        throw new Error("Service should not be reached for invalid calendar query.");
+      }
+    } as never,
+    {} as never
+  );
 
   assert.throws(
     () =>
@@ -31,6 +34,7 @@ async function testAgendaReferenceValidation() {
         findFirst: async () => ({ id: "team_central" })
       }
     } as never,
+    {} as never,
     {} as never
   );
 

@@ -4,22 +4,33 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { ActivitiesController } from "../src/modules/activations/activations.controller";
 import { ActivitiesService } from "../src/modules/activations/activations.service";
 
+const replayProtectionStub = {
+  getCachedResult: async () => null,
+  recordResult: async () => undefined
+};
+
 async function testActivityValidation() {
-  const controller = new ActivitiesController({
-    createActivity: () => {
-      throw new Error("Service should not be reached for invalid activity payloads.");
-    }
-  } as never);
+  const controller = new ActivitiesController(
+    {
+      createActivity: () => {
+        throw new Error("Service should not be reached for invalid activity payloads.");
+      }
+    } as never,
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_field_001" }) } as never
+  );
 
   assert.throws(
     () =>
-      controller.createActivity({
-        organizationId: "org_capris",
-        taskId: "task_launch_display",
-        userId: "user_field_001",
-        quantity: 0,
-        recordedAt: "2026-05-08T18:30:00.000Z"
-      }),
+      controller.createActivity(
+        {
+          organizationId: "org_capris",
+          taskId: "task_launch_display",
+          userId: "user_field_001",
+          quantity: 0,
+          recordedAt: "2026-05-08T18:30:00.000Z"
+        },
+        { auth: {} } as never
+      ),
     (error: unknown) => error instanceof BadRequestException && `${error.message}`.includes("Too small")
   );
 }
@@ -33,7 +44,9 @@ async function testActivityReferenceValidation() {
       user: {
         findFirst: async () => ({ id: "user_field_001" })
       }
-    } as never
+    } as never,
+    {} as never,
+    replayProtectionStub as never
   );
 
   await assert.rejects(
