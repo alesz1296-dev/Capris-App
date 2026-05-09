@@ -155,6 +155,7 @@ export function AuthPanel() {
       });
       persistPreferredLocale(payload.user.locale);
       setStatus(textByLocale(locale, "Signed in.", "Sesion iniciada."));
+      redirectFromLoginPage();
     } catch (signInError) {
       setError(signInError instanceof Error ? signInError.message : textByLocale(locale, "Google sign-in failed.", "Fallo el inicio de sesion con Google."));
       setStatus(null);
@@ -198,6 +199,7 @@ export function AuthPanel() {
       persistPreferredLocale(payload.user.locale);
       setEmailForm({ name: "", email: "", password: "" });
       setStatus(authMode === "login" ? textByLocale(locale, "Signed in.", "Sesion iniciada.") : textByLocale(locale, "Account created.", "Cuenta creada."));
+      redirectFromLoginPage();
     } catch (emailAuthError) {
       setError(emailAuthError instanceof Error ? emailAuthError.message : textByLocale(locale, "Email sign-in failed.", "Fallo el inicio de sesion con correo."));
       setStatus(null);
@@ -355,5 +357,16 @@ export function AuthPanel() {
       {error ? <p className="feedbackError authFeedback">{error}</p> : null}
     </div>
   );
+}
+
+function redirectFromLoginPage() {
+  if (typeof window === "undefined" || window.location.pathname !== "/login") {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next");
+  const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  window.location.replace(target);
 }
 
