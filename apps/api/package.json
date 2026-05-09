@@ -8,7 +8,7 @@
     "db:init": "prisma db push && node prisma/seed.cjs",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.cjs",
-    "railway:start": "prisma db push && node dist/apps/api/src/main.js",
+    "railway:start": "node dist/apps/api/src/main.js",
     "railway:seed": "node prisma/seed.cjs",
     "start": "node dist/apps/api/src/main.js",
     "start:dev": "nest start --watch --entryFile apps/api/src/main",
