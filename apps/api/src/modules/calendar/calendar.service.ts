@@ -186,6 +186,25 @@ export class CalendarService {
     };
   }
 
+  async deleteAgendaEvent(id: string, actor?: AuthJwtPayload) {
+    const prisma = this.prisma as unknown as CalendarPrisma;
+    const existing = await prisma.agendaEvent.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Agenda event ${id} was not found.`);
+    }
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: existing.organizationId,
+        ownerUserId: existing.ownerUserId ?? undefined
+      });
+    }
+
+    await prisma.agendaEvent.delete({ where: { id } });
+    return {
+      message: `Agenda event ${id} deleted.`
+    };
+  }
+
   private async assertAgendaReferences(input: {
     organizationId: string;
     scopeType: string;

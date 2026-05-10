@@ -270,6 +270,59 @@ export class TasksService {
     };
   }
 
+  async deleteTask(id: string, actor?: AuthJwtPayload) {
+    const task = await this.findTask(id);
+
+    if (actor) {
+      await this.actorAccessService.assertOperationAccess(actor, {
+        organizationId: task.organizationId,
+        userId: task.requesterId,
+        assigneeId: task.assigneeId,
+        provinceId: task.provinceId,
+        zoneId: task.zoneId,
+        clientId: task.clientId ?? undefined
+      });
+    }
+
+    if (task.status !== "pending") {
+      throw new BadRequestException(`Task ${task.id} can only be removed while it is still pending.`);
+    }
+
+    const dependencyCounts = await Promise.all([
+      this.prisma.visit.count({ where: { taskId: id } }),
+      this.prisma.evidencePhoto.count({ where: { taskId: id } }),
+      this.prisma.comment.count({ where: { taskId: id } }),
+      this.prisma.observation.count({ where: { taskId: id } }),
+      this.prisma.consignation.count({ where: { taskId: id } }),
+      this.prisma.activation.count({ where: { taskId: id } }),
+      this.prisma.exhibitionInstallation.count({ where: { taskId: id } }),
+      this.prisma.clientRequest.count({ where: { taskId: id } }),
+      this.prisma.exceptionRecord.count({ where: { taskId: id } })
+    ]);
+
+    if (dependencyCounts.some((count) => count > 0)) {
+      throw new BadRequestException(`Task ${task.id} already has operational records and cannot be removed from the calendar.`);
+    }
+
+    await this.prisma.task.delete({ where: { id } });
+
+    await this.auditService.recordAudit({
+      organizationId: task.organizationId,
+      actorUserId: actor?.sub,
+      action: "task.delete",
+      entityType: "task",
+      entityId: task.id,
+      metadata: {
+        assigneeId: task.assigneeId,
+        scheduledFor: task.scheduledFor
+      }
+    });
+
+    return {
+      message: `Task ${task.id} deleted.`
+    };
+  }
+
   private async findTask(id: string) {
     const task = await this.prisma.task.findUnique({ where: { id } });
     if (!task) {

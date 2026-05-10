@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   type AuthProfileResponse,
@@ -45,6 +46,10 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
   const pathname = usePathname();
   const [authState, setAuthState] = useState<"checking" | "authorized">("checking");
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
+  const visibleNavigation = navigation.filter((item) => !("privileged" in item) || canUsePrivilegedNavigation(profile?.user.role));
+  const activePage = visibleNavigation.find((item) => item.href === pathname);
+  const primaryMobileNavigation = visibleNavigation.filter((item) => ["/", "/agenda", "/routes", "/tasks", "/reports"].includes(item.href));
+  const secondaryMobileNavigation = visibleNavigation.filter((item) => !primaryMobileNavigation.some((entry) => entry.href === item.href));
 
   useEffect(() => {
     let cancelled = false;
@@ -114,17 +119,17 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
       <aside className="sidebar">
         <strong>{t(locale, "app.name")}</strong>
         <nav>
-          {navigation.filter((item) => !("privileged" in item) || canUsePrivilegedNavigation(profile?.user.role)).map((item) => {
+          {visibleNavigation.map((item) => {
             const active = pathname === item.href;
             return (
-              <a
+              <Link
                 aria-current={active ? "page" : undefined}
                 className={active ? "sidebarLink sidebarLinkActive" : "sidebarLink"}
                 href={item.href}
                 key={item.href}
               >
                 {locale === "es" ? item.es : item.en}
-              </a>
+              </Link>
             );
           })}
         </nav>
@@ -149,9 +154,51 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
           </div>
         </header>
 
+        <section className="mobileQuickAccess" aria-label={textByLocale(locale, "Quick access", "Accesos rapidos")}>
+          <div className="mobileQuickAccessHeader">
+            <strong>{activePage ? (locale === "es" ? activePage.es : activePage.en) : title[locale]}</strong>
+            <span>{textByLocale(locale, "Quick access", "Accesos rapidos")}</span>
+          </div>
+          <nav className="mobileQuickAccessNav">
+            {visibleNavigation.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  aria-current={active ? "page" : undefined}
+                  className={active ? "mobileQuickLink mobileQuickLinkActive" : "mobileQuickLink"}
+                  href={item.href}
+                  key={`mobile-quick-${item.href}`}
+                >
+                  {locale === "es" ? item.es : item.en}
+                </Link>
+              );
+            })}
+          </nav>
+          {secondaryMobileNavigation.length ? (
+            <p className="mobileQuickAccessHint">
+              {textByLocale(locale, "Swipe for the rest of the tools.", "Desliza para ver el resto de herramientas.")}
+            </p>
+          ) : null}
+        </section>
+
         <PwaInstall locale={locale} />
         {children}
       </section>
+      <nav className="mobileBottomNav" aria-label={textByLocale(locale, "Primary navigation", "Navegacion principal")}>
+        {primaryMobileNavigation.map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link
+              aria-current={active ? "page" : undefined}
+              className={active ? "mobileBottomLink mobileBottomLinkActive" : "mobileBottomLink"}
+              href={item.href}
+              key={`mobile-bottom-${item.href}`}
+            >
+              <span>{locale === "es" ? item.es : item.en}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </main>
   );
 }

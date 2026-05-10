@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import type {
+  Activity,
   AgendaEvent,
   AuthProfileResponse,
   CalendarBootstrap,
@@ -10,10 +11,16 @@ import type {
   ClientRequest,
   ClientRequestBootstrap,
   ClientRequestStatus,
+  Consignation,
   CreateAgendaEventInput,
   CreateClientRequestInput,
   CreateTaskInput,
-  TaskBootstrap
+  EvidenceBootstrap,
+  EvidencePhoto,
+  PointOfSale,
+  Task,
+  TaskBootstrap,
+  User
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
 import { textByLocale, useAppLocale } from "./locale-client";
@@ -169,12 +176,13 @@ export function AgendaAdmin() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [view, setView] = useState<CalendarView>("week");
+  const [view, setView] = useState<CalendarView>("month");
   const [anchorDate, setAnchorDate] = useState(DEFAULT_DATE);
   const [selectedDate, setSelectedDate] = useState(DEFAULT_DATE);
   const [selectedUserId, setSelectedUserId] = useState<"all" | string>("all");
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
   const [calendar, setCalendar] = useState<CalendarBootstrap | null>(null);
+  const [operationsBootstrap, setOperationsBootstrap] = useState<EvidenceBootstrap | null>(null);
   const [requestBootstrap, setRequestBootstrap] = useState<ClientRequestBootstrap | null>(null);
   const [taskBootstrap, setTaskBootstrap] = useState<TaskBootstrap | null>(null);
   const [agendaForm, setAgendaForm] = useState<AgendaFormState>(EMPTY_AGENDA_FORM);
@@ -194,6 +202,11 @@ export function AgendaAdmin() {
   const activityTypes = taskBootstrap?.activityTypes ?? [];
   const taskTypes = taskBootstrap?.taskTypes ?? [];
   const tasks = taskBootstrap?.tasks ?? requestBootstrap?.tasks ?? [];
+  const taskDirectory = taskBootstrap?.tasks ?? operationsBootstrap?.tasks ?? tasks;
+  const pointOfSaleDirectory = taskBootstrap?.pointsOfSale ?? operationsBootstrap?.pointsOfSale ?? pointsOfSale;
+  const taskById = useMemo(() => new Map(taskDirectory.map((task) => [task.id, task])), [taskDirectory]);
+  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
+  const pointOfSaleById = useMemo(() => new Map(pointOfSaleDirectory.map((pointOfSale) => [pointOfSale.id, pointOfSale])), [pointOfSaleDirectory]);
   const routePointOfSaleOptions = useMemo(
     () =>
       pointsOfSale.filter(
@@ -302,6 +315,48 @@ export function AgendaAdmin() {
     }),
     [visibleEntries]
   );
+  const selectedDayEntries = useMemo(
+    () => visibleEntries.filter((entry) => entry.startAt.slice(0, 10) === selectedDate),
+    [selectedDate, visibleEntries]
+  );
+  const selectedDayEvidence = useMemo(
+    () =>
+      (operationsBootstrap?.evidence ?? []).filter((item) => {
+        if (item.capturedAt.slice(0, 10) !== selectedDate) {
+          return false;
+        }
+        const task = taskById.get(item.taskId);
+        return selectedUserId === "all" || item.uploaderUserId === selectedUserId || task?.assigneeId === selectedUserId;
+      }),
+    [operationsBootstrap, selectedDate, selectedUserId, taskById]
+  );
+  const selectedDayActivities = useMemo(
+    () =>
+      (operationsBootstrap?.activities ?? []).filter(
+        (item) => item.recordedAt.slice(0, 10) === selectedDate && (selectedUserId === "all" || item.userId === selectedUserId)
+      ),
+    [operationsBootstrap, selectedDate, selectedUserId]
+  );
+  const selectedDayConsignations = useMemo(
+    () =>
+      (operationsBootstrap?.consignations ?? []).filter(
+        (item) =>
+          consignationTouchesDate(item, selectedDate) && (selectedUserId === "all" || item.userId === selectedUserId)
+      ),
+    [operationsBootstrap, selectedDate, selectedUserId]
+  );
+  const selectedDayPanels = useMemo(
+    () =>
+      buildSelectedDayPanels({
+        activities: selectedDayActivities,
+        consignations: selectedDayConsignations,
+        entries: selectedDayEntries,
+        evidence: selectedDayEvidence,
+        taskById,
+        userById
+      }),
+    [selectedDayActivities, selectedDayConsignations, selectedDayEntries, selectedDayEvidence, taskById, userById]
+  );
 
   async function loadAgendaData() {
     const calendarFallback = textByLocale(locale, "Unable to load calendar data.", "No se pudieron cargar los datos del calendario.");
@@ -318,14 +373,18 @@ export function AgendaAdmin() {
       const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
       const planner = profilePayload.user.role === "admin" || profilePayload.user.role === "supervisor";
 
-      const [calendarResponse, requestsResponse, tasksResponse] = await Promise.all([
+      const [calendarResponse, evidenceResponse, requestsResponse, tasksResponse] = await Promise.all([
         authenticatedFetch(`${API_BASE_URL}/calendar/bootstrap?view=${view}&date=${anchorDate}`, { cache: "no-store" }),
+        authenticatedFetch(`${API_BASE_URL}/evidence/bootstrap`, { cache: "no-store" }),
         planner ? authenticatedFetch(`${API_BASE_URL}/client-requests/bootstrap`, { cache: "no-store" }) : Promise.resolve(null),
         authenticatedFetch(`${API_BASE_URL}/tasks/bootstrap`, { cache: "no-store" })
       ]);
 
       if (!calendarResponse.ok) {
         throw new Error(await extractErrorMessage(calendarResponse, calendarFallback));
+      }
+      if (!evidenceResponse.ok) {
+        throw new Error(await extractErrorMessage(evidenceResponse, textByLocale(locale, "Unable to load operational evidence.", "No se pudo cargar la evidencia operativa.")));
       }
       if (requestsResponse && !requestsResponse.ok) {
         throw new Error(await extractErrorMessage(requestsResponse, textByLocale(locale, "Unable to load client requests.", "No se pudieron cargar las solicitudes de cliente.")));
@@ -334,14 +393,16 @@ export function AgendaAdmin() {
         throw new Error(await extractErrorMessage(tasksResponse, sessionFallback));
       }
 
-      const [calendarPayload, requestsPayload, tasksPayload] = await Promise.all([
+      const [calendarPayload, evidencePayload, requestsPayload, tasksPayload] = await Promise.all([
         calendarResponse.json() as Promise<CalendarBootstrap>,
+        evidenceResponse.json() as Promise<EvidenceBootstrap>,
         requestsResponse ? (requestsResponse.json() as Promise<ClientRequestBootstrap>) : Promise.resolve(null),
         tasksResponse.json() as Promise<TaskBootstrap>
       ]);
 
       setProfile(profilePayload);
       setCalendar(calendarPayload);
+      setOperationsBootstrap(evidencePayload);
       setRequestBootstrap(requestsPayload);
       setTaskBootstrap(tasksPayload);
     } catch (loadError) {
@@ -431,7 +492,25 @@ export function AgendaAdmin() {
     );
   }
 
-  async function submit(url: string, payload: unknown, successMessage: string, method: "POST" | "PATCH" = "POST") {
+  async function deleteAgendaEvent(id: string) {
+    await submit(
+      `${API_BASE_URL}/calendar/agenda-events/${id}`,
+      undefined,
+      textByLocale(locale, "Agenda event removed from the calendar.", "Evento de agenda eliminado del calendario."),
+      "DELETE"
+    );
+  }
+
+  async function deleteTask(id: string) {
+    await submit(
+      `${API_BASE_URL}/tasks/${id}`,
+      undefined,
+      textByLocale(locale, "Task removed from the selected day.", "Tarea eliminada del dia seleccionado."),
+      "DELETE"
+    );
+  }
+
+  async function submit(url: string, payload: unknown, successMessage: string, method: "POST" | "PATCH" | "DELETE" = "POST") {
     const saveFallback = textByLocale(locale, "Unable to save agenda data.", "No se pudieron guardar los datos de agenda.");
     try {
       setStatusMessage(null);
@@ -440,7 +519,7 @@ export function AgendaAdmin() {
       const response = await authenticatedFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: payload === undefined ? undefined : JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -508,10 +587,8 @@ export function AgendaAdmin() {
       <article className="catalogManagerCard calendarBoard">
         <div className="catalogManagerHeader">
           <div>
-            <h3>{textByLocale(locale, "Calendar", "Calendario")}</h3>
-            <p>
-              {calendar?.window.startDate ?? anchorDate} {textByLocale(locale, "to", "a")} {calendar?.window.endDate ?? anchorDate}
-            </p>
+            <h3>{textByLocale(locale, "Operations calendar", "Calendario operativo")}</h3>
+            <p>{textByLocale(locale, "Click any day to review planned work, evidence, activities, and consignations by user.", "Haz clic en cualquier dia para revisar trabajo planeado, evidencia, actividades y consignaciones por usuario.")}</p>
           </div>
           {isPlanner ? (
             <label className="calendarPersonFilter">
@@ -538,23 +615,47 @@ export function AgendaAdmin() {
               {calendarViewLabel(locale, calendarView)}
             </button>
           ))}
-        </div>
-        <label className="fullWidth">
-          <span>{textByLocale(locale, "Anchor date", "Fecha de referencia")}</span>
-          <input
-            type="date"
-            value={anchorDate}
-            onChange={(event) => {
-              setAnchorDate(event.target.value);
-              setSelectedDate(event.target.value);
+          <button
+            className="secondaryAction"
+            type="button"
+            onClick={() => {
+              const today = new Date().toISOString().slice(0, 10);
+              setAnchorDate(today);
+              setSelectedDate(today);
             }}
-          />
-        </label>
+          >
+            {textByLocale(locale, "today", "hoy")}
+          </button>
+        </div>
         {view === "month" ? (
           <div className="calendarMonthBoard" aria-label={textByLocale(locale, "Monthly calendar", "Calendario mensual")}>
             <div className="calendarMonthTitle">
-              <strong>{formatMonthTitle(calendar?.window.anchorDate ?? anchorDate, locale)}</strong>
-              <span>{textByLocale(locale, "Full month view", "Vista mensual completa")}</span>
+              <div className="calendarMonthNav">
+                <button
+                  className="calendarMonthArrow"
+                  type="button"
+                  onClick={() => {
+                    const nextDate = shiftMonth(anchorDate, -1);
+                    setAnchorDate(nextDate);
+                    setSelectedDate(nextDate);
+                  }}
+                >
+                  {"<"}
+                </button>
+                <strong>{formatMonthTitle(calendar?.window.anchorDate ?? anchorDate, locale)}</strong>
+                <button
+                  className="calendarMonthArrow"
+                  type="button"
+                  onClick={() => {
+                    const nextDate = shiftMonth(anchorDate, 1);
+                    setAnchorDate(nextDate);
+                    setSelectedDate(nextDate);
+                  }}
+                >
+                  {">"}
+                </button>
+              </div>
+              <span>{textByLocale(locale, "Monthly field execution view", "Vista mensual de ejecucion de campo")}</span>
             </div>
             <div className="calendarWeekdayGrid">
               {getWeekdayLabels(locale).map((label) => (
@@ -626,209 +727,300 @@ export function AgendaAdmin() {
       </article>
 
       <div className="taskAdminLayout">
-        {isPlanner ? (
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{textByLocale(locale, "Assign work on selected day", "Asignar trabajo en el dia seleccionado")}</h3>
-              <p>{textByLocale(locale, "Touch a calendar day, choose a person and route stop, then create the work item for that exact date.", "Toca un dia del calendario, elige persona y parada de ruta, y crea el trabajo para esa fecha exacta.")}</p>
-            </div>
-          </div>
-          <div className="formGrid">
-            <label className="fullWidth">
-              <span>{textByLocale(locale, "Work title", "Titulo del trabajo")}</span>
-              <input value={quickTaskForm.title} onChange={(event) => setQuickTaskForm((current) => ({ ...current, title: event.target.value }))} />
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Assigned user", "Usuario asignado")}</span>
-              <select value={quickTaskForm.assigneeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, assigneeId: event.target.value }))}>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>{user.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Date", "Fecha")}</span>
-              <input type="date" value={quickTaskForm.scheduledFor} onChange={(event) => {
-                setSelectedDate(event.target.value);
-                setQuickTaskForm((current) => ({ ...current, scheduledFor: event.target.value }));
-              }} />
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Province", "Provincia")}</span>
-              <select value={quickTaskForm.provinceId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, provinceId: event.target.value }))}>
-                {provinces.filter((province) => province.active).map((province) => (
-                  <option key={province.id} value={province.id}>{province.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Zone", "Zona")}</span>
-              <select value={quickTaskForm.zoneId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, zoneId: event.target.value }))}>
-                {zones.filter((zone) => zone.active && zone.provinceId === quickTaskForm.provinceId).map((zone) => (
-                  <option key={zone.id} value={zone.id}>{zone.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Point of sale", "Punto de venta")}</span>
-              <select value={quickTaskForm.pointOfSaleId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, pointOfSaleId: event.target.value }))}>
-                {routePointOfSaleOptions.map((pointOfSale) => (
-                    <option key={pointOfSale.id} value={pointOfSale.id}>{pointOfSale.name}</option>
-                  ))}
-              </select>
-              {!routePointOfSaleOptions.length ? (
-                <small className="fieldHint">{textByLocale(locale, "Add a route stop first before assigning this work.", "Primero agrega una parada de ruta antes de asignar este trabajo.")}</small>
-              ) : null}
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Client", "Cliente")}</span>
-              <select value={quickTaskForm.clientId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, clientId: event.target.value }))}>
-                {clients.filter((client) => client.active).map((client) => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Task type", "Tipo de tarea")}</span>
-              <select value={quickTaskForm.taskTypeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, taskTypeId: event.target.value }))}>
-                {taskTypes.filter((taskType) => taskType.active).map((taskType) => (
-                  <option key={taskType.id} value={taskType.id}>{taskType.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Activity", "Actividad")}</span>
-              <select value={quickTaskForm.activityTypeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, activityTypeId: event.target.value }))}>
-                {activityTypes.filter((activityType) => activityType.active).map((activityType) => (
-                  <option key={activityType.id} value={activityType.id}>{activityType.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="taskFormActions">
-            <button className="primaryAction" disabled={loading || isPending || !quickTaskForm.title || !quickTaskForm.assigneeId || !quickTaskForm.zoneId || !quickTaskForm.pointOfSaleId || !quickTaskForm.activityTypeId || !quickTaskForm.taskTypeId} type="button" onClick={() => void createQuickTask()}>
-              {textByLocale(locale, "Assign work", "Asignar trabajo")}
-            </button>
-          </div>
-        </article>
-        ) : null}
-
-        <article className="catalogManagerCard">
-          <div className="catalogManagerHeader">
-            <div>
-              <h3>{textByLocale(locale, "Selected day", "Dia seleccionado")}</h3>
+              <h3>{textByLocale(locale, "Selected day operations", "Operaciones del dia seleccionado")}</h3>
               <p>{selectedDate}</p>
             </div>
           </div>
-          <div className="taskList">
-            {visibleEntries.filter((entry) => entry.startAt.slice(0, 10) === selectedDate).map((entry: CalendarEntry) => (
-              <article className="taskCard" key={entry.id}>
+          <div className="metrics agendaDayMetrics">
+            <article className="metric">
+              <span>{textByLocale(locale, "Planned", "Planeado")}</span>
+              <strong>{selectedDayEntries.length}</strong>
+            </article>
+            <article className="metric">
+              <span>{textByLocale(locale, "Evidence", "Evidencia")}</span>
+              <strong>{selectedDayEvidence.length}</strong>
+            </article>
+            <article className="metric">
+              <span>{textByLocale(locale, "Activities", "Actividades")}</span>
+              <strong>{selectedDayActivities.length}</strong>
+            </article>
+            <article className="metric">
+              <span>{textByLocale(locale, "Consignations", "Consignaciones")}</span>
+              <strong>{selectedDayConsignations.length}</strong>
+            </article>
+          </div>
+
+          {isPlanner ? (
+            <div className="agendaInlinePlanner">
+              <details className="agendaInlinePanel" open>
+                <summary>{textByLocale(locale, "Assign work from this day", "Asignar trabajo desde este dia")}</summary>
+                <div className="formGrid">
+                  <label className="fullWidth">
+                    <span>{textByLocale(locale, "Work title", "Titulo del trabajo")}</span>
+                    <input value={quickTaskForm.title} onChange={(event) => setQuickTaskForm((current) => ({ ...current, title: event.target.value }))} />
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Assigned user", "Usuario asignado")}</span>
+                    <select value={quickTaskForm.assigneeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, assigneeId: event.target.value }))}>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>{user.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Date", "Fecha")}</span>
+                    <input type="date" value={quickTaskForm.scheduledFor} onChange={(event) => {
+                      setSelectedDate(event.target.value);
+                      setQuickTaskForm((current) => ({ ...current, scheduledFor: event.target.value }));
+                    }} />
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Province", "Provincia")}</span>
+                    <select value={quickTaskForm.provinceId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, provinceId: event.target.value }))}>
+                      {provinces.filter((province) => province.active).map((province) => (
+                        <option key={province.id} value={province.id}>{province.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Zone", "Zona")}</span>
+                    <select value={quickTaskForm.zoneId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, zoneId: event.target.value }))}>
+                      {zones.filter((zone) => zone.active && zone.provinceId === quickTaskForm.provinceId).map((zone) => (
+                        <option key={zone.id} value={zone.id}>{zone.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Point of sale", "Punto de venta")}</span>
+                    <select value={quickTaskForm.pointOfSaleId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, pointOfSaleId: event.target.value }))}>
+                      {routePointOfSaleOptions.map((pointOfSale) => (
+                        <option key={pointOfSale.id} value={pointOfSale.id}>{pointOfSale.name}</option>
+                      ))}
+                    </select>
+                    {!routePointOfSaleOptions.length ? (
+                      <small className="fieldHint">{textByLocale(locale, "Add a route stop first before assigning this work.", "Primero agrega una parada de ruta antes de asignar este trabajo.")}</small>
+                    ) : null}
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Client", "Cliente")}</span>
+                    <select value={quickTaskForm.clientId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, clientId: event.target.value }))}>
+                      {clients.filter((client) => client.active).map((client) => (
+                        <option key={client.id} value={client.id}>{client.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Task type", "Tipo de tarea")}</span>
+                    <select value={quickTaskForm.taskTypeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, taskTypeId: event.target.value }))}>
+                      {taskTypes.filter((taskType) => taskType.active).map((taskType) => (
+                        <option key={taskType.id} value={taskType.id}>{taskType.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Activity", "Actividad")}</span>
+                    <select value={quickTaskForm.activityTypeId} onChange={(event) => setQuickTaskForm((current) => ({ ...current, activityTypeId: event.target.value }))}>
+                      {activityTypes.filter((activityType) => activityType.active).map((activityType) => (
+                        <option key={activityType.id} value={activityType.id}>{activityType.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="taskFormActions">
+                  <button className="primaryAction" disabled={loading || isPending || !quickTaskForm.title || !quickTaskForm.assigneeId || !quickTaskForm.zoneId || !quickTaskForm.pointOfSaleId || !quickTaskForm.activityTypeId || !quickTaskForm.taskTypeId} type="button" onClick={() => void createQuickTask()}>
+                    {textByLocale(locale, "Assign work", "Asignar trabajo")}
+                  </button>
+                </div>
+              </details>
+
+              <details className="agendaInlinePanel">
+                <summary>{textByLocale(locale, "Create shared event", "Crear evento compartido")}</summary>
+                <div className="formGrid">
+                  <label className="fullWidth">
+                    <span>{textByLocale(locale, "Title", "Titulo")}</span>
+                    <input value={agendaForm.title} onChange={(event) => setAgendaForm((current) => ({ ...current, title: event.target.value }))} />
+                  </label>
+                  <label className="fullWidth">
+                    <span>{textByLocale(locale, "Description", "Descripcion")}</span>
+                    <textarea value={agendaForm.description} onChange={(event) => setAgendaForm((current) => ({ ...current, description: event.target.value }))} />
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Start", "Inicio")}</span>
+                    <input value={agendaForm.startAt} onChange={(event) => setAgendaForm((current) => ({ ...current, startAt: event.target.value }))} />
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "End", "Fin")}</span>
+                    <input value={agendaForm.endAt} onChange={(event) => setAgendaForm((current) => ({ ...current, endAt: event.target.value }))} />
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Scope", "Alcance")}</span>
+                    <select value={agendaForm.scopeType} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeType: event.target.value as AgendaFormState["scopeType"], scopeReferenceId: "" }))}>
+                      <option value="organization">{textByLocale(locale, "organization", "organizacion")}</option>
+                      <option value="team">{textByLocale(locale, "team", "equipo")}</option>
+                      <option value="user">{textByLocale(locale, "user", "usuario")}</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Scope target", "Objetivo del alcance")}</span>
+                    {agendaForm.scopeType === "organization" ? (
+                      <input disabled value={textByLocale(locale, "All operation", "Toda la operacion")} />
+                    ) : agendaForm.scopeType === "team" ? (
+                      <select value={agendaForm.scopeReferenceId} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeReferenceId: event.target.value }))}>
+                        <option value="">{textByLocale(locale, "Select target", "Selecciona objetivo")}</option>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>{team.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <select value={agendaForm.scopeReferenceId} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeReferenceId: event.target.value }))}>
+                        <option value="">{textByLocale(locale, "Select target", "Selecciona objetivo")}</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>{user.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Owner", "Responsable")}</span>
+                    <select value={agendaForm.ownerUserId} onChange={(event) => setAgendaForm((current) => ({ ...current, ownerUserId: event.target.value }))}>
+                      <option value="">{textByLocale(locale, "No owner", "Sin responsable")}</option>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>{user.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{textByLocale(locale, "Team", "Equipo")}</span>
+                    <select value={agendaForm.teamId} onChange={(event) => setAgendaForm((current) => ({ ...current, teamId: event.target.value }))}>
+                      <option value="">{textByLocale(locale, "No team", "Sin equipo")}</option>
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id}>{team.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="taskFormActions">
+                  <button className="primaryAction" disabled={loading || isPending || !agendaForm.title} type="button" onClick={() => void createAgendaEvent()}>
+                    {textByLocale(locale, "Create agenda event", "Crear evento de agenda")}
+                  </button>
+                </div>
+              </details>
+            </div>
+          ) : null}
+
+          <div className="agendaDayUserGrid">
+            {selectedDayPanels.map((panel) => (
+              <section className="agendaDayUserCard" key={panel.id}>
                 <div className="taskCardHeader">
                   <div>
-                    <h4>{entry.title}</h4>
+                    <h4>{panel.label}</h4>
                     <p>
-                      {calendarEntryKindLabel(locale, entry.kind)} / {entry.startAt}
+                      {panel.entries.length} {textByLocale(locale, "planned", "planeado")} / {panel.evidence.length} {textByLocale(locale, "evidence", "evidencia")} / {panel.activities.length} {textByLocale(locale, "activities", "actividades")} / {panel.consignations.length} {textByLocale(locale, "consignations", "consignaciones")}
                     </p>
                   </div>
-                  <span className="taskBadge">{entry.status ? clientRequestStatusLabel(locale, entry.status as ClientRequestStatus) : calendarEntryKindLabel(locale, entry.kind)}</span>
+                  <span className="taskBadge">{panel.kind}</span>
                 </div>
-                {entry.description ? <p>{entry.description}</p> : null}
-              </article>
+
+                {panel.entries.length ? (
+                  <div className="taskList">
+                    {panel.entries.map((entry) => {
+                      const relatedTask = entry.taskId ? taskById.get(entry.taskId) : undefined;
+                      const pointOfSale = relatedTask?.pointOfSaleId ? pointOfSaleById.get(relatedTask.pointOfSaleId) : undefined;
+                      return (
+                        <article className="taskCard" key={entry.id}>
+                          <div className="taskCardHeader">
+                            <div>
+                              <h4>{entry.title}</h4>
+                              <p>
+                                {calendarEntryKindLabel(locale, entry.kind)} / {entry.startAt}
+                              </p>
+                            </div>
+                            <span className="taskBadge">{entry.status ? clientRequestStatusLabel(locale, entry.status as ClientRequestStatus) : calendarEntryKindLabel(locale, entry.kind)}</span>
+                          </div>
+                          {entry.description ? <p>{entry.description}</p> : null}
+                          {pointOfSale ? <p>{textByLocale(locale, "Store", "Punto de venta")}: {pointOfSale.name}</p> : null}
+                          {isPlanner && entry.kind === "agenda_event" ? (
+                            <div className="taskStatusActions">
+                              <button className="secondaryAction dangerAction" type="button" onClick={() => void deleteAgendaEvent(entry.id.replace("agenda-", ""))}>
+                                {textByLocale(locale, "Remove event", "Eliminar evento")}
+                              </button>
+                            </div>
+                          ) : null}
+                          {isPlanner && entry.kind === "task" && entry.taskId ? (
+                            <div className="taskStatusActions">
+                              <button className="secondaryAction dangerAction" type="button" onClick={() => void deleteTask(entry.taskId!)}>
+                                {textByLocale(locale, "Remove task", "Eliminar tarea")}
+                              </button>
+                            </div>
+                          ) : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {panel.evidence.length ? (
+                  <div className="taskList">
+                    {panel.evidence.map((item) => (
+                      <article className="taskCard" key={item.id}>
+                        <div className="taskCardHeader">
+                          <div>
+                            <h4>{textByLocale(locale, "Evidence captured", "Evidencia capturada")}</h4>
+                            <p>{item.type} / {item.capturedAt}</p>
+                          </div>
+                          <span className="taskBadge">{item.uploadStatus}</span>
+                        </div>
+                        <p>{renderTaskLocation(taskById.get(item.taskId), pointOfSaleById, locale)}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+
+                {panel.activities.length ? (
+                  <div className="taskList">
+                    {panel.activities.map((item) => (
+                      <article className="taskCard" key={item.id}>
+                        <div className="taskCardHeader">
+                          <div>
+                            <h4>{textByLocale(locale, "Activity completed", "Actividad completada")}</h4>
+                            <p>{item.recordedAt}</p>
+                          </div>
+                          <span className="taskBadge">x{item.quantity}</span>
+                        </div>
+                        {item.note ? <p>{item.note}</p> : null}
+                        <p>{renderTaskLocation(taskById.get(item.taskId), pointOfSaleById, locale)}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+
+                {panel.consignations.length ? (
+                  <div className="taskList">
+                    {panel.consignations.map((item) => (
+                      <article className="taskCard" key={item.id}>
+                        <div className="taskCardHeader">
+                          <div>
+                            <h4>{textByLocale(locale, "Consignation flow", "Flujo de consignacion")}</h4>
+                            <p>{renderConsignationDate(item, selectedDate, locale)}</p>
+                          </div>
+                          <span className="taskBadge">{item.status}</span>
+                        </div>
+                        {item.note ? <p>{item.note}</p> : null}
+                        <p>{renderTaskLocation(taskById.get(item.taskId), pointOfSaleById, locale)}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
             ))}
-            {visibleEntries.filter((entry) => entry.startAt.slice(0, 10) === selectedDate).length === 0 ? (
-              <p className="catalogEmptyState">{textByLocale(locale, "No work planned for this day.", "No hay trabajo planeado para este dia.")}</p>
+            {selectedDayPanels.length === 0 ? (
+              <p className="catalogEmptyState">{textByLocale(locale, "No operational activity was found for this day.", "No se encontro actividad operativa para este dia.")}</p>
             ) : null}
           </div>
         </article>
-
-        {isPlanner ? (
-        <article className="catalogManagerCard">
-          <div className="catalogManagerHeader">
-            <div>
-              <h3>{textByLocale(locale, "Create agenda event", "Crear evento de agenda")}</h3>
-              <p>{textByLocale(locale, "Use shared events for team meetings, special activations, holiday blockers, and supervisor follow-up windows.", "Usa eventos compartidos para reuniones de equipo, activaciones especiales, bloqueos por feriados y ventanas de seguimiento de supervision.")}</p>
-            </div>
-          </div>
-          <div className="formGrid">
-            <label className="fullWidth">
-              <span>{textByLocale(locale, "Title", "Titulo")}</span>
-              <input value={agendaForm.title} onChange={(event) => setAgendaForm((current) => ({ ...current, title: event.target.value }))} />
-            </label>
-            <label className="fullWidth">
-              <span>{textByLocale(locale, "Description", "Descripcion")}</span>
-              <textarea value={agendaForm.description} onChange={(event) => setAgendaForm((current) => ({ ...current, description: event.target.value }))} />
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Start", "Inicio")}</span>
-              <input value={agendaForm.startAt} onChange={(event) => setAgendaForm((current) => ({ ...current, startAt: event.target.value }))} />
-            </label>
-            <label>
-              <span>{textByLocale(locale, "End", "Fin")}</span>
-              <input value={agendaForm.endAt} onChange={(event) => setAgendaForm((current) => ({ ...current, endAt: event.target.value }))} />
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Scope", "Alcance")}</span>
-              <select value={agendaForm.scopeType} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeType: event.target.value as AgendaFormState["scopeType"] }))}>
-                <option value="organization">{textByLocale(locale, "organization", "organizacion")}</option>
-                <option value="team">{textByLocale(locale, "team", "equipo")}</option>
-                <option value="user">{textByLocale(locale, "user", "usuario")}</option>
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Scope reference", "Referencia de alcance")}</span>
-              <input value={agendaForm.scopeReferenceId} onChange={(event) => setAgendaForm((current) => ({ ...current, scopeReferenceId: event.target.value }))} />
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Owner", "Responsable")}</span>
-              <select value={agendaForm.ownerUserId} onChange={(event) => setAgendaForm((current) => ({ ...current, ownerUserId: event.target.value }))}>
-                <option value="">{textByLocale(locale, "No owner", "Sin responsable")}</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Team", "Equipo")}</span>
-              <select value={agendaForm.teamId} onChange={(event) => setAgendaForm((current) => ({ ...current, teamId: event.target.value }))}>
-                <option value="">{textByLocale(locale, "No team", "Sin equipo")}</option>
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Color token", "Color de agenda")}</span>
-              <input value={agendaForm.colorToken} onChange={(event) => setAgendaForm((current) => ({ ...current, colorToken: event.target.value }))} />
-            </label>
-          </div>
-          <div className="taskFormActions">
-            <button className="primaryAction" disabled={loading || isPending} type="button" onClick={() => void createAgendaEvent()}>
-              {textByLocale(locale, "Create agenda event", "Crear evento de agenda")}
-            </button>
-          </div>
-          <div className="taskList">
-            {agendaEvents.map((item: AgendaEvent) => (
-              <article className="taskCard" key={item.id}>
-                <div className="taskCardHeader">
-                  <div>
-                  <h4>{item.title}</h4>
-                  <p>
-                    {item.startAt} {textByLocale(locale, "to", "a")} {item.endAt}
-                  </p>
-                </div>
-                <span className="taskBadge">{textByLocale(locale, item.scopeType, item.scopeType === "organization" ? "organizacion" : item.scopeType === "team" ? "equipo" : "usuario")}</span>
-                </div>
-                {item.description ? <p>{item.description}</p> : null}
-              </article>
-            ))}
-          </div>
-        </article>
-        ) : null}
       </div>
 
       {isPlanner ? <article className="catalogManagerCard" id="requests">
@@ -1062,4 +1254,107 @@ function formatDayLabel(day: string, locale: "en" | "es") {
     day: "numeric",
     timeZone: "UTC"
   });
+}
+
+function shiftMonth(day: string, amount: number) {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
+function consignationTouchesDate(item: Consignation, selectedDate: string) {
+  return [item.preparedAt, item.reviewedAt, item.sentAt, item.failedAt]
+    .filter(Boolean)
+    .some((value) => value?.slice(0, 10) === selectedDate);
+}
+
+function buildSelectedDayPanels(input: {
+  entries: CalendarEntry[];
+  evidence: EvidencePhoto[];
+  activities: Activity[];
+  consignations: Consignation[];
+  taskById: Map<string, Task>;
+  userById: Map<string, User>;
+}) {
+  const panels = new Map<
+    string,
+    {
+      id: string;
+      label: string;
+      kind: string;
+      entries: CalendarEntry[];
+      evidence: EvidencePhoto[];
+      activities: Activity[];
+      consignations: Consignation[];
+    }
+  >();
+
+  function ensurePanel(id: string, label: string, kind: string) {
+    const current = panels.get(id);
+    if (current) {
+      return current;
+    }
+    const next = { id, label, kind, entries: [], evidence: [], activities: [], consignations: [] };
+    panels.set(id, next);
+    return next;
+  }
+
+  for (const entry of input.entries) {
+    const ownerId = entry.ownerUserId ?? entry.scopeReferenceId ?? (entry.taskId ? input.taskById.get(entry.taskId)?.assigneeId : undefined);
+    const owner = ownerId ? input.userById.get(ownerId) : undefined;
+    const panel = owner
+      ? ensurePanel(owner.id, owner.name, owner.role)
+      : ensurePanel("shared", "Shared / Compartido", "shared");
+    panel.entries.push(entry);
+  }
+
+  for (const item of input.evidence) {
+    const owner = input.userById.get(item.uploaderUserId);
+    ensurePanel(owner?.id ?? "shared", owner?.name ?? "Shared / Compartido", owner?.role ?? "shared").evidence.push(item);
+  }
+
+  for (const item of input.activities) {
+    const owner = input.userById.get(item.userId);
+    ensurePanel(owner?.id ?? "shared", owner?.name ?? "Shared / Compartido", owner?.role ?? "shared").activities.push(item);
+  }
+
+  for (const item of input.consignations) {
+    const owner = input.userById.get(item.userId);
+    ensurePanel(owner?.id ?? "shared", owner?.name ?? "Shared / Compartido", owner?.role ?? "shared").consignations.push(item);
+  }
+
+  return Array.from(panels.values()).sort((left, right) => {
+    if (left.id === "shared") {
+      return 1;
+    }
+    if (right.id === "shared") {
+      return -1;
+    }
+    return left.label.localeCompare(right.label);
+  });
+}
+
+function renderTaskLocation(task: Task | undefined, pointOfSaleById: Map<string, PointOfSale>, locale: "en" | "es") {
+  if (!task) {
+    return textByLocale(locale, "Task details unavailable.", "Detalles de la tarea no disponibles.");
+  }
+  const pointOfSale = task.pointOfSaleId ? pointOfSaleById.get(task.pointOfSaleId) : undefined;
+  if (pointOfSale) {
+    return textByLocale(locale, `Store: ${pointOfSale.name}`, `Punto de venta: ${pointOfSale.name}`);
+  }
+  return textByLocale(locale, `Province ${task.provinceId} / Zone ${task.zoneId}`, `Provincia ${task.provinceId} / Zona ${task.zoneId}`);
+}
+
+function renderConsignationDate(item: Consignation, selectedDate: string, locale: "en" | "es") {
+  if (item.sentAt?.slice(0, 10) === selectedDate) {
+    return textByLocale(locale, `Sent ${item.sentAt}`, `Enviada ${item.sentAt}`);
+  }
+  if (item.failedAt?.slice(0, 10) === selectedDate) {
+    return textByLocale(locale, `Failed ${item.failedAt}`, `Fallida ${item.failedAt}`);
+  }
+  if (item.reviewedAt?.slice(0, 10) === selectedDate) {
+    return textByLocale(locale, `Reviewed ${item.reviewedAt}`, `Revisada ${item.reviewedAt}`);
+  }
+  return textByLocale(locale, `Prepared ${item.preparedAt}`, `Preparada ${item.preparedAt}`);
 }
