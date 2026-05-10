@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Patch, Post, Query, Param, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Patch, Post, Query, Param, Req } from "@nestjs/common";
 import { ZodError } from "zod";
 import {
   calendarQuerySchema,
@@ -50,6 +50,12 @@ export class CalendarController {
   @RequirePermissions("calendar.manage")
   updateAgendaEvent(@Param("id") id: string, @Body() input: UpdateAgendaEventInput, @Req() request: AuthenticatedRequest) {
     return this.service.updateAgendaEvent(id, parseInput(updateAgendaEventSchema, input), this.actorAccessService.getActor(request));
+  }
+
+  @Delete("agenda-events/:id")
+  @RequirePermissions("calendar.manage")
+  deleteAgendaEvent(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.service.deleteAgendaEvent(id, this.actorAccessService.getActor(request));
   }
 }
 

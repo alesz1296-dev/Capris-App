@@ -123,6 +123,11 @@ a {
   min-width: 0;
 }
 
+.mobileQuickAccess,
+.mobileBottomNav {
+  display: none;
+}
+
 .topbar {
   align-items: center;
   display: flex;
@@ -209,6 +214,92 @@ h1 {
 
 .languageSwitch button[aria-pressed="false"] {
   background: #fffdfd;
+}
+
+.mobileQuickAccessHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobileQuickAccessHeader strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.mobileQuickAccessHeader span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mobileQuickAccessNav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.mobileQuickLink {
+  background: #fff7f8;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  flex: 0 0 auto;
+  font-weight: 800;
+  min-height: 40px;
+  min-width: max-content;
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+
+.mobileQuickLinkActive {
+  background: #f3d8dc;
+  border-color: #d57b87;
+  color: var(--brand-strong);
+}
+
+.mobileQuickAccessHint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-bottom: 0;
+}
+
+.mobileBottomNav {
+  background: rgba(255, 253, 253, 0.96);
+  border-top: 1px solid var(--line);
+  bottom: 0;
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  left: 0;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  position: sticky;
+  right: 0;
+  z-index: 40;
+}
+
+.mobileBottomLink {
+  align-items: center;
+  background: #fff7f8;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.74rem;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 46px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.mobileBottomLinkActive {
+  background: #f3d8dc;
+  border-color: #d57b87;
+  color: var(--brand-strong);
 }
 
 .sidebar a:focus-visible,
@@ -910,6 +1001,26 @@ a {
   text-transform: uppercase;
 }
 
+.calendarMonthNav {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.calendarMonthArrow {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--brand);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 900;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
 .calendarWeekdayGrid,
 .calendarMonthGrid {
   display: grid;
@@ -1026,6 +1137,47 @@ a {
   font-size: 0.78rem;
   line-height: 1.4;
   margin-top: 0.35rem;
+}
+
+.agendaDayMetrics {
+  margin-bottom: 16px;
+}
+
+.agendaInlinePlanner {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.agendaInlinePanel {
+  background: #fff9fa;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 16px 16px;
+}
+
+.agendaInlinePanel summary {
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 900;
+  margin-bottom: 12px;
+}
+
+.agendaDayUserGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.agendaDayUserCard {
+  background: #fffdfd;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.dangerAction {
+  border-color: #e7b1b7;
+  color: #9e2230;
 }
 
 .routeCommandCenter {
@@ -1477,17 +1629,11 @@ a {
   }
 
   .sidebar {
-    border-bottom: 1px solid var(--line);
-    border-right: 0;
-    padding: 18px 20px;
-  }
-
-  .sidebar nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: none;
   }
 
   .workspace {
-    padding: 20px;
+    padding: 20px 20px 92px;
   }
 
   .loginPage {
@@ -1510,6 +1656,20 @@ a {
   .topbarControls {
     justify-items: stretch;
     width: 100%;
+  }
+
+  .mobileQuickAccess {
+    background: linear-gradient(180deg, #fffdfd 0%, #fff7f8 100%);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 14px;
+  }
+
+  .mobileBottomNav {
+    display: grid;
   }
 
   .authPanel {
@@ -1564,44 +1724,9 @@ a {
 }
 
 @media (max-width: 560px) {
-  .sidebar {
-    padding: 14px 14px 10px;
-  }
-
-  .sidebar strong {
-    margin-bottom: 14px;
-  }
-
-  .sidebar nav {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 6px;
-    scroll-snap-type: x proximity;
-  }
-
-  .sidebar nav::-webkit-scrollbar {
-    height: 6px;
-  }
-
-  .sidebarLink {
-    background: #fff7f8;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    flex: 0 0 auto;
-    min-width: max-content;
-    padding: 10px 14px;
-    scroll-snap-align: start;
-    white-space: nowrap;
-  }
-
-  .sidebarLinkActive {
-    border-color: #d57b87;
-  }
-
   .workspace {
     padding: 14px;
+    padding-bottom: 96px;
   }
 
   .calendarDayGrid {

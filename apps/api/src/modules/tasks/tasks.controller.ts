@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import { ZodError } from "zod";
 import {
   createTaskSchema,
@@ -59,6 +59,12 @@ export class TasksController {
   @RequirePermissions("tasks.complete")
   updateTaskStatus(@Param("id") id: string, @Body() input: UpdateTaskStatusInput, @Req() request: AuthenticatedRequest) {
     return this.service.updateTaskStatus(id, parseTaskInput(updateTaskStatusSchema, input), this.actorAccessService.getActor(request));
+  }
+
+  @Delete(":id")
+  @RequirePermissions("tasks.assign")
+  deleteTask(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.service.deleteTask(id, this.actorAccessService.getActor(request));
   }
 }
 
