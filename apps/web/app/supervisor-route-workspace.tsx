@@ -2,10 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import type { AuthProfileResponse, Consignation, TaskBootstrap } from "@capris/shared";
-import { AgendaAdmin } from "./agenda-admin";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
 import { textByLocale, useAppLocale } from "./locale-client";
-import { TaskAdmin } from "./task-admin";
 
 const ORGANIZATION_ID = "org_capris";
 
@@ -243,8 +241,8 @@ export function SupervisorRouteWorkspace() {
         <p className="sectionDescription">
           {textByLocale(
             locale,
-            "Supervisors can add shared route stops, assign route work, prepare consignations, and create agenda events from the same operational page.",
-            "Los supervisores pueden agregar paradas compartidas, asignar trabajo de ruta, preparar consignaciones y crear eventos de agenda desde la misma pagina operativa."
+            "Supervisors can add shared route stops and prepare consignations here, while task assignment and agenda planning stay on their own dedicated pages.",
+            "Los supervisores pueden agregar paradas compartidas y preparar consignaciones aqui, mientras la asignacion de tareas y la agenda quedan en sus propias paginas."
           )}
         </p>
       </div>
@@ -422,9 +420,6 @@ export function SupervisorRouteWorkspace() {
           </div>
         </article>
       </div>
-
-      <TaskAdmin />
-      <AgendaAdmin />
     </section>
   );
 }

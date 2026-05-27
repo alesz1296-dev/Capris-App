@@ -1,9 +1,6 @@
+import Link from "next/link";
 import { AppShell } from "../app-shell";
-import { EvidenceAdmin } from "../evidence-admin";
-import { ExceptionsAdmin } from "../exceptions-admin";
-import { StaticCostaRicaMap } from "../province-operations-map";
-import { SupervisorRouteWorkspace } from "../supervisor-route-workspace";
-import { VisitAdmin } from "../visit-admin";
+import { RouteSectionNav } from "../route-section-nav";
 
 export default function RoutesPage() {
   return (
@@ -15,92 +12,102 @@ export default function RoutesPage() {
         es: "Ejecuta paradas de ruta, entradas, salidas y trazas GPS sin mezclarlas con todo el panel principal."
       }}
     >
+      <RouteSectionNav locale="es" />
+
       <section className="routeCommandCenter">
         <div>
           <p className="eyebrow">Ruta diaria</p>
-          <h2>Mapa, visitas, evidencia, excepciones y GPS en un solo lugar</h2>
+          <h2>Un espacio mas limpio para moverse por funciones</h2>
           <p>
-            Esta pagina es la base operativa para usuarios de campo. Supervisores y admins tambien ven herramientas de planeacion cuando su rol lo permite.
+            Rutas ahora funciona como un punto de entrada. Cada bloque importante tiene su propia pagina para que en movil no haga falta recorrer una pantalla larguisima.
           </p>
         </div>
         <nav aria-label="Herramientas de ruta">
-          <a href="#route-map">Mapa</a>
-          <a href="#routes">Visitas y GPS</a>
-          <a href="#route-evidence">Evidencia</a>
-          <a href="#route-exceptions">Excepciones</a>
+          <Link href="/routes/day">Dia de ruta</Link>
+          <Link href="/routes/planning">Planeacion</Link>
+          <Link href="/evidence">Evidencia</Link>
+          <Link href="/exceptions">Excepciones</Link>
         </nav>
       </section>
 
       <section className="catalogSection routeWorkflowSection">
         <div className="sectionHeading">
-          <p className="eyebrow">Flujo diario de ruta</p>
-          <h2>Herramientas de campo dentro de rutas</h2>
+          <p className="eyebrow">Funciones separadas</p>
+          <h2>Menos scroll, mas contexto por pantalla</h2>
           <p className="sectionDescription">
-            Evidencia y excepciones siguen existiendo con todas sus funciones, pero ahora se entienden como pasos del trabajo de ruta y no como destinos principales separados.
+            Cada pagina conserva las herramientas existentes, pero ahora agrupadas por objetivo para que el trabajo diario se sienta mas claro en desktop y mucho mas ligero en movil.
           </p>
         </div>
         <div className="routeWorkflowGrid">
           <article className="routeWorkflowCard">
             <span className="taskBadge">1</span>
-            <h3>Ejecutar visita</h3>
-            <p>Controla check-in, check-out, GPS, provincias, zonas y seguimiento del recorrido del dia.</p>
+            <h3>Dia de ruta</h3>
+            <p>Mapa operativo, visitas, check-in, check-out y GPS en una sola pantalla enfocada en ejecucion.</p>
             <div className="taskCardActions">
-              <a className="primaryAction routeWorkflowLink" href="#routes">
-                Ir al control de ruta
-              </a>
+              <Link className="primaryAction routeWorkflowLink" href="/routes/day">
+                Abrir dia de ruta
+              </Link>
             </div>
           </article>
           <article className="routeWorkflowCard">
             <span className="taskBadge">2</span>
-            <h3>Capturar evidencia</h3>
-            <p>Sube fotos, revisa coordenadas GPS, estado de carga y recuperacion de material capturado durante la ruta.</p>
+            <h3>Planeacion</h3>
+            <p>Paradas compartidas y consignaciones en una pagina separada, con accesos directos a tareas y agenda.</p>
             <div className="taskCardActions">
-              <a className="secondaryAction routeWorkflowLink" href="#route-evidence">
-                Abrir evidencia
-              </a>
+              <Link className="secondaryAction routeWorkflowLink" href="/routes/planning">
+                Abrir planeacion
+              </Link>
             </div>
           </article>
           <article className="routeWorkflowCard">
             <span className="taskBadge">3</span>
-            <h3>Resolver excepciones</h3>
-            <p>Atiende bloqueos de campo, faltantes de GPS, revisiones y controles de acceso del dispositivo desde el contexto operativo.</p>
+            <h3>Evidencia y excepciones</h3>
+            <p>Revision de cargas, miniaturas, bloqueos y aprobaciones sin quedar enterradas al final de la pagina de rutas.</p>
             <div className="taskCardActions">
-              <a className="secondaryAction routeWorkflowLink" href="#route-exceptions">
-                Abrir excepciones
-              </a>
+              <Link className="secondaryAction routeWorkflowLink" href="/evidence">
+                Ir a evidencia
+              </Link>
+              <Link className="secondaryAction routeWorkflowLink" href="/exceptions">
+                Ir a excepciones
+              </Link>
             </div>
           </article>
         </div>
       </section>
-      <section className="catalogSection routeMapSection" id="route-map">
-        <div className="sectionHeading">
-          <p className="eyebrow">Costa Rica &gt; Provincia &gt; Zona</p>
-          <h2>Mapa base de rutas</h2>
-          <p className="sectionDescription">
-            El mapa de Costa Rica vive dentro de Rutas y se muestra antes de cualquier carga operativa, para que siempre tengamos una referencia visual inmediata.
-          </p>
-        </div>
-        <StaticCostaRicaMap locale="es" />
-      </section>
-      <SupervisorRouteWorkspace />
-      <VisitAdmin />
-      <section className="routeEmbeddedWorkspace" id="route-evidence">
-        <details open>
-          <summary>
-            <span>Evidencia de ruta</span>
-            <small>Fotos, GPS, estado de carga y recuperacion</small>
-          </summary>
-          <EvidenceAdmin />
-        </details>
-      </section>
-      <section className="routeEmbeddedWorkspace" id="route-exceptions">
-        <details>
-          <summary>
-            <span>Excepciones de ruta</span>
-            <small>GPS faltante, tienda cerrada, carga fallida y bloqueos</small>
-          </summary>
-          <ExceptionsAdmin />
-        </details>
+
+      <section className="routePageGrid" aria-label="Paginas de trabajo">
+        <article className="routePageCard">
+          <p className="eyebrow">Ejecucion</p>
+          <h3>Visitas, mapa y GPS</h3>
+          <p>Abre la jornada operativa del usuario de campo con todo lo necesario para moverse por la ruta.</p>
+          <Link className="primaryAction routeWorkflowLink" href="/routes/day">
+            Abrir pagina
+          </Link>
+        </article>
+        <article className="routePageCard">
+          <p className="eyebrow">Supervision</p>
+          <h3>Planeacion de rutas</h3>
+          <p>Agrega paradas y prepara consignaciones sin mezclar este flujo con el trabajo de captura.</p>
+          <Link className="primaryAction routeWorkflowLink" href="/routes/planning">
+            Abrir pagina
+          </Link>
+        </article>
+        <article className="routePageCard">
+          <p className="eyebrow">Soporte</p>
+          <h3>Evidencia</h3>
+          <p>Revisa medios, progreso de carga y recuperacion desde una pantalla dedicada.</p>
+          <Link className="primaryAction routeWorkflowLink" href="/evidence">
+            Abrir pagina
+          </Link>
+        </article>
+        <article className="routePageCard">
+          <p className="eyebrow">Control</p>
+          <h3>Excepciones</h3>
+          <p>Gestiona aprobaciones y sesiones de dispositivo sin bajar hasta el final de rutas.</p>
+          <Link className="primaryAction routeWorkflowLink" href="/exceptions">
+            Abrir pagina
+          </Link>
+        </article>
       </section>
     </AppShell>
   );

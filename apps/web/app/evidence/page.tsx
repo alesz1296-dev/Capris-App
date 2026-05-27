@@ -1,5 +1,6 @@
 import { AppShell } from "../app-shell";
 import { EvidenceAdmin } from "../evidence-admin";
+import { RouteSectionNav } from "../route-section-nav";
 
 export default function EvidencePage() {
   return (
@@ -11,6 +12,7 @@ export default function EvidencePage() {
         es: "Revisa medios capturados, coordenadas GPS, estado de carga y acciones de recuperacion en un solo flujo."
       }}
     >
+      <RouteSectionNav locale="es" />
       <EvidenceAdmin />
     </AppShell>
   );
