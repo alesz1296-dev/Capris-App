@@ -28,6 +28,8 @@ const navigation = [
   { href: "/agenda", en: "Agenda", es: "Agenda" },
   { href: "/tasks", en: "Tasks", es: "Tareas" },
   { href: "/routes", en: "Routes", es: "Rutas" },
+  { href: "/evidence", en: "Evidence", es: "Evidencia" },
+  { href: "/exceptions", en: "Exceptions", es: "Excepciones" },
   { href: "/activities", en: "Activities", es: "Actividades" },
   { href: "/reports", en: "Reports", es: "Reportes" },
   { href: "/imports", en: "Imports", es: "Importaciones" },
