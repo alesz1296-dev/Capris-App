@@ -192,6 +192,12 @@ h1 {
   max-width: 72ch;
 }
 
+.appVersionLabel {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 10px;
+}
+
 .languageSwitch {
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -272,13 +278,19 @@ h1 {
   background: rgba(255, 253, 253, 0.96);
   border-top: 1px solid var(--line);
   bottom: 0;
+  display: none;
   gap: 8px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   left: 0;
+  overflow-x: auto;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   position: sticky;
   right: 0;
+  scrollbar-width: none;
   z-index: 40;
+}
+
+.mobileBottomNav::-webkit-scrollbar {
+  display: none;
 }
 
 .mobileBottomLink {
@@ -288,10 +300,12 @@ h1 {
   border-radius: 14px;
   color: var(--muted);
   display: flex;
+  flex: 0 0 auto;
   font-size: 0.74rem;
   font-weight: 800;
   justify-content: center;
   min-height: 46px;
+  min-width: max-content;
   padding: 8px 10px;
   text-align: center;
 }
@@ -505,6 +519,23 @@ h1 {
   background: #fff0f1;
   border: 1px solid #efbcc4;
   color: #8a2f27;
+}
+
+.appUpdateBanner {
+  align-items: center;
+  background: #fff6e7;
+  border: 1px solid #efd39a;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 12px 14px;
+}
+
+.appUpdateBanner p {
+  color: #7b5521;
+  margin-bottom: 0;
 }
 
 .catalogAdminLayout {
@@ -1724,7 +1755,7 @@ a {
   }
 
   .mobileBottomNav {
-    display: grid;
+    display: flex;
   }
 
   .authPanel {
@@ -1818,6 +1849,11 @@ a {
 
   .routeCommandCenter a {
     text-align: center;
+  }
+
+  .appUpdateBanner {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .routeEmbeddedWorkspace summary {

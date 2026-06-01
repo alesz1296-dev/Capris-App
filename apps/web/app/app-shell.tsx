@@ -17,6 +17,12 @@ import { API_BASE_URL, authenticatedFetch, clearStoredTokens, loadStoredTokens, 
 import { persistPreferredLocale, textByLocale, useAppLocale } from "./locale-client";
 import { PwaInstall } from "./pwa-install";
 
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.1.0";
+const APP_DEPLOYMENT_ID = process.env.NEXT_PUBLIC_APP_DEPLOYMENT_ID ?? "local";
+const APP_DEPLOYED_AT = process.env.NEXT_PUBLIC_APP_DEPLOYED_AT ?? "";
+const APP_DEPLOYMENT_STORAGE_KEY = "capris:last-deployment-id";
+const VERSION_CHECK_INTERVAL_MS = 60_000;
+
 const scopeExamples: { type: SupervisorScopeType; referenceName: string }[] = [
   { type: "organization", referenceName: "Capris Costa Rica" },
   { type: "team", referenceName: "Equipo Ruta Central" },
@@ -48,10 +54,10 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
   const pathname = usePathname();
   const [authState, setAuthState] = useState<"checking" | "authorized">("checking");
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
+  const [deploymentMessage, setDeploymentMessage] = useState<string | null>(null);
+  const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
   const visibleNavigation = navigation.filter((item) => !("privileged" in item) || canUsePrivilegedNavigation(profile?.user.role));
-  const activePage = visibleNavigation.find((item) => item.href === pathname);
-  const primaryMobileNavigation = visibleNavigation.filter((item) => ["/", "/agenda", "/routes", "/tasks", "/reports"].includes(item.href));
-  const secondaryMobileNavigation = visibleNavigation.filter((item) => !primaryMobileNavigation.some((entry) => entry.href === item.href));
+  const activePage = visibleNavigation.find((item) => isNavigationActive(item.href, pathname));
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +108,63 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
     });
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const previousDeploymentId = window.localStorage.getItem(APP_DEPLOYMENT_STORAGE_KEY);
+    if (previousDeploymentId && previousDeploymentId !== APP_DEPLOYMENT_ID) {
+      setDeploymentMessage(
+        textByLocale(
+          locale,
+          `Updated to build ${formatDeploymentLabel(APP_VERSION, APP_DEPLOYMENT_ID)}.`,
+          `Aplicacion actualizada a la compilacion ${formatDeploymentLabel(APP_VERSION, APP_DEPLOYMENT_ID)}.`
+        )
+      );
+    }
+    window.localStorage.setItem(APP_DEPLOYMENT_STORAGE_KEY, APP_DEPLOYMENT_ID);
+
+    let active = true;
+    const checkVersion = async () => {
+      try {
+        const response = await fetch("/api/app-version", { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          version?: string;
+          deploymentId?: string;
+        };
+
+        if (!active || !payload.deploymentId || payload.deploymentId === APP_DEPLOYMENT_ID) {
+          return;
+        }
+
+        setUpdateAvailable(
+          textByLocale(
+            locale,
+            `A newer build is live (${formatDeploymentLabel(payload.version ?? APP_VERSION, payload.deploymentId)}). Refresh this page to get the latest deployment.`,
+            `Hay una compilacion mas nueva disponible (${formatDeploymentLabel(payload.version ?? APP_VERSION, payload.deploymentId)}). Recarga esta pagina para usar el despliegue mas reciente.`
+          )
+        );
+      } catch {
+        // Ignore periodic version-check failures and keep the current session usable.
+      }
+    };
+
+    void checkVersion();
+    const intervalId = window.setInterval(() => {
+      void checkVersion();
+    }, VERSION_CHECK_INTERVAL_MS);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [locale]);
+
   if (authState === "checking") {
     return (
       <main className="loginPage">
@@ -142,6 +205,10 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
             <p className="eyebrow">{locale === "es" ? eyebrow.es : eyebrow.en}</p>
             <h1>{locale === "es" ? title.es : title.en}</h1>
             {description ? <p className="pageLead">{locale === "es" ? description.es : description.en}</p> : null}
+            <p className="appVersionLabel">
+              {textByLocale(locale, "Build", "Build")} {formatDeploymentLabel(APP_VERSION, APP_DEPLOYMENT_ID)}
+              {APP_DEPLOYED_AT ? ` • ${APP_DEPLOYED_AT.slice(0, 16).replace("T", " ")}` : ""}
+            </p>
           </div>
           <div className="topbarControls">
             <AuthPanel />
@@ -156,14 +223,24 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
           </div>
         </header>
 
+        {deploymentMessage ? <p className="feedbackSuccess">{deploymentMessage}</p> : null}
+        {updateAvailable ? (
+          <div className="appUpdateBanner">
+            <p>{updateAvailable}</p>
+            <button className="secondaryAction" type="button" onClick={() => window.location.reload()}>
+              {textByLocale(locale, "Refresh now", "Recargar ahora")}
+            </button>
+          </div>
+        ) : null}
+
         <section className="mobileQuickAccess" aria-label={textByLocale(locale, "Quick access", "Accesos rapidos")}>
           <div className="mobileQuickAccessHeader">
             <strong>{activePage ? (locale === "es" ? activePage.es : activePage.en) : title[locale]}</strong>
-            <span>{textByLocale(locale, "Quick access", "Accesos rapidos")}</span>
+            <span>{textByLocale(locale, "Pages", "Paginas")}</span>
           </div>
           <nav className="mobileQuickAccessNav">
             {visibleNavigation.map((item) => {
-              const active = pathname === item.href;
+              const active = isNavigationActive(item.href, pathname);
               return (
                 <Link
                   aria-current={active ? "page" : undefined}
@@ -176,19 +253,17 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
               );
             })}
           </nav>
-          {secondaryMobileNavigation.length ? (
-            <p className="mobileQuickAccessHint">
-              {textByLocale(locale, "Swipe for the rest of the tools.", "Desliza para ver el resto de herramientas.")}
-            </p>
-          ) : null}
+          <p className="mobileQuickAccessHint">
+            {textByLocale(locale, "Use these page shortcuts to move between sections without long scrolling.", "Usa estos accesos de pagina para moverte entre secciones sin hacer scroll largo.")}
+          </p>
         </section>
 
         <PwaInstall locale={locale} />
         {children}
       </section>
       <nav className="mobileBottomNav" aria-label={textByLocale(locale, "Primary navigation", "Navegacion principal")}>
-        {primaryMobileNavigation.map((item) => {
-          const active = pathname === item.href;
+        {visibleNavigation.map((item) => {
+          const active = isNavigationActive(item.href, pathname);
           return (
             <Link
               aria-current={active ? "page" : undefined}
@@ -217,6 +292,22 @@ function redirectToLogin(pathname: string | null) {
 
 function canUsePrivilegedNavigation(role: string | undefined) {
   return role === "admin" || role === "supervisor" || role === "developer" || role === "dev";
+}
+
+function isNavigationActive(href: string, pathname: string | null) {
+  if (!pathname) {
+    return false;
+  }
+
+  if (href === "/") {
+    return pathname === "/";
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function formatDeploymentLabel(version: string, deploymentId: string) {
+  return `v${version} · ${deploymentId.slice(0, 12)}`;
 }
 
 export function AccessOverview() {
