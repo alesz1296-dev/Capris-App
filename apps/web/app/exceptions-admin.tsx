@@ -96,7 +96,7 @@ export function ExceptionsAdmin() {
     });
   }, []);
 
-  const canReview = profile?.user.role === "admin" || profile?.user.role === "supervisor";
+  const canReview = profile?.user.role === "admin" || profile?.user.role === "supervisor_auditor";
   const canRevokeSessions = profile?.user.role === "admin";
 
   const activeSessions = useMemo(

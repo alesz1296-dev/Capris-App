@@ -13,7 +13,7 @@ export const UPLOAD_STATUSES = ["pending_upload", "uploading", "uploaded", "fail
 
 export type Locale = "en" | "es";
 
-export type Role = "admin" | "supervisor" | "field_user";
+export type Role = "admin" | "supervisor_auditor" | "field_user" | "developer_sre";
 
 export type SupervisorScopeType =
   | "organization"
@@ -330,13 +330,18 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     descriptionKey: "role.admin.description"
   },
   {
-    id: "supervisor",
-    nameKey: "role.supervisor",
-    descriptionKey: "role.supervisor.description"
+    id: "supervisor_auditor",
+    nameKey: "role.supervisor_auditor",
+    descriptionKey: "role.supervisor_auditor.description"
   },
   {
     id: "field_user",
     nameKey: "role.field_user",
     descriptionKey: "role.field_user.description"
+  },
+  {
+    id: "developer_sre",
+    nameKey: "role.developer_sre",
+    descriptionKey: "role.developer_sre.description"
   }
 ];

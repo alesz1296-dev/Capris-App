@@ -1,6 +1,16 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
+import { RequestMetricsService } from "../src/modules/system-health/request-metrics.service";
 import { SystemHealthService } from "../src/modules/system-health/system-health.service";
+
+async function testLiveness() {
+  const service = new SystemHealthService({} as never);
+  const liveness = service.getLiveness();
+
+  assert.equal(liveness.status, "ok");
+  assert.equal(liveness.checks.api, "ok");
+  assert.equal(liveness.checks.process, "ok");
+}
 
 async function testReadinessWhenDatabaseIsReachable() {
   const service = new SystemHealthService(
@@ -57,10 +67,27 @@ async function testProtectedHealthDetails() {
   assert.equal(details.checks.reportSnapshots, 3);
 }
 
+async function testPrometheusMetricsRendering() {
+  const metrics = new RequestMetricsService();
+  metrics.recordRequest({
+    method: "GET",
+    route: "/api/v1/system-health/readiness",
+    statusCode: 200,
+    durationMs: 12.34
+  });
+
+  const output = metrics.renderPrometheusMetrics();
+  assert.match(output, /capris_process_uptime_seconds/);
+  assert.match(output, /capris_http_requests_total\{method="GET",route="\/api\/v1\/system-health\/readiness",status_code="200"\} 1/);
+  assert.match(output, /capris_http_request_duration_ms_sum\{method="GET",route="\/api\/v1\/system-health\/readiness"\} 12\.340/);
+}
+
 async function main() {
+  await testLiveness();
   await testReadinessWhenDatabaseIsReachable();
   await testReadinessWhenDatabaseIsUnavailable();
   await testProtectedHealthDetails();
+  await testPrometheusMetricsRendering();
   console.log("System health tests passed.");
 }
 

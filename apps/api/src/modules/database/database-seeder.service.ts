@@ -50,7 +50,7 @@ export class DatabaseSeederService implements OnModuleInit {
           organizationId: "org_capris",
           name: "Daniel Rojas",
           email: "daniel.rojas@capris.example",
-          role: "supervisor",
+          role: "supervisor_auditor",
           locale: "es",
           active: true
         },

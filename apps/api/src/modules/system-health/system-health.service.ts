@@ -14,14 +14,16 @@ type SystemHealthPrisma = PrismaService & {
 export class SystemHealthService {
   constructor(private readonly prisma: PrismaService) {}
 
-  getPublicHealth() {
+  getLiveness() {
     return {
       status: "ok",
       checks: {
         api: "ok",
-        syncQueue: "pending_integration",
-        email: "pending_integration",
-        media: "pending_integration"
+        process: "ok"
+      },
+      runtime: {
+        nodeEnv: process.env.NODE_ENV ?? "development",
+        uptimeSeconds: Math.floor(process.uptime())
       }
     };
   }
@@ -34,6 +36,9 @@ export class SystemHealthService {
         checks: {
           api: "ok",
           database: "ok"
+        },
+        runtime: {
+          nodeEnv: process.env.NODE_ENV ?? "development"
         }
       };
     } catch {
@@ -42,6 +47,9 @@ export class SystemHealthService {
         checks: {
           api: "ok",
           database: "unavailable"
+        },
+        runtime: {
+          nodeEnv: process.env.NODE_ENV ?? "development"
         }
       };
     }

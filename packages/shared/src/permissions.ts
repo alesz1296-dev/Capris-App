@@ -29,6 +29,10 @@ export type Permission =
   | "reports.export"
   | "audit.view"
   | "system_health.view"
+  | "metrics.view"
+  | "ops.read"
+  | "ops.manage"
+  | "developer_tools.use"
   | "device_sessions.revoke";
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
@@ -61,9 +65,13 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "reports.export",
     "audit.view",
     "system_health.view",
+    "metrics.view",
+    "ops.read",
+    "ops.manage",
+    "developer_tools.use",
     "device_sessions.revoke"
   ],
-  supervisor: [
+  supervisor_auditor: [
     "tasks.assign",
     "visits.view",
     "visits.manage",
@@ -82,8 +90,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "exceptions.review",
     "dashboards.view",
     "reports.export",
-    "audit.view",
-    "system_health.view"
+    "audit.view"
   ],
   field_user: [
     "tasks.complete",
@@ -99,6 +106,13 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "exhibitions.view",
     "exhibitions.manage",
     "calendar.view"
+  ],
+  developer_sre: [
+    "system_health.view",
+    "metrics.view",
+    "ops.read",
+    "ops.manage",
+    "developer_tools.use"
   ]
 };
 
@@ -134,7 +148,7 @@ export function canAccessScopedResource(
     return true;
   }
 
-  if (actor.role !== "supervisor") {
+  if (actor.role !== "supervisor_auditor") {
     return false;
   }
 

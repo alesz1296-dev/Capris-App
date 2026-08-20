@@ -199,7 +199,7 @@ export class IdentityAccessService {
       data: { role: input.role }
     });
 
-    if (input.role !== "supervisor") {
+    if (input.role !== "supervisor_auditor") {
       await this.prisma.supervisorScope.updateMany({
         where: { userId: id },
         data: { active: false }
@@ -228,11 +228,11 @@ export class IdentityAccessService {
     };
 
     if (!canAccessOrganization(actor, input.organizationId)) {
-      throw new BadRequestException("Supervisor scope organization must match the user's organization.");
+      throw new BadRequestException("Supervisor/auditor scope organization must match the user's organization.");
     }
 
-    if (userRecord.role !== "supervisor") {
-      throw new BadRequestException(`User ${input.userId} must have the supervisor role to receive scopes.`);
+    if (userRecord.role !== "supervisor_auditor") {
+      throw new BadRequestException(`User ${input.userId} must have the supervisor_auditor role to receive scopes.`);
     }
 
     this.assertRequiredString(input.referenceId, "referenceId");

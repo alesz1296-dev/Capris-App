@@ -46,7 +46,7 @@ export class VisitsService {
     const accessibleCatalogs =
       !actor || actor.role === "admin"
         ? organizationCatalogs
-        : actor.role === "supervisor"
+        : actor.role === "supervisor_auditor"
           ? {
               provinces: await this.actorAccessService.filterReadable(actor, organizationCatalogs.provinces, (province) => ({
                 organizationId: province.organizationId,

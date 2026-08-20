@@ -189,7 +189,7 @@ export function AgendaAdmin() {
   const [requestForm, setRequestForm] = useState<ClientRequestFormState>(EMPTY_REQUEST_FORM);
   const [quickTaskForm, setQuickTaskForm] = useState<QuickTaskFormState>(EMPTY_QUICK_TASK_FORM);
 
-  const isPlanner = profile?.user.role === "admin" || profile?.user.role === "supervisor";
+  const isPlanner = profile?.user.role === "admin" || profile?.user.role === "supervisor_auditor";
   const entries = calendar?.entries ?? [];
   const agendaEvents = calendar?.agendaEvents ?? [];
   const requests = requestBootstrap?.requests ?? [];
@@ -371,7 +371,7 @@ export function AgendaAdmin() {
       }
 
       const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
-      const planner = profilePayload.user.role === "admin" || profilePayload.user.role === "supervisor";
+      const planner = profilePayload.user.role === "admin" || profilePayload.user.role === "supervisor_auditor";
 
       const [calendarResponse, evidenceResponse, requestsResponse, tasksResponse] = await Promise.all([
         authenticatedFetch(`${API_BASE_URL}/calendar/bootstrap?view=${view}&date=${anchorDate}`, { cache: "no-store" }),

@@ -71,7 +71,7 @@ function createReportsService() {
     {
       getUsers: async () => [
         { id: "user_field_001", name: "Lucia Vargas", permissions: [], organizationId: "org_capris", email: "lucia@example.com", role: "field_user", locale: "es", active: true },
-        { id: "user_supervisor_001", name: "Daniel Rojas", permissions: [], organizationId: "org_capris", email: "daniel@example.com", role: "supervisor", locale: "es", active: true }
+        { id: "user_supervisor_001", name: "Daniel Rojas", permissions: [], organizationId: "org_capris", email: "daniel@example.com", role: "supervisor_auditor", locale: "es", active: true }
       ]
     } as never,
     {

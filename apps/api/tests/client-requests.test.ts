@@ -16,7 +16,7 @@ async function testClientRequestValidation() {
         throw new Error("Service should not be reached for invalid request payload.");
       }
     } as never,
-    { getActor: () => ({ organizationId: "org_capris", sub: "user_supervisor_001", role: "supervisor" }) } as never
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_supervisor_001", role: "supervisor_auditor" }) } as never
   );
 
   assert.throws(
@@ -144,7 +144,7 @@ async function testSupervisorReadScopeFiltering() {
     {} as never
   );
 
-  const requests = await service.getClientRequests({ sub: "user_supervisor_001", organizationId: "org_capris", role: "supervisor" } as never);
+  const requests = await service.getClientRequests({ sub: "user_supervisor_001", organizationId: "org_capris", role: "supervisor_auditor" } as never);
   assert.equal(requests.length, 1);
   assert.equal(requests[0]?.id, "request_allowed");
 }

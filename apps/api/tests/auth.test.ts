@@ -236,7 +236,7 @@ async function testRevokeDeviceSessionRequiresAdmin() {
         findUnique: async () => ({
           id: "user_supervisor_001",
           organizationId: "org_capris",
-          role: "supervisor",
+          role: "supervisor_auditor",
           active: true
         })
       }

@@ -16,6 +16,7 @@ import { FieldOperationsController } from "../src/modules/field-operations/field
 import { IdentityAccessController } from "../src/modules/identity-access/identity-access.controller";
 import { NotesController } from "../src/modules/notes/notes.controller";
 import { ObjectStorageController } from "../src/modules/object-storage/object-storage.controller";
+import { MetricsController } from "../src/modules/system-health/metrics.controller";
 import { SystemHealthController } from "../src/modules/system-health/system-health.controller";
 import { TasksController } from "../src/modules/tasks/tasks.controller";
 import { VisitsController } from "../src/modules/visits/visits.controller";
@@ -36,7 +37,9 @@ const publicRoutes: ControllerMethod[] = [
   { controller: AuthController, method: "refresh" },
   { controller: AuthController, method: "signOut" },
   { controller: SystemHealthController, method: "getHealth" },
+  { controller: SystemHealthController, method: "getLiveness" },
   { controller: SystemHealthController, method: "getReadiness" },
+  { controller: MetricsController, method: "getMetrics" },
   { controller: ObjectStorageController, method: "getObject" }
 ];
 

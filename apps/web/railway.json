@@ -13,7 +13,7 @@
   },
   "deploy": {
     "startCommand": "npm --workspace apps/web run railway:start",
-    "healthcheckPath": "/",
+    "healthcheckPath": "/api/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10

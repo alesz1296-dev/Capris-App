@@ -35,7 +35,7 @@ async function testFieldUserCannotActForAnotherUser() {
   );
 }
 
-async function testSupervisorNeedsMatchingScope() {
+async function testSupervisorAuditorNeedsMatchingScope() {
   const service = new ActorAccessService({
     supervisorScope: {
       findMany: async () => [
@@ -57,7 +57,7 @@ async function testSupervisorNeedsMatchingScope() {
       sub: "user_supervisor_001",
       organizationId: "org_capris",
       email: "supervisor@example.com",
-      role: "supervisor",
+      role: "supervisor_auditor",
       locale: "es",
       name: "Supervisor",
       sessionId: "session_2",
@@ -78,7 +78,7 @@ async function testSupervisorNeedsMatchingScope() {
           sub: "user_supervisor_001",
           organizationId: "org_capris",
           email: "supervisor@example.com",
-          role: "supervisor",
+          role: "supervisor_auditor",
           locale: "es",
           name: "Supervisor",
           sessionId: "session_2",
@@ -93,13 +93,13 @@ async function testSupervisorNeedsMatchingScope() {
       ),
     (error: unknown) =>
       error instanceof UnauthorizedException &&
-      `${error.message}`.includes("Supervisor access is outside the allowed operational scope.")
+      `${error.message}`.includes("Supervisor/auditor access is outside the allowed operational scope.")
   );
 }
 
 async function main() {
   await testFieldUserCannotActForAnotherUser();
-  await testSupervisorNeedsMatchingScope();
+  await testSupervisorAuditorNeedsMatchingScope();
   console.log("Actor access tests passed.");
 }
 

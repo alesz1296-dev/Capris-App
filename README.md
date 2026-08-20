@@ -1,6 +1,6 @@
 # Capris App
 
-Bilingual field-operations platform for Costa Rica, built for field users, supervisors, and admins.
+Bilingual field-operations platform for Costa Rica, built for field users, supervisor/auditors, developer/SRE operators, and admins.
 
 Capris combines a Railway-deployable Next.js PWA with a NestJS API for task assignment, route execution, visits, GPS-backed evidence, activities, exhibitions, consignations, client follow-up, dashboards, reports, imports, and access control.
 
@@ -9,8 +9,9 @@ Capris combines a Railway-deployable Next.js PWA with a NestJS API for task assi
 Capris is designed for teams that manage field work across Costa Rican provinces, operational zones, clients, and points of sale.
 
 - Field users execute assigned route work, visits, GPS check-ins/check-outs, evidence capture, activities, and exhibitions.
-- Supervisors plan route work by person and date, add shared route stops/stores, prepare consignations, create agenda events, and review assigned operational progress.
+- Supervisor/auditors plan route work by person and date, add shared route stops/stores, prepare consignations, create agenda events, and review assigned operational progress.
 - Admins manage full platform access, reports, imports, configuration, and organization-wide operations.
+- Developer/SRE users get operational access for metrics, platform health, and environment-level troubleshooting without inheriting business-planning permissions.
 
 ## Current Functionality
 
@@ -56,7 +57,8 @@ The web app is currently the primary deployed field/admin experience. It support
 ## Roles And Permissions
 
 - `admin`: full organization-level platform control.
-- `supervisor`: scoped planning and operational control, including task assignment, calendar management, route stop creation, consignation review/send, evidence visibility, reports, and exceptions.
+- `supervisor_auditor`: scoped planning, review, and auditing control, including task assignment, calendar management, route stop creation, consignation review/send, evidence visibility, reports, and exceptions.
+- `developer_sre`: operational visibility for metrics, diagnostics, and platform support paths.
 - `field_user`: personal route execution, visit performance, evidence upload, notes, activities, exhibitions, calendar visibility, and scoped consignation visibility.
 
 Important security behavior:
@@ -64,11 +66,11 @@ Important security behavior:
 - The web app requires a valid JWT before loading protected pages.
 - The API derives organization ownership from the authenticated actor where possible.
 - Field users only see their personal calendar and scoped operational records.
-- Field users no longer have `consignations.review_send`; consignation approval/delivery is supervisor/admin-only.
+- Field users no longer have `consignations.review_send`; consignation approval/delivery is supervisor/auditor or admin-only.
 
 ## Route And Agenda Workflow
 
-Supervisor/admin planning flow:
+Supervisor/auditor/admin planning flow:
 
 1. Add or select a shared point of sale/store under `Rutas`.
 2. Assign work to a specific user and day from `Agenda` or the task assignment surface.
@@ -125,10 +127,11 @@ npm --workspace apps/api run db:seed:roles
 
 For Railway, use the Postgres service connection string from the same Railway project/environment. The internal Railway URL works from Railway services only; use the public database URL only from local tools if Railway exposes one.
 
-`db:seed:roles` upserts three QA users for role verification:
+`db:seed:roles` upserts QA users for role verification:
 
 - Admin: `maria.solis@capris.example`
-- Supervisor: `daniel.rojas@capris.example`
+- Supervisor/Auditor: `daniel.rojas@capris.example`
+- Developer/SRE: `andres.campos@capris.example`
 - Field user: `lucia.vargas@capris.example`
 
 Set `CAPRIS_QA_PASSWORD` before running the role fixture script in staging. If no password is provided outside production, the local-only default is `CaprisLocal123!`.
@@ -168,18 +171,28 @@ Railway service split:
 - Web/PWA service: `apps/web`
 - Postgres service: Railway PostgreSQL plugin/service in the same project and environment
 
-API health check:
+API probe endpoints:
 
 ```text
 /api/v1/system-health
+/api/v1/system-health/liveness
+/api/v1/system-health/readiness
+/api/v1/metrics
+```
+
+Web probe endpoints:
+
+```text
+/api/health
+/api/readiness
 ```
 
 Important Railway variables:
 
-- API: `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `MEDIA_URL_SIGNING_SECRET`, `NODE_ENV`, optional email/storage/map tokens.
+- API: `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `MEDIA_URL_SIGNING_SECRET`, `NODE_ENV`, optional `METRICS_BEARER_TOKEN`, plus optional email/storage/map tokens.
 - Web/PWA: `NEXT_PUBLIC_API_BASE_URL=https://<api-service-domain>/api/v1`.
 
-Do not commit real secrets. Keep Railway secrets in Railway variables only.
+Do not commit real secrets. Keep API/runtime secrets in Railway variables, Kubernetes secrets, or another secret store. Keep web `NEXT_PUBLIC_*` values limited to non-sensitive configuration only.
 
 ## Validation Workflow
 
@@ -211,10 +224,10 @@ npm --workspace apps/api run db:push
 
 1. Run `npm --workspace apps/api run db:seed:roles` against the target database.
 2. Log in as admin and confirm `Acceso`, reports, imports, and admin-only surfaces are visible.
-3. Log in as supervisor and open `Rutas`.
-4. Add a shared point of sale/store under the supervisor route workspace.
+3. Log in as supervisor/auditor and open `Rutas`.
+4. Add a shared point of sale/store under the supervisor/auditor route workspace.
 5. Open `Agenda`, select a day, assign route work to the field user, and confirm province, zone, and point of sale/store are required.
-6. Return to `Rutas` as supervisor and prepare a consignation for the assigned task.
+6. Return to `Rutas` as supervisor/auditor and prepare a consignation for the assigned task.
 7. Log in as the field user and confirm `Rutas` is the main daily workspace with map, visits/GPS, evidence, and exceptions.
 8. Confirm the field user can see scoped work and execute route actions, but cannot review, send, or fail consignations.
 

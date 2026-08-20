@@ -15,7 +15,7 @@ async function testVisitCreationValidation() {
         throw new Error("Service should not be reached for invalid visit payloads.");
       }
     } as never,
-    { getActor: () => ({ organizationId: "org_capris", sub: "user_supervisor_001", role: "supervisor" }) } as never
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_supervisor_001", role: "supervisor_auditor" }) } as never
   );
 
   assert.throws(

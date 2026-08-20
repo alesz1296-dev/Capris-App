@@ -1,9 +1,10 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import type { CorsOptions } from "@nestjs/common/interfaces/external/cors-options.interface";
-import { json, urlencoded } from "express";
+import { json, urlencoded, type NextFunction, type Request, type Response } from "express";
 import { AppModule } from "./app.module";
 import { PrismaService } from "./modules/database/prisma.service";
+import { RequestMetricsService, resolveRequestRouteLabel } from "./modules/system-health/request-metrics.service";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,6 +13,19 @@ async function bootstrap() {
   app.setGlobalPrefix("api/v1");
   app.enableCors(resolveCorsOptions());
   await app.get(PrismaService).enableShutdownHooks(app);
+  const requestMetrics = app.get(RequestMetricsService);
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    const startedAt = performance.now();
+    response.on("finish", () => {
+      requestMetrics.recordRequest({
+        method: request.method,
+        route: resolveRequestRouteLabel(request),
+        statusCode: response.statusCode,
+        durationMs: performance.now() - startedAt
+      });
+    });
+    next();
+  });
   await app.listen(process.env.PORT ? Number(process.env.PORT) : 4000);
 }
 

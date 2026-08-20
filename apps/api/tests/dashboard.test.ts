@@ -180,7 +180,7 @@ async function testDashboardSupervisorScopeFiltering() {
     auditServiceStub as never
   );
 
-  const dashboard = await service.getDashboard("en", { sub: "user_supervisor_001", organizationId: "org_capris", role: "supervisor" } as never);
+  const dashboard = await service.getDashboard("en", { sub: "user_supervisor_001", organizationId: "org_capris", role: "supervisor_auditor" } as never);
   assert.equal(dashboard.summary.totalTasks, 1);
   assert.equal(dashboard.summary.totalVisits, 1);
   assert.equal(dashboard.summary.openClientRequests, 1);

@@ -78,7 +78,7 @@ export function ActivitiesAdmin() {
   const consignations = bootstrap?.consignations ?? [];
   const evidence = bootstrap?.evidence ?? [];
   const actionDisabled = loading || isPending;
-  const canReviewConsignations = profile?.user.role === "admin" || profile?.user.role === "supervisor";
+  const canReviewConsignations = profile?.user.role === "admin" || profile?.user.role === "supervisor_auditor";
 
   const activityVisits = useMemo(() => visits.filter((visit) => visit.taskId === activityForm.taskId), [activityForm.taskId, visits]);
   const exhibitionVisits = useMemo(() => visits.filter((visit) => visit.taskId === exhibitionForm.taskId), [exhibitionForm.taskId, visits]);

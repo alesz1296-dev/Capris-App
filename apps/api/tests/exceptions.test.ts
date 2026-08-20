@@ -105,7 +105,7 @@ async function testRejectedExceptionRequiresReviewNote() {
         findFirst: async () => ({
           id: "user_supervisor_001",
           organizationId: "org_capris",
-          role: "supervisor",
+          role: "supervisor_auditor",
           active: true
         })
       }
@@ -143,7 +143,7 @@ async function testControllerReviewUsesAuthenticatedReviewer() {
         sub: "user_supervisor_001",
         organizationId: "org_capris",
         email: "supervisor@example.com",
-        role: "supervisor",
+        role: "supervisor_auditor",
         locale: "es",
         name: "Supervisor User",
         sessionId: "session_2",

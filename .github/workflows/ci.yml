@@ -7,9 +7,35 @@ on:
       - master
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: capris_ci
+          POSTGRES_USER: capris_ci
+          POSTGRES_PASSWORD: capris_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U capris_ci -d capris_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://ci_db_user:ci_db_password@127.0.0.1:5432/capris_ci?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      MEDIA_URL_SIGNING_SECRET: ci-media-signing-secret
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000/api/v1
 
     steps:
       - name: Checkout
@@ -24,7 +50,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
+      - name: Typecheck workspaces
         run: npm run typecheck
 
       - name: Validate Prisma schema
@@ -35,6 +61,12 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Build shared package
+        run: npm --workspace @capris/shared run build
+
+      - name: Build API
+        run: npm --workspace apps/api run build
 
       - name: Build web
         run: npm --workspace apps/web run build

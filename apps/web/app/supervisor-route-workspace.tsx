@@ -45,7 +45,7 @@ export function SupervisorRouteWorkspace() {
   const [pointOfSaleForm, setPointOfSaleForm] = useState<PointOfSaleFormState>(EMPTY_POINT_OF_SALE_FORM);
   const [consignationForm, setConsignationForm] = useState<ConsignationFormState>(EMPTY_CONSIGNATION_FORM);
 
-  const isSupervisorSurface = profile?.user.role === "admin" || profile?.user.role === "supervisor";
+  const isSupervisorSurface = profile?.user.role === "admin" || profile?.user.role === "supervisor_auditor";
   const provinces = bootstrap?.provinces.filter((province) => province.active) ?? [];
   const zones = bootstrap?.zones.filter((zone) => zone.active) ?? [];
   const clients = bootstrap?.clients.filter((client) => client.active) ?? [];

@@ -6,7 +6,7 @@ async function testSupervisorScopeAccess() {
   const allowed = canAccessScopedResource(
     {
       organizationId: "org_capris",
-      role: "supervisor",
+      role: "supervisor_auditor",
       supervisorScopes: [
         {
           id: "scope_1",
@@ -27,7 +27,7 @@ async function testSupervisorScopeAccess() {
   const denied = canAccessScopedResource(
     {
       organizationId: "org_capris",
-      role: "supervisor",
+      role: "supervisor_auditor",
       supervisorScopes: []
     },
     "province",
@@ -39,7 +39,10 @@ async function testSupervisorScopeAccess() {
   assert.equal(denied, false);
   assert.equal(hasPermission("field_user", "catalogs.manage"), false);
   assert.equal(hasPermission("field_user", "consignations.review_send"), false);
-  assert.equal(hasPermission("supervisor", "consignations.review_send"), true);
+  assert.equal(hasPermission("supervisor_auditor", "consignations.review_send"), true);
+  assert.equal(hasPermission("supervisor_auditor", "system_health.view"), false);
+  assert.equal(hasPermission("developer_sre", "metrics.view"), true);
+  assert.equal(hasPermission("developer_sre", "tasks.assign"), false);
 }
 
 async function main() {
