@@ -13,10 +13,21 @@ coverage/
 apps/api/prisma/dev.db
 apps/api/prisma/dev.db-journal
 apps/api/dist-test/
+Capris-App-cleanup.git/
 
 # Private project context and user guides.
 docs/
 guides/
+!docs/
+docs/*
+!docs/backend-phase-1-baseline.md
+!docs/frontend-phase-1-impact.md
+!docs/phase-2-ops-foundation.md
+!docs/phase-2-manual-validation-checklist.md
+!docs/phase-2-wrap-up-status.md
+!docs/grafana-prometheus-operations.md
+!docs/k8s-*.yaml
+!docs/k8s-manifests-guide.md
 
 # Extra protection for confidential planning/architecture notes
 *architecture*.md

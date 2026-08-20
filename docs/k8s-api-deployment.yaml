@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: capris-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: capris-api
+  template:
+    metadata:
+      labels:
+        app: capris-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/api/v1/metrics"
+        prometheus.io/port: "4000"
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/your-org/capris-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: capris-config
+            - secretRef:
+                name: capris-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/v1/system-health/readiness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/system-health/liveness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
