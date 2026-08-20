@@ -13,6 +13,12 @@ export class SystemHealthController {
     return this.service.getPublicHealth();
   }
 
+  @Get("readiness")
+  @Public()
+  getReadiness() {
+    return this.service.getReadiness();
+  }
+
   @Get("details")
   @RequirePermissions("system_health.view")
   getHealthDetails() {

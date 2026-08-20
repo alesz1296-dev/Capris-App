@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 
 type SystemHealthPrisma = PrismaService & {
+  $queryRawUnsafe: (query: string) => Promise<unknown>;
   mediaAsset: any;
   consignation: any;
   reportSnapshot: any;
@@ -23,6 +24,27 @@ export class SystemHealthService {
         media: "pending_integration"
       }
     };
+  }
+
+  async getReadiness() {
+    try {
+      await (this.prisma as unknown as SystemHealthPrisma).$queryRawUnsafe("SELECT 1");
+      return {
+        status: "ok",
+        checks: {
+          api: "ok",
+          database: "ok"
+        }
+      };
+    } catch {
+      return {
+        status: "degraded",
+        checks: {
+          api: "ok",
+          database: "unavailable"
+        }
+      };
+    }
   }
 
   async getProtectedHealthDetails() {

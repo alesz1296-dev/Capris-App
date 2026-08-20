@@ -2,9 +2,36 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { SystemHealthService } from "../src/modules/system-health/system-health.service";
 
+async function testReadinessWhenDatabaseIsReachable() {
+  const service = new SystemHealthService(
+    {
+      $queryRawUnsafe: async () => [{ "?column?": 1 }]
+    } as never
+  );
+
+  const readiness = await service.getReadiness();
+  assert.equal(readiness.status, "ok");
+  assert.equal(readiness.checks.database, "ok");
+}
+
+async function testReadinessWhenDatabaseIsUnavailable() {
+  const service = new SystemHealthService(
+    {
+      $queryRawUnsafe: async () => {
+        throw new Error("database unavailable");
+      }
+    } as never
+  );
+
+  const readiness = await service.getReadiness();
+  assert.equal(readiness.status, "degraded");
+  assert.equal(readiness.checks.database, "unavailable");
+}
+
 async function testProtectedHealthDetails() {
   const service = new SystemHealthService(
     {
+      $queryRawUnsafe: async () => [{ "?column?": 1 }],
       mediaAsset: {
         count: async () => 2
       },
@@ -31,6 +58,8 @@ async function testProtectedHealthDetails() {
 }
 
 async function main() {
+  await testReadinessWhenDatabaseIsReachable();
+  await testReadinessWhenDatabaseIsUnavailable();
   await testProtectedHealthDetails();
   console.log("System health tests passed.");
 }
