@@ -26,6 +26,44 @@ export class FieldOperationsController {
     return this.service.getDashboard(locale, request?.auth);
   }
 
+  @Get("performance/dashboard")
+  @RequirePermissions("performance.view")
+  getPerformanceDashboard(
+    @Query("locale") locale: Locale = "en",
+    @Query("userId") userId?: string,
+    @Query("zoneId") zoneId?: string,
+    @Query("provinceId") provinceId?: string,
+    @Query("clientId") clientId?: string,
+    @Query("dateFrom") dateFrom?: string,
+    @Query("dateTo") dateTo?: string,
+    @Req() request?: AuthenticatedRequest
+  ) {
+    return this.service.getPerformanceDashboard(
+      locale,
+      parseInput(reportFiltersSchema, { userId, zoneId, provinceId, clientId, dateFrom, dateTo }),
+      request?.auth
+    );
+  }
+
+  @Get("performance/scorecards")
+  @RequirePermissions("performance.view")
+  getPerformanceScorecards(
+    @Query("locale") locale: Locale = "en",
+    @Query("userId") userId?: string,
+    @Query("zoneId") zoneId?: string,
+    @Query("provinceId") provinceId?: string,
+    @Query("clientId") clientId?: string,
+    @Query("dateFrom") dateFrom?: string,
+    @Query("dateTo") dateTo?: string,
+    @Req() request?: AuthenticatedRequest
+  ) {
+    return this.service.getPerformanceScorecards(
+      locale,
+      parseInput(reportFiltersSchema, { userId, zoneId, provinceId, clientId, dateFrom, dateTo }),
+      request?.auth
+    );
+  }
+
   @Get("reports/bootstrap")
   @RequirePermissions("reports.export")
   getReportBootstrap(@Query("locale") locale: Locale = "en", @Req() request?: AuthenticatedRequest) {

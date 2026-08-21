@@ -55,6 +55,9 @@ if (!command) {
 }
 
 const loadedEnv = loadRootEnv();
+if (command === "next" && args[0] === "build") {
+  delete loadedEnv.NODE_ENV;
+}
 const pathKey = Object.keys(process.env).find((key) => key.toLowerCase() === "path") ?? "PATH";
 const existingPath = process.env[pathKey] ?? "";
 const extraBinPaths = [
@@ -83,4 +86,3 @@ child.on("exit", (code, signal) => {
 
   process.exit(code ?? 0);
 });
-

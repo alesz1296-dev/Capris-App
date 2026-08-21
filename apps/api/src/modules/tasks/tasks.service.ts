@@ -19,9 +19,11 @@ import { IdentityAccessService } from "../identity-access/identity-access.servic
 import { PrismaService } from "../database/prisma.service";
 
 const ALLOWED_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  pending: ["in_progress", "completed"],
-  in_progress: ["completed"],
-  completed: []
+  pending: ["in_progress", "completed", "cancelled", "rescheduled"],
+  in_progress: ["completed", "cancelled", "rescheduled"],
+  completed: [],
+  cancelled: [],
+  rescheduled: []
 };
 
 @Injectable()

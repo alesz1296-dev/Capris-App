@@ -186,9 +186,110 @@ async function testDashboardSupervisorScopeFiltering() {
   assert.equal(dashboard.summary.openClientRequests, 1);
 }
 
+async function testPerformanceDashboardTracksFieldUserScorecards() {
+  const service = new FieldOperationsService(
+    {
+      visit: {
+        findMany: async () => [
+          { id: "visit_1", taskId: "task_1", assigneeId: "user_field_001", provinceId: "province_san_jose", zoneId: "zone_central", status: "checked_out", scheduledFor: "2026-05-08" }
+        ]
+      },
+      evidencePhoto: {
+        findMany: async () => [{ id: "evidence_1", taskId: "task_1", uploaderUserId: "user_field_001", mediaAssetId: "media_1", type: "after", capturedAt: "2026-05-08T18:00:00.000Z" }]
+      },
+      mediaAsset: {
+        findMany: async () => [{ id: "media_1", uploadStatus: "uploaded", syncState: "synced" }]
+      },
+      activation: {
+        findMany: async () => [{ id: "activity_1", taskId: "task_1", userId: "user_field_001", quantity: 3, recordedAt: "2026-05-08T18:00:00.000Z" }]
+      },
+      exhibitionInstallation: {
+        findMany: async () => [{ id: "exhibition_1", taskId: "task_1", userId: "user_field_001", quantity: 2, recordedAt: "2026-05-08T18:00:00.000Z" }]
+      },
+      consignation: { findMany: async () => [] },
+      clientRequest: { findMany: async () => [] }
+    } as never,
+    {
+      getCatalogBootstrap: async () => ({
+        provinces: [{ id: "province_san_jose", name: "San Jose" }],
+        zones: [{ id: "zone_central", name: "Central" }],
+        clients: [],
+        workflowRules: [],
+        pointsOfSale: [],
+        activityTypes: [],
+        taskTypes: []
+      })
+    } as never,
+    {
+      getUsers: async () => [{ id: "user_field_001", name: "Lucia Vargas", permissions: [] }]
+    } as never,
+    {
+      getTasks: async () => [
+        {
+          id: "task_1",
+          organizationId: "org_capris",
+          title: "Completed Task",
+          requesterId: "user_admin_001",
+          assigneeId: "user_field_001",
+          scheduledFor: "2026-05-08",
+          provinceId: "province_san_jose",
+          zoneId: "zone_central",
+          activityTypeId: "activity_exhibition",
+          taskTypeId: "task_visit",
+          status: "completed",
+          priority: "high",
+          difficulty: "standard"
+        },
+        {
+          id: "task_2",
+          organizationId: "org_capris",
+          title: "Rescheduled Task",
+          requesterId: "user_admin_001",
+          assigneeId: "user_field_001",
+          scheduledFor: "2026-05-09",
+          provinceId: "province_san_jose",
+          zoneId: "zone_central",
+          activityTypeId: "activity_exhibition",
+          taskTypeId: "task_visit",
+          status: "rescheduled",
+          priority: "medium",
+          difficulty: "standard"
+        },
+        {
+          id: "task_3",
+          organizationId: "org_capris",
+          title: "Cancelled Task",
+          requesterId: "user_admin_001",
+          assigneeId: "user_field_001",
+          scheduledFor: "2026-05-10",
+          provinceId: "province_san_jose",
+          zoneId: "zone_central",
+          activityTypeId: "activity_exhibition",
+          taskTypeId: "task_visit",
+          status: "cancelled",
+          priority: "medium",
+          difficulty: "standard"
+        }
+      ]
+    } as never,
+    actorAccessStub as never,
+    auditServiceStub as never
+  );
+
+  const performance = await service.getPerformanceDashboard("en");
+  assert.equal(performance.summary.assignedTasks, 3);
+  assert.equal(performance.summary.completedTasks, 1);
+  assert.equal(performance.summary.rescheduledTasks, 1);
+  assert.equal(performance.summary.cancelledTasks, 1);
+  assert.equal(performance.statusBreakdown.find((item) => item.status === "rescheduled")?.count, 1);
+  assert.equal(performance.scorecards[0]?.userName, "Lucia Vargas");
+  assert.equal(performance.scorecards[0]?.evidenceItems, 1);
+}
+
 async function main() {
   await testDashboardAggregation();
   await testDashboardSupervisorScopeFiltering();
+  await testPerformanceDashboardTracksFieldUserScorecards();
   console.log("Dashboard tests passed.");
 }
 

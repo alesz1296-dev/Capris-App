@@ -441,6 +441,11 @@ h1 {
   margin: 28px 0;
 }
 
+.performanceMetrics,
+.observabilityMetrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .metric,
 .operations > div {
   background: var(--panel);
@@ -1681,6 +1686,74 @@ a {
   white-space: pre;
 }
 
+.statusBreakdownGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.statusBreakdownItem {
+  background: #fffafb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-height: 82px;
+  padding: 12px;
+}
+
+.statusBreakdownItem span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.statusBreakdownItem strong {
+  font-size: 24px;
+}
+
+.scorecardPanel {
+  margin-top: 18px;
+}
+
+.scorecardTableWrap {
+  overflow-x: auto;
+}
+
+.scorecardTable {
+  border-collapse: collapse;
+  min-width: 920px;
+  width: 100%;
+}
+
+.scorecardTable th,
+.scorecardTable td {
+  border-bottom: 1px solid var(--line);
+  padding: 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.scorecardTable th {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.scorecardTable td span {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.observabilityLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .workflowForm {
   display: grid;
   gap: 16px;
@@ -1764,6 +1837,8 @@ a {
   }
 
   .metrics,
+  .performanceMetrics,
+  .observabilityMetrics,
   .operations,
   .accessGrid,
   .catalogGrid,
@@ -1776,7 +1851,8 @@ a {
   .formGrid,
   .toggleGrid,
   .roleGrid,
-  .taskMetaGrid {
+  .taskMetaGrid,
+  .statusBreakdownGrid {
     grid-template-columns: 1fr;
   }
 

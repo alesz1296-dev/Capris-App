@@ -26,10 +26,13 @@ export type Permission =
   | "calendar.manage"
   | "exceptions.review"
   | "dashboards.view"
+  | "performance.view"
+  | "performance.export"
   | "reports.export"
   | "audit.view"
   | "system_health.view"
   | "metrics.view"
+  | "observability.view"
   | "ops.read"
   | "ops.manage"
   | "developer_tools.use"
@@ -62,10 +65,13 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "calendar.manage",
     "exceptions.review",
     "dashboards.view",
+    "performance.view",
+    "performance.export",
     "reports.export",
     "audit.view",
     "system_health.view",
     "metrics.view",
+    "observability.view",
     "ops.read",
     "ops.manage",
     "developer_tools.use",
@@ -89,6 +95,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "calendar.manage",
     "exceptions.review",
     "dashboards.view",
+    "performance.view",
+    "performance.export",
     "reports.export",
     "audit.view"
   ],
@@ -110,6 +118,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   developer_sre: [
     "system_health.view",
     "metrics.view",
+    "observability.view",
     "ops.read",
     "ops.manage",
     "developer_tools.use"

@@ -14,6 +14,7 @@ Capris is designed for teams that manage field work across Costa Rican provinces
 - Developer/SRE users get operational access for metrics, platform health, and environment-level troubleshooting without inheriting business-planning permissions.
 - Business performance tracking for field users should stay in admin/supervisor-only dashboards and reports.
 - Platform observability metrics should stay in developer/SRE operational surfaces and should not be mixed into business dashboards.
+- Phase 3 implementation notes live in [docs/phase-3-analytics-observability.md](/C:/Users/alesz/Projects_Apps/Capris-App/docs/phase-3-analytics-observability.md).
 
 ## Current Functionality
 

@@ -25,6 +25,7 @@ docs/*
 !docs/phase-2-ops-foundation.md
 !docs/phase-2-manual-validation-checklist.md
 !docs/phase-2-wrap-up-status.md
+!docs/phase-3-analytics-observability.md
 !docs/grafana-prometheus-operations.md
 !docs/k8s-*.yaml
 !docs/k8s-manifests-guide.md

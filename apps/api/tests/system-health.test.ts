@@ -56,6 +56,9 @@ async function testProtectedHealthDetails() {
       },
       deviceSession: {
         count: async () => 5
+      },
+      auditLog: {
+        count: async () => 0
       }
     } as never
   );
@@ -65,6 +68,37 @@ async function testProtectedHealthDetails() {
   assert.equal(details.checks.failedUploads, 2);
   assert.equal(details.checks.failedEmails, 1);
   assert.equal(details.checks.reportSnapshots, 3);
+}
+
+async function testAppObservability() {
+  const service = new SystemHealthService(
+    {
+      $queryRawUnsafe: async () => [{ "?column?": 1 }],
+      mediaAsset: {
+        count: async (input?: { where?: unknown }) => (input?.where ? 1 : 0)
+      },
+      consignation: {
+        count: async () => 0
+      },
+      reportSnapshot: {
+        count: async () => 0
+      },
+      reminderRule: {
+        count: async () => 0
+      },
+      deviceSession: {
+        count: async () => 2
+      },
+      auditLog: {
+        count: async () => 0
+      }
+    } as never
+  );
+
+  const observability = await service.getAppObservability();
+  assert.equal(observability.checks.database, "ok");
+  assert.equal(observability.checks.activeSessions, 2);
+  assert.equal(observability.metrics.prometheusPath, "/api/v1/metrics");
 }
 
 async function testPrometheusMetricsRendering() {
@@ -87,6 +121,7 @@ async function main() {
   await testReadinessWhenDatabaseIsReachable();
   await testReadinessWhenDatabaseIsUnavailable();
   await testProtectedHealthDetails();
+  await testAppObservability();
   await testPrometheusMetricsRendering();
   console.log("System health tests passed.");
 }

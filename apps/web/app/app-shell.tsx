@@ -30,16 +30,18 @@ const scopeExamples: { type: SupervisorScopeType; referenceName: string }[] = [
 ];
 
 const navigation = [
-  { href: "/", en: "Dashboard", es: "Panel" },
+  { href: "/", en: "Dashboard", es: "Panel", roles: ["admin", "supervisor_auditor"] },
+  { href: "/performance", en: "Performance", es: "Desempeno", roles: ["admin", "supervisor_auditor"] },
   { href: "/agenda", en: "Agenda", es: "Agenda" },
   { href: "/tasks", en: "Tasks", es: "Tareas" },
   { href: "/routes", en: "Routes", es: "Rutas" },
   { href: "/evidence", en: "Evidence", es: "Evidencia" },
   { href: "/exceptions", en: "Exceptions", es: "Excepciones" },
   { href: "/activities", en: "Activities", es: "Actividades" },
-  { href: "/reports", en: "Reports", es: "Reportes" },
-  { href: "/imports", en: "Imports", es: "Importaciones" },
-  { href: "/access", en: "Access", es: "Acceso", privileged: true }
+  { href: "/reports", en: "Reports", es: "Reportes", roles: ["admin", "supervisor_auditor"] },
+  { href: "/observability", en: "Observability", es: "Observabilidad", roles: ["admin", "developer_sre"] },
+  { href: "/imports", en: "Imports", es: "Importaciones", roles: ["admin"] },
+  { href: "/access", en: "Access", es: "Acceso", roles: ["admin", "developer_sre"] }
 ] as const;
 
 type AppShellProps = {
@@ -56,7 +58,7 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
   const [deploymentMessage, setDeploymentMessage] = useState<string | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
-  const visibleNavigation = navigation.filter((item) => !("privileged" in item) || canUsePrivilegedNavigation(profile?.user.role));
+  const visibleNavigation = navigation.filter((item) => canUseNavigationItem(item, profile?.user.role));
   const activePage = visibleNavigation.find((item) => isNavigationActive(item.href, pathname));
 
   useEffect(() => {
@@ -76,8 +78,9 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
         }
 
         const payload = (await response.json()) as AuthProfileResponse;
-        if (pathname === "/access" && !canUsePrivilegedNavigation(payload.user.role)) {
-          window.location.replace("/");
+        const deniedRoute = isRouteDeniedForRole(pathname, payload.user.role);
+        if (deniedRoute) {
+          window.location.replace(getDefaultRouteForRole(payload.user.role));
           return;
         }
 
@@ -290,8 +293,33 @@ function redirectToLogin(pathname: string | null) {
   window.location.replace(`/login?next=${next}`);
 }
 
-function canUsePrivilegedNavigation(role: string | undefined) {
-  return role === "admin" || role === "supervisor" || role === "developer" || role === "dev";
+function canUseNavigationItem(item: (typeof navigation)[number], role: string | undefined) {
+  return !("roles" in item) || item.roles.includes(role as never);
+}
+
+function isRouteDeniedForRole(pathname: string | null, role: string | undefined) {
+  if (pathname === "/") {
+    return !canUseNavigationItem(navigation[0], role);
+  }
+
+  const matchingItem = navigation
+    .filter((item) => item.href !== "/")
+    .sort((left, right) => right.href.length - left.href.length)
+    .find((item) => pathname === item.href || pathname?.startsWith(`${item.href}/`));
+
+  return Boolean(matchingItem && !canUseNavigationItem(matchingItem, role));
+}
+
+function getDefaultRouteForRole(role: string | undefined) {
+  if (role === "developer_sre") {
+    return "/observability";
+  }
+
+  if (role === "field_user") {
+    return "/agenda";
+  }
+
+  return "/";
 }
 
 function isNavigationActive(href: string, pathname: string | null) {

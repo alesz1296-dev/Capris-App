@@ -1,6 +1,6 @@
 export const DEFAULT_COUNTRY = "Costa Rica" as const;
 export const DEFAULT_TIMEZONE = "America/Costa_Rica" as const;
-export const TASK_STATUSES = ["pending", "in_progress", "completed"] as const;
+export const TASK_STATUSES = ["pending", "in_progress", "completed", "cancelled", "rescheduled"] as const;
 export const VISIT_STATUSES = ["scheduled", "checked_in", "checked_out"] as const;
 export const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 export const DIFFICULTIES = ["easy", "standard", "hard", "critical"] as const;

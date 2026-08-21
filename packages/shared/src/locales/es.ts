@@ -22,6 +22,8 @@ export const es = {
   "status.pending": "Pendiente",
   "status.in_progress": "En proceso",
   "status.completed": "Finalizado",
+  "status.cancelled": "Cancelada",
+  "status.rescheduled": "Reprogramada",
   "sync.pending_sync": "Pendiente de sincronizar",
   "sync.sync_failed": "Sincronizacion fallida",
   "sync.needs_review": "Requiere revision",

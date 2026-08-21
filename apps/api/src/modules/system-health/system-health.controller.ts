@@ -36,4 +36,10 @@ export class SystemHealthController {
   getHealthDetails() {
     return this.service.getProtectedHealthDetails();
   }
+
+  @Get("observability")
+  @RequirePermissions("observability.view")
+  getAppObservability() {
+    return this.service.getAppObservability();
+  }
 }

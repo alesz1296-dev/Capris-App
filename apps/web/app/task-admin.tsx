@@ -40,9 +40,11 @@ type TaskFilterState = {
 };
 
 const STATUS_FLOW: Record<TaskStatus, TaskStatus[]> = {
-  pending: ["in_progress", "completed"],
-  in_progress: ["completed"],
-  completed: []
+  pending: ["in_progress", "completed", "cancelled", "rescheduled"],
+  in_progress: ["completed", "cancelled", "rescheduled"],
+  completed: [],
+  cancelled: [],
+  rescheduled: []
 };
 
 const PRIORITY_RANK: Record<Priority, number> = {

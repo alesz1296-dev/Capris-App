@@ -38,10 +38,18 @@ async function testSupervisorScopeAccess() {
   assert.equal(allowed, true);
   assert.equal(denied, false);
   assert.equal(hasPermission("field_user", "catalogs.manage"), false);
+  assert.equal(hasPermission("field_user", "performance.view"), false);
+  assert.equal(hasPermission("field_user", "observability.view"), false);
   assert.equal(hasPermission("field_user", "consignations.review_send"), false);
   assert.equal(hasPermission("supervisor_auditor", "consignations.review_send"), true);
+  assert.equal(hasPermission("supervisor_auditor", "performance.view"), true);
+  assert.equal(hasPermission("supervisor_auditor", "observability.view"), false);
   assert.equal(hasPermission("supervisor_auditor", "system_health.view"), false);
+  assert.equal(hasPermission("admin", "performance.view"), true);
+  assert.equal(hasPermission("admin", "observability.view"), true);
   assert.equal(hasPermission("developer_sre", "metrics.view"), true);
+  assert.equal(hasPermission("developer_sre", "observability.view"), true);
+  assert.equal(hasPermission("developer_sre", "performance.view"), false);
   assert.equal(hasPermission("developer_sre", "tasks.assign"), false);
 }
 

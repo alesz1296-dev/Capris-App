@@ -22,6 +22,8 @@ export const en = {
   "status.pending": "Pending",
   "status.in_progress": "In progress",
   "status.completed": "Completed",
+  "status.cancelled": "Cancelled",
+  "status.rescheduled": "Rescheduled",
   "sync.pending_sync": "Pending sync",
   "sync.sync_failed": "Sync failed",
   "sync.needs_review": "Needs review",
