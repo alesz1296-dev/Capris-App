@@ -49,6 +49,7 @@ Local development:
 - `PORT`
 - `NODE_ENV`
 - `DATABASE_URL`
+- `DATABASE_URL_DOCKER` when validating through Docker Compose
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
 - `JWT_ACCESS_TTL`
@@ -58,6 +59,8 @@ Local development:
 - `MEDIA_URL_TTL_SECONDS`
 
 Optional depending on features:
+
+Local API scripts should resolve env from the repo-root `.env` so Prisma and Nest use the same source of truth during development.
 
 - `DEFAULT_REGISTRATION_ORGANIZATION_ID`
 - `CAPRIS_QA_PASSWORD`

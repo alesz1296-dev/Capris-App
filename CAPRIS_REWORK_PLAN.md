@@ -176,6 +176,22 @@ Recommended permission groups:
 | System | `system_health.view`, `metrics.view`, `ops.read`, `ops.manage`, `developer_tools.use` |
 | Sessions | `device_sessions.view`, `device_sessions.revoke` |
 
+Recommended analytics split:
+
+| Surface | Audience | Purpose | Example data |
+| --- | --- | --- | --- |
+| Operations dashboard | `admin`, `supervisor_auditor` | Track field execution and team performance | task completion, pending/cancelled/rescheduled work, on-time completion, evidence completion, route coverage, activity totals |
+| Operations reports/scorecards | `admin`, `supervisor_auditor` | Filter, compare, and export field-user performance over time | per-agent weekly/monthly scorecards, province/zone/client slices, completion trends, exception counts |
+| Platform observability dashboard | `developer_sre` | Monitor runtime health and app behavior | request rate, latency, readiness, error counts, upload failures, email failures, queue depth |
+| Platform observability drill-down | `developer_sre` | Debug and operate the platform | Prometheus metrics, protected health details, scrape health, release/build identifiers |
+
+Two required ways to track field-user work:
+
+1. A live supervisor/admin dashboard for current execution state.
+2. Historical supervisor/admin reports and scorecards for weekly/monthly performance review.
+
+These should remain separate from developer observability so business managers are not forced into Prometheus-style tooling and developers are not granted broad business analytics by default.
+
 Recommended data scopes:
 
 | Scope | Meaning |
@@ -211,6 +227,37 @@ RBAC implementation tasks:
 - Add route coverage tests that ensure every controller has either `@Public()` or `@RequirePermissions(...)`.
 - Add permission matrix tests for every role.
 - Add scope tests for `supervisor_auditor`, `field_user`, and `developer_sre` access.
+- Add explicit separation between:
+  - business performance analytics permissions for `admin` and `supervisor_auditor`
+  - platform observability permissions for `developer_sre`
+
+Analytics implementation tasks:
+
+- Define a supervisor/admin performance dashboard contract that includes:
+  - summary KPIs
+  - by-agent leaderboard/scorecard
+  - by-zone / by-province / by-client slices
+  - date-window filtering
+- Define a supervisor/admin reporting/export contract that includes:
+  - weekly and monthly scorecards
+  - task status totals by agent
+  - cancelled and rescheduled counts
+  - evidence compliance
+  - overdue and aging indicators
+- Define a developer/SRE observability dashboard contract that includes:
+  - readiness/liveness state
+  - request throughput and latency
+  - error and failed-upload rates
+  - email/report export failure counters
+  - build/release metadata when available
+- Keep platform observability endpoints and screens separated from business dashboards in both API routing and frontend navigation.
+
+Suggested permission refinement:
+
+- Keep `dashboards.view` and `reports.export` for business analytics.
+- Introduce `performance.view` and `performance.export` if business analytics need to be separated further from general dashboards/reports.
+- Keep `metrics.view`, `system_health.view`, and `ops.read` reserved for platform observability.
+- If admins need emergency observability access, treat it as an explicit break-glass path rather than the default dashboard experience.
 
 Best practices:
 

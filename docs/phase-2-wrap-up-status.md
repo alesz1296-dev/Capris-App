@@ -50,6 +50,14 @@ This note closes the current Phase 2 implementation pass and records what is com
 - confirm GitGuardian closes or rescans the historical credential incident
 - rotate any real credentials that were exposed or reused outside local development
 
+## Next scoped requirement already identified
+
+- add two distinct field-user performance tracking paths for `admin` and `supervisor_auditor`:
+  - live task/performance dashboard
+  - historical weekly/monthly scorecards and reports
+- keep those business analytics hidden from `field_user` and separated from developer observability
+- add a matching developer/SRE app-observability surface for operational metrics, distinct from business dashboards
+
 ## Status call
 
 - Implementation status: complete for this Phase 2 pass

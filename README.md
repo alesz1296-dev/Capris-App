@@ -12,6 +12,8 @@ Capris is designed for teams that manage field work across Costa Rican provinces
 - Supervisor/auditors plan route work by person and date, add shared route stops/stores, prepare consignations, create agenda events, and review assigned operational progress.
 - Admins manage full platform access, reports, imports, configuration, and organization-wide operations.
 - Developer/SRE users get operational access for metrics, platform health, and environment-level troubleshooting without inheriting business-planning permissions.
+- Business performance tracking for field users should stay in admin/supervisor-only dashboards and reports.
+- Platform observability metrics should stay in developer/SRE operational surfaces and should not be mixed into business dashboards.
 
 ## Current Functionality
 
@@ -61,6 +63,12 @@ The web app is currently the primary deployed field/admin experience. It support
 - `developer_sre`: operational visibility for metrics, diagnostics, and platform support paths.
 - `field_user`: personal route execution, visit performance, evidence upload, notes, activities, exhibitions, calendar visibility, and scoped consignation visibility.
 
+Analytics split:
+
+- Business dashboards and field-user performance views are for `admin` and `supervisor_auditor`.
+- Platform health and app observability views are for `developer_sre` and any explicitly approved break-glass admin path.
+- Field users should not see team performance ranking, cross-user scorecards, or platform observability panels.
+
 Important security behavior:
 
 - The web app requires a valid JWT before loading protected pages.
@@ -101,6 +109,13 @@ npm run dev:web
 npm run dev:mobile
 ```
 
+Local environment source of truth:
+
+- Use the repo-root `.env` file for local development values.
+- API and web scripts now load the root `.env` before running Prisma, Nest, or Next commands.
+- `apps/api/.env` should be treated as legacy/local override only and should not be required for normal setup.
+- `apps/web/.env.local` should only be needed for deliberate web-only overrides.
+
 Default local URLs:
 
 - API: `http://localhost:4000/api/v1`
@@ -114,6 +129,12 @@ Local example:
 
 ```env
 DATABASE_URL=postgresql://<db_user>:<db_password>@localhost:5432/capris_app?schema=public
+```
+
+Docker Compose example:
+
+```env
+DATABASE_URL_DOCKER=postgresql://<db_user>:<db_password>@postgres:5432/capris_app?schema=public
 ```
 
 Useful API database commands:
@@ -151,6 +172,12 @@ Bring the stack up with:
 ```bash
 docker compose up --build
 ```
+
+Env split:
+
+- `DATABASE_URL` is for host-local commands like `npm run dev:api`
+- `DATABASE_URL_DOCKER` is for the API container inside Compose
+- keep both values aligned on credentials and database name, but use `localhost` for local tools and `postgres` for Compose
 
 This starts:
 

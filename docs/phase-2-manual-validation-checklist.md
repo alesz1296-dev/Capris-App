@@ -108,6 +108,8 @@ Expected:
 
 ## 4. Container validation
 
+Before starting Compose, confirm `DATABASE_URL_DOCKER` points to the `postgres` service host instead of `localhost`.
+
 1. Run `docker compose up --build`
 2. Confirm:
    - `postgres` is healthy

@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start --hostname 0.0.0.0 --port 3000",
+    "dev": "node scripts/with-root-env.cjs next dev",
+    "build": "node scripts/with-root-env.cjs next build",
+    "start": "node scripts/with-root-env.cjs next start --hostname 0.0.0.0 --port 3000",
     "railway:start": "node start.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "next lint"

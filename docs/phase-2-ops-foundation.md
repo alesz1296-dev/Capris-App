@@ -64,6 +64,7 @@ Separation rules:
 
 - API secrets stay server-side only:
   - `DATABASE_URL`
+  - `DATABASE_URL_DOCKER`
   - `JWT_ACCESS_SECRET`
   - `JWT_REFRESH_SECRET`
   - `MEDIA_URL_SIGNING_SECRET`
@@ -77,6 +78,7 @@ Separation rules:
 Updated [docker-compose.yml](/C:/Users/alesz/Projects_Apps/Capris-App/docker-compose.yml) so the API and web services are closer to stateless runtime expectations:
 
 - config is injected by env vars instead of hard-coded values
+- Compose uses `DATABASE_URL_DOCKER` so container networking does not conflict with host-local `DATABASE_URL`
 - API and web both have healthchecks
 - web waits for a healthy API container
 - state remains in Postgres, not inside the app containers
