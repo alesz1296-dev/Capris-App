@@ -60,7 +60,7 @@ jobs:
         run: npm run typecheck
 
       - name: Validate Prisma schema
-        run: npx prisma validate --schema apps/api/prisma/schema.prisma
+        run: npm --workspace apps/api run db:validate
 
       - name: Sync test database schema
         run: npm --workspace apps/api run db:push

@@ -6,6 +6,7 @@
     "prebuild": "npm run db:generate",
     "build": "nest build",
     "db:generate": "node scripts/with-root-env.cjs prisma generate",
+    "db:validate": "node scripts/with-root-env.cjs prisma validate --schema prisma/schema.prisma",
     "db:init": "node scripts/with-root-env.cjs prisma db push && node scripts/with-root-env.cjs node prisma/seed.cjs",
     "db:push": "node scripts/with-root-env.cjs prisma db push",
     "db:seed": "node scripts/with-root-env.cjs node prisma/seed.cjs",
