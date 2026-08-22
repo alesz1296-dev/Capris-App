@@ -65,8 +65,6 @@ export function minimizeBootstrapForOfflineCache(bootstrap: EvidenceBootstrap): 
       mediaAssetId: item.mediaAssetId,
       type: item.type,
       capturedAt: item.capturedAt,
-      latitude: item.latitude,
-      longitude: item.longitude,
       uploadStatus: item.uploadStatus
     })),
     exhibitions: bootstrap.exhibitions.map((item) => ({
@@ -144,8 +142,6 @@ export function minimizeBootstrapForOfflineCache(bootstrap: EvidenceBootstrap): 
       clientId: item.clientId,
       name: item.name,
       code: item.code,
-      latitude: item.latitude,
-      longitude: item.longitude,
       active: item.active
     })),
     tasks: bootstrap.tasks.map((item) => ({
@@ -176,11 +172,7 @@ export function minimizeBootstrapForOfflineCache(bootstrap: EvidenceBootstrap): 
       pointOfSaleId: item.pointOfSaleId,
       status: item.status,
       checkedInAt: item.checkedInAt,
-      checkedInLatitude: item.checkedInLatitude,
-      checkedInLongitude: item.checkedInLongitude,
-      checkedOutAt: item.checkedOutAt,
-      checkedOutLatitude: item.checkedOutLatitude,
-      checkedOutLongitude: item.checkedOutLongitude
+      checkedOutAt: item.checkedOutAt
     })),
     requirementSummaries: bootstrap.requirementSummaries.map((item) => ({
       taskId: item.taskId,

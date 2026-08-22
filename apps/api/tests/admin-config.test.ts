@@ -106,7 +106,6 @@ async function testUpdateSettingsPersistsRecipients() {
     organizationId: "org_capris",
     defaultRecipientEmails: ["ops@example.com", "trade@example.com"],
     retentionPhotoDays: 365,
-    retentionGpsDays: 180,
     retentionAuditDays: 730
   });
 

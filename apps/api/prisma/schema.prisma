@@ -17,6 +17,8 @@ model Organization {
   teams         Team[]
   scopes        SupervisorScope[]
   provinces     Province[]
+  cantons       Canton[]
+  districts     District[]
   zones         Zone[]
   clients       Client[]
   pointsOfSale  PointOfSale[]
@@ -133,6 +135,8 @@ model Province {
   code           String
   active         Boolean      @default(true)
   organization   Organization @relation(fields: [organizationId], references: [id])
+  cantons        Canton[]
+  districts      District[]
   zones          Zone[]
   pointsOfSale   PointOfSale[]
   tasks          Task[]
@@ -140,6 +144,45 @@ model Province {
   clientRequests ClientRequest[]
 
   @@unique([organizationId, code])
+}
+
+model Canton {
+  id             String       @id
+  organizationId String
+  provinceId     String
+  name           String
+  code           String
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  province       Province     @relation(fields: [provinceId], references: [id])
+  districts      District[]
+  pointsOfSale   PointOfSale[]
+  tasks          Task[]
+  visits         Visit[]
+  clientRequests ClientRequest[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, provinceId])
+}
+
+model District {
+  id             String       @id
+  organizationId String
+  provinceId     String
+  cantonId       String
+  name           String
+  code           String
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  province       Province     @relation(fields: [provinceId], references: [id])
+  canton         Canton       @relation(fields: [cantonId], references: [id])
+  pointsOfSale   PointOfSale[]
+  tasks          Task[]
+  visits         Visit[]
+  clientRequests ClientRequest[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, provinceId, cantonId])
 }
 
 model Zone {
@@ -178,16 +221,18 @@ model PointOfSale {
   id             String       @id
   organizationId String
   provinceId     String
+  cantonId       String?
+  districtId     String?
   zoneId         String
   clientId       String
   name           String
   code           String
   address        String?
-  latitude       Float?
-  longitude      Float?
   active         Boolean      @default(true)
   organization   Organization @relation(fields: [organizationId], references: [id])
   province       Province     @relation(fields: [provinceId], references: [id])
+  canton         Canton?      @relation(fields: [cantonId], references: [id])
+  district       District?    @relation(fields: [districtId], references: [id])
   zone           Zone         @relation(fields: [zoneId], references: [id])
   client         Client       @relation(fields: [clientId], references: [id])
   tasks          Task[]
@@ -232,7 +277,6 @@ model WorkflowRule {
   activityTypeId             String?
   requiresBeforePhoto        Boolean       @default(true)
   requiresAfterPhoto         Boolean       @default(true)
-  requiresGps                Boolean       @default(true)
   requiresComment            Boolean       @default(false)
   requiresSupervisorApproval Boolean       @default(false)
   requiresConsignationEmail  Boolean       @default(false)
@@ -245,10 +289,13 @@ model Task {
   id             String       @id
   organizationId String
   title          String
+  objective      String?
   requesterId    String
   assigneeId     String
   scheduledFor   String
   provinceId     String
+  cantonId       String?
+  districtId     String?
   zoneId         String
   clientId       String?
   pointOfSaleId  String?
@@ -263,6 +310,8 @@ model Task {
   requester      User         @relation("TaskRequester", fields: [requesterId], references: [id])
   assignee       User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
   province       Province     @relation(fields: [provinceId], references: [id])
+  canton         Canton?      @relation(fields: [cantonId], references: [id])
+  district       District?    @relation(fields: [districtId], references: [id])
   zone           Zone         @relation(fields: [zoneId], references: [id])
   client         Client?      @relation(fields: [clientId], references: [id])
   pointOfSale    PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
@@ -289,21 +338,21 @@ model Visit {
   assigneeId         String
   scheduledFor       String
   provinceId         String
+  cantonId           String?
+  districtId         String?
   zoneId             String
   pointOfSaleId      String?
   status             String
   checkedInAt        String?
-  checkedInLatitude  Float?
-  checkedInLongitude Float?
   checkedOutAt       String?
-  checkedOutLatitude Float?
-  checkedOutLongitude Float?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
   organization        Organization  @relation(fields: [organizationId], references: [id])
   task                Task          @relation(fields: [taskId], references: [id])
   assignee            User          @relation(fields: [assigneeId], references: [id])
   province            Province      @relation(fields: [provinceId], references: [id])
+  canton              Canton?       @relation(fields: [cantonId], references: [id])
+  district            District?     @relation(fields: [districtId], references: [id])
   zone                Zone          @relation(fields: [zoneId], references: [id])
   pointOfSale         PointOfSale?  @relation(fields: [pointOfSaleId], references: [id])
   evidencePhotos      EvidencePhoto[]
@@ -356,8 +405,6 @@ model EvidencePhoto {
   mediaAssetId   String
   type           String
   capturedAt     String
-  latitude       Float?
-  longitude      Float?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -516,6 +563,8 @@ model ClientRequest {
   ownerUserId    String
   clientId       String?
   provinceId     String?
+  cantonId       String?
+  districtId     String?
   zoneId         String?
   pointOfSaleId  String?
   taskId         String?
@@ -532,6 +581,8 @@ model ClientRequest {
   owner          User         @relation("ClientRequestOwner", fields: [ownerUserId], references: [id])
   client         Client?      @relation(fields: [clientId], references: [id])
   province       Province?    @relation(fields: [provinceId], references: [id])
+  canton         Canton?      @relation(fields: [cantonId], references: [id])
+  district       District?    @relation(fields: [districtId], references: [id])
   zone           Zone?        @relation(fields: [zoneId], references: [id])
   pointOfSale    PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
   task           Task?        @relation(fields: [taskId], references: [id])
@@ -609,7 +660,6 @@ model AdminSettings {
   organizationId        String       @id
   defaultRecipientEmails String
   retentionPhotoDays    Int
-  retentionGpsDays      Int
   retentionAuditDays    Int
   updatedAt             DateTime     @updatedAt
   organization          Organization @relation(fields: [organizationId], references: [id])

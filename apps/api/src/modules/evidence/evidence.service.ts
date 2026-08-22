@@ -328,9 +328,7 @@ export class EvidenceService {
           visitId: input.visitId ?? null,
           mediaAssetId: mediaAsset.id,
           type: input.type,
-          capturedAt: input.capturedAt,
-          latitude: input.latitude,
-          longitude: input.longitude
+          capturedAt: input.capturedAt
         }
       });
 
@@ -392,8 +390,6 @@ export class EvidenceService {
       uploaderUserId: input.uploaderUserId,
       type: input.type,
       capturedAt: input.capturedAt,
-      latitude: input.latitude,
-      longitude: input.longitude,
       fileName: input.fileName,
       mimeType: input.mimeType,
       originalStoragePath: stored.originalStoragePath,
@@ -782,15 +778,13 @@ export class EvidenceService {
       assigneeId: visit.assigneeId,
       scheduledFor: visit.scheduledFor,
       provinceId: visit.provinceId,
+      cantonId: visit.cantonId ?? undefined,
+      districtId: visit.districtId ?? undefined,
       zoneId: visit.zoneId,
       pointOfSaleId: visit.pointOfSaleId ?? undefined,
       status: visit.status as Visit["status"],
       checkedInAt: visit.checkedInAt ?? undefined,
-      checkedInLatitude: visit.checkedInLatitude ?? undefined,
-      checkedInLongitude: visit.checkedInLongitude ?? undefined,
-      checkedOutAt: visit.checkedOutAt ?? undefined,
-      checkedOutLatitude: visit.checkedOutLatitude ?? undefined,
-      checkedOutLongitude: visit.checkedOutLongitude ?? undefined
+      checkedOutAt: visit.checkedOutAt ?? undefined
     }));
     return this.actorAccessService.filterReadable(actor, normalized, (visit) => ({
       organizationId: visit.organizationId,
@@ -834,8 +828,6 @@ export class EvidenceService {
     mediaAssetId: string;
     type: string;
     capturedAt: string;
-    latitude: number | null;
-    longitude: number | null;
     mediaAsset?: { uploadStatus: string };
   }): EvidencePhoto {
     return {
@@ -847,8 +839,6 @@ export class EvidenceService {
       mediaAssetId: evidence.mediaAssetId,
       type: evidence.type as EvidencePhoto["type"],
       capturedAt: evidence.capturedAt,
-      latitude: evidence.latitude ?? undefined,
-      longitude: evidence.longitude ?? undefined,
       uploadStatus: (evidence.mediaAsset?.uploadStatus ?? "pending_upload") as UploadStatus
     };
   }

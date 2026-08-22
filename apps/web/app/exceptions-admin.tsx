@@ -16,7 +16,7 @@ import { textByLocale, useAppLocale } from "./locale-client";
 const ORGANIZATION_ID = "org_capris";
 
 const EXCEPTION_TYPES: ExceptionType[] = [
-  "missing_gps",
+  "missing_location",
   "poor_signal",
   "closed_store",
   "unavailable_contact",
@@ -68,7 +68,7 @@ type ExceptionFormState = {
 };
 
 const EMPTY_FORM: ExceptionFormState = {
-  type: "missing_gps",
+  type: "missing_location",
   title: "",
   description: "",
   taskId: "",
@@ -96,7 +96,7 @@ export function ExceptionsAdmin() {
     });
   }, []);
 
-  const canReview = profile?.user.role === "admin" || profile?.user.role === "supervisor";
+  const canReview = profile?.user.role === "admin" || profile?.user.role === "supervisor_auditor";
   const canRevokeSessions = profile?.user.role === "admin";
 
   const activeSessions = useMemo(
@@ -269,7 +269,7 @@ export function ExceptionsAdmin() {
           <div className="catalogManagerHeader">
             <div>
               <h3>{textByLocale(locale, "Submit field exception", "Enviar excepcion de campo")}</h3>
-              <p>{textByLocale(locale, "Capture missing GPS, closed-store, upload, off-route, and consignation delivery issues from the live workflow context.", "Captura problemas de GPS faltante, tienda cerrada, cargas fallidas, visitas fuera de ruta y entrega de consignacion desde el flujo operativo en vivo.")}</p>
+              <p>{textByLocale(locale, "Capture incomplete location, closed-store, upload, off-route, and consignation delivery issues from the live workflow context.", "Captura problemas de ubicacion incompleta, tienda cerrada, cargas fallidas, visitas fuera de ruta y entrega de consignacion desde el flujo operativo en vivo.")}</p>
             </div>
           </div>
           <div className="formGrid">

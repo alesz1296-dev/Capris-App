@@ -1,6 +1,6 @@
 export const DEFAULT_COUNTRY = "Costa Rica" as const;
 export const DEFAULT_TIMEZONE = "America/Costa_Rica" as const;
-export const TASK_STATUSES = ["pending", "in_progress", "completed"] as const;
+export const TASK_STATUSES = ["pending", "in_progress", "completed", "cancelled", "rescheduled"] as const;
 export const VISIT_STATUSES = ["scheduled", "checked_in", "checked_out"] as const;
 export const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 export const DIFFICULTIES = ["easy", "standard", "hard", "critical"] as const;
@@ -13,12 +13,14 @@ export const UPLOAD_STATUSES = ["pending_upload", "uploading", "uploaded", "fail
 
 export type Locale = "en" | "es";
 
-export type Role = "admin" | "supervisor" | "field_user";
+export type Role = "admin" | "supervisor_auditor" | "field_user" | "developer_sre";
 
 export type SupervisorScopeType =
   | "organization"
   | "team"
   | "province"
+  | "canton"
+  | "district"
   | "zone"
   | "client";
 
@@ -91,6 +93,25 @@ export interface Province {
   active: boolean;
 }
 
+export interface Canton {
+  id: string;
+  organizationId: string;
+  provinceId: string;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
+export interface District {
+  id: string;
+  organizationId: string;
+  provinceId: string;
+  cantonId: string;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
 export interface Zone {
   id: string;
   organizationId: string;
@@ -114,12 +135,12 @@ export interface PointOfSale {
   organizationId: string;
   zoneId: string;
   provinceId: string;
+  cantonId?: string;
+  districtId?: string;
   clientId: string;
   name: string;
   code: string;
   address?: string;
-  latitude?: number;
-  longitude?: number;
   active: boolean;
 }
 
@@ -127,10 +148,13 @@ export interface Task {
   id: string;
   organizationId: string;
   title: string;
+  objective?: string;
   requesterId: string;
   assigneeId: string;
   scheduledFor: string;
   provinceId: string;
+  cantonId?: string;
+  districtId?: string;
   zoneId: string;
   clientId?: string;
   pointOfSaleId?: string;
@@ -148,15 +172,13 @@ export interface Visit {
   assigneeId: string;
   scheduledFor: string;
   provinceId: string;
+  cantonId?: string;
+  districtId?: string;
   zoneId: string;
   pointOfSaleId?: string;
   status: VisitStatus;
   checkedInAt?: string;
-  checkedInLatitude?: number;
-  checkedInLongitude?: number;
   checkedOutAt?: string;
-  checkedOutLatitude?: number;
-  checkedOutLongitude?: number;
 }
 
 export interface EvidencePhoto {
@@ -168,8 +190,6 @@ export interface EvidencePhoto {
   mediaAssetId: string;
   type: EvidenceType;
   capturedAt: string;
-  latitude?: number;
-  longitude?: number;
   uploadStatus: UploadStatus;
 }
 
@@ -281,6 +301,8 @@ export interface ClientRequest {
   ownerUserId: string;
   clientId?: string;
   provinceId?: string;
+  cantonId?: string;
+  districtId?: string;
   zoneId?: string;
   pointOfSaleId?: string;
   taskId?: string;
@@ -330,13 +352,18 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     descriptionKey: "role.admin.description"
   },
   {
-    id: "supervisor",
-    nameKey: "role.supervisor",
-    descriptionKey: "role.supervisor.description"
+    id: "supervisor_auditor",
+    nameKey: "role.supervisor_auditor",
+    descriptionKey: "role.supervisor_auditor.description"
   },
   {
     id: "field_user",
     nameKey: "role.field_user",
     descriptionKey: "role.field_user.description"
+  },
+  {
+    id: "developer_sre",
+    nameKey: "role.developer_sre",
+    descriptionKey: "role.developer_sre.description"
   }
 ];

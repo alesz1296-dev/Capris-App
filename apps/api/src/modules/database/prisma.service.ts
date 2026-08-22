@@ -56,21 +56,28 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
 function resolveDatasourceUrl(resolvedDbPath: string) {
   const fallbackUrl = `file:${resolvedDbPath.replace(/\\/g, "/")}`;
-  const candidateNames = ["DATABASE_URL", "DATABASE_PRIVATE_URL", "DATABASE_PUBLIC_URL", "POSTGRES_URL", "RAILWAY_DATABASE_URL"];
+  const candidateNames = [
+    "DATABASE_URL",
+    "DATABASE_PRIVATE_URL",
+    "DATABASE_PUBLIC_URL",
+    "POSTGRES_URL",
+    "AWS_RDS_DATABASE_URL",
+    "RDS_DATABASE_URL"
+  ];
   const candidates = candidateNames
     .map((name) => ({ name, value: process.env[name] }))
     .filter((candidate): candidate is { name: string; value: string } => Boolean(candidate.value));
   const primary = process.env.DATABASE_URL;
-  const isProductionLike = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging" || Boolean(process.env.RAILWAY_ENVIRONMENT);
+  const isProductionLike = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
   const primaryIsLocalhost = primary ? isLocalhostDatabaseUrl(primary) : false;
-  const railwayCandidate = candidates.find((candidate) => !isLocalhostDatabaseUrl(candidate.value) && candidate.value.startsWith("postgres"));
-  const selected = isProductionLike && primaryIsLocalhost && railwayCandidate ? railwayCandidate : candidates[0];
+  const remoteCandidate = candidates.find((candidate) => !isLocalhostDatabaseUrl(candidate.value) && candidate.value.startsWith("postgres"));
+  const selected = isProductionLike && primaryIsLocalhost && remoteCandidate ? remoteCandidate : candidates[0];
   const datasourceUrl = selected?.value ?? fallbackUrl;
 
   if (isProductionLike && isLocalhostDatabaseUrl(datasourceUrl)) {
     throw new Error(
       `Refusing to start with a localhost database URL in ${process.env.NODE_ENV ?? "production"} mode. ` +
-        `Set DATABASE_URL to the Railway Postgres connection string. Current source: ${selected?.name ?? "fallback"}.`
+        `Set DATABASE_URL to the deployed PostgreSQL connection string, for example AWS RDS. Current source: ${selected?.name ?? "fallback"}.`
     );
   }
 

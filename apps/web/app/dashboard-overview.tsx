@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { t, type DashboardResponse, type EvidenceBootstrap, type Locale, type ProductivitySummary, type VisitBootstrap } from "@capris/shared";
+import { t, type DashboardResponse, type Locale, type ProductivitySummary } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
 import { textByLocale, useAppLocale } from "./locale-client";
-import { ProvinceOperationsMap } from "./province-operations-map";
 
 export function DashboardOverview() {
   const locale = useAppLocale();
@@ -12,9 +11,6 @@ export function DashboardOverview() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
-  const [visitBootstrap, setVisitBootstrap] = useState<VisitBootstrap | null>(null);
-  const [evidenceBootstrap, setEvidenceBootstrap] = useState<EvidenceBootstrap | null>(null);
-  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadDashboard();
@@ -28,7 +24,6 @@ export function DashboardOverview() {
     try {
       setLoading(true);
       setError(null);
-      setMapError(null);
       const response = await authenticatedFetch(`${API_BASE_URL}/dashboard?locale=${locale}`, { cache: "no-store" });
       if (!response.ok) {
         throw new Error(await extractErrorMessage(response, loadErrorFallback));
@@ -36,25 +31,6 @@ export function DashboardOverview() {
 
       const payload = (await response.json()) as DashboardResponse;
       setDashboard(payload);
-
-      const [visitsResult, evidenceResult] = await Promise.allSettled([
-        fetchJson<VisitBootstrap>(`${API_BASE_URL}/visits/bootstrap`, textByLocale(locale, "Unable to load route map data.", "No se pudieron cargar los datos del mapa de rutas.")),
-        fetchJson<EvidenceBootstrap>(`${API_BASE_URL}/evidence/bootstrap`, textByLocale(locale, "Unable to load evidence map data.", "No se pudieron cargar los datos del mapa de evidencia."))
-      ]);
-
-      if (visitsResult.status === "fulfilled") {
-        setVisitBootstrap(visitsResult.value);
-      } else {
-        setVisitBootstrap(null);
-        setMapError(visitsResult.reason instanceof Error ? visitsResult.reason.message : loadErrorFallback);
-      }
-
-      if (evidenceResult.status === "fulfilled") {
-        setEvidenceBootstrap(evidenceResult.value);
-      } else {
-        setEvidenceBootstrap(null);
-        setMapError((current) => current ?? (evidenceResult.reason instanceof Error ? evidenceResult.reason.message : loadErrorFallback));
-      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : loadErrorFallback);
     } finally {
@@ -93,14 +69,6 @@ export function DashboardOverview() {
         <MetricCard label={t(locale, "dashboard.openClientRequests")} value={`${summary?.openClientRequests ?? 0}`} />
         <MetricCard label={t(locale, "dashboard.overdueClientRequests")} value={`${summary?.overdueClientRequests ?? 0}`} />
       </div>
-
-      <ProvinceOperationsMap
-        locale={locale}
-        visitBootstrap={visitBootstrap}
-        evidenceBootstrap={evidenceBootstrap}
-        loading={loading}
-        error={mapError}
-      />
 
       <section className="operations">
         <div>
@@ -224,13 +192,4 @@ async function extractErrorMessage(response: Response, fallback: string) {
   }
   const text = await response.text();
   return text || fallback;
-}
-
-async function fetchJson<T>(url: string, fallback: string) {
-  const response = await authenticatedFetch(url, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(await extractErrorMessage(response, fallback));
-  }
-
-  return (await response.json()) as T;
 }

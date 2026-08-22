@@ -374,8 +374,8 @@ function formatAuthError(error: unknown, locale: "en" | "es", fallback: string) 
   if (error instanceof TypeError && /fetch/i.test(error.message)) {
     return textByLocale(
       locale,
-      `Could not reach the API at ${API_BASE_URL}. Check NEXT_PUBLIC_API_BASE_URL on the Railway web service and confirm the API is deployed.`,
-      `No se pudo conectar con la API en ${API_BASE_URL}. Revisa NEXT_PUBLIC_API_BASE_URL en el servicio web de Railway y confirma que la API esté desplegada.`
+      `Could not reach the API at ${API_BASE_URL}. Check NEXT_PUBLIC_API_BASE_URL and confirm the API service is running.`,
+      `No se pudo conectar con la API en ${API_BASE_URL}. Revisa NEXT_PUBLIC_API_BASE_URL y confirma que el servicio de API esté en ejecución.`
     );
   }
 

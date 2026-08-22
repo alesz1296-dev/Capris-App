@@ -8,8 +8,8 @@ export default function EvidencePage() {
       eyebrow={{ en: "Field proof", es: "Prueba de campo" }}
       title={{ en: "Evidence and upload control", es: "Evidencia y control de cargas" }}
       description={{
-        en: "Review captured media, GPS coordinates, upload state, and recovery actions in one workflow.",
-        es: "Revisa medios capturados, coordenadas GPS, estado de carga y acciones de recuperacion en un solo flujo."
+        en: "Review captured media, task links, upload state, and recovery actions in one workflow.",
+        es: "Revisa medios capturados, vinculos de tarea, estado de carga y acciones de recuperacion en un solo flujo."
       }}
     >
       <RouteSectionNav locale="es" />

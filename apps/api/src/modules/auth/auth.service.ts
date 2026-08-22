@@ -12,6 +12,7 @@ import {
   hasPermission,
   getPermissionsForRole,
   toAuthenticatedUser,
+  type Role,
   type AuthProfileResponse,
   type AuthResponse,
   type DeviceSessionBootstrap,
@@ -147,7 +148,7 @@ export class AuthService {
       userId: session.user.id,
       organizationId: session.user.organizationId,
       email: session.user.email,
-      role: session.user.role as "admin" | "supervisor" | "field_user",
+      role: session.user.role as Role,
       locale: session.user.locale as "en" | "es",
       name: session.user.name,
       sessionId: session.id
@@ -277,7 +278,7 @@ export class AuthService {
       throw new NotFoundException(`Revoking user ${input.revokedByUserId} was not found.`);
     }
 
-    if (!hasPermission(revoker.role as "admin" | "supervisor" | "field_user", "device_sessions.revoke")) {
+    if (!hasPermission(revoker.role as Role, "device_sessions.revoke")) {
       throw new UnauthorizedException("Only admins can revoke device sessions.");
     }
 
@@ -310,7 +311,7 @@ export class AuthService {
     };
   }
 
-  getAccessProfile(role: "admin" | "supervisor" | "field_user") {
+  getAccessProfile(role: Role) {
     return {
       permissions: getPermissionsForRole(role),
       roleDefinition: ROLE_DEFINITIONS.find((definition) => definition.id === role)
@@ -347,7 +348,7 @@ export class AuthService {
       userId: user.id,
       organizationId: user.organizationId,
       email: user.email,
-      role: user.role as "admin" | "supervisor" | "field_user",
+      role: user.role as Role,
       locale: user.locale as "en" | "es",
       name: user.name,
       sessionId
@@ -424,7 +425,7 @@ export class AuthService {
       organizationId: user.organizationId,
       name: user.name,
       email: user.email,
-      role: user.role as "admin" | "supervisor" | "field_user",
+      role: user.role as Role,
       locale: user.locale as "en" | "es",
       active: user.active,
       googleSubject: user.googleSubject ?? undefined,

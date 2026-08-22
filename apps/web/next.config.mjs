@@ -7,9 +7,9 @@ const rootPackageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "../../p
 const appVersion = rootPackageJson.version ?? "0.1.0";
 const deploymentId =
   process.env.CAPRIS_DEPLOYMENT_ID?.trim() ||
-  process.env.RAILWAY_DEPLOYMENT_ID?.trim() ||
-  process.env.RAILWAY_GIT_COMMIT_SHA?.trim()?.slice(0, 7) ||
   process.env.SOURCE_VERSION?.trim()?.slice(0, 7) ||
+  process.env.GITHUB_SHA?.trim()?.slice(0, 7) ||
+  process.env.CODEBUILD_RESOLVED_SOURCE_VERSION?.trim()?.slice(0, 7) ||
   new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 12);
 const deployedAt = new Date().toISOString();
 

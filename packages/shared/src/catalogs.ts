@@ -1,4 +1,4 @@
-import type { Client, PointOfSale, Province, Zone } from "./domain";
+import type { Canton, Client, District, PointOfSale, Province, Zone } from "./domain";
 import type { ActivityType, TaskType, WorkflowRule } from "./workflow";
 
 export interface CreateProvinceInput {
@@ -9,6 +9,38 @@ export interface CreateProvinceInput {
 }
 
 export interface UpdateProvinceInput {
+  name?: string;
+  code?: string;
+  active?: boolean;
+}
+
+export interface CreateCantonInput {
+  organizationId: string;
+  provinceId: string;
+  name: string;
+  code: string;
+  active?: boolean;
+}
+
+export interface UpdateCantonInput {
+  provinceId?: string;
+  name?: string;
+  code?: string;
+  active?: boolean;
+}
+
+export interface CreateDistrictInput {
+  organizationId: string;
+  provinceId: string;
+  cantonId: string;
+  name: string;
+  code: string;
+  active?: boolean;
+}
+
+export interface UpdateDistrictInput {
+  provinceId?: string;
+  cantonId?: string;
   name?: string;
   code?: string;
   active?: boolean;
@@ -47,30 +79,32 @@ export interface UpdateClientInput {
 export interface CreatePointOfSaleInput {
   organizationId: string;
   provinceId: string;
+  cantonId?: string;
+  districtId?: string;
   zoneId: string;
   clientId: string;
   name: string;
   code: string;
   address?: string;
-  latitude?: number;
-  longitude?: number;
   active?: boolean;
 }
 
 export interface UpdatePointOfSaleInput {
   provinceId?: string;
+  cantonId?: string;
+  districtId?: string;
   zoneId?: string;
   clientId?: string;
   name?: string;
   code?: string;
   address?: string;
-  latitude?: number;
-  longitude?: number;
   active?: boolean;
 }
 
 export interface CatalogBootstrap {
   provinces: Province[];
+  cantons: Canton[];
+  districts: District[];
   zones: Zone[];
   clients: Client[];
   pointsOfSale: PointOfSale[];

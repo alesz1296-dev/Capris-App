@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { ExceptionStatus, User } from "./domain";
 
 export const EXCEPTION_TYPES = [
-  "missing_gps",
+  "missing_location",
   "poor_signal",
   "closed_store",
   "unavailable_contact",

@@ -38,20 +38,25 @@ export class ObjectStorageService {
       process.env.JWT_ACCESS_SECRET?.trim() ||
       "capris-dev-media-signing-secret";
     this.signedReadTtlSeconds = Number(process.env.MEDIA_URL_TTL_SECONDS?.trim() || DEFAULT_SIGNED_MEDIA_TTL_SECONDS);
+    const configuredDriver = process.env.OBJECT_STORAGE_DRIVER?.trim().toLowerCase();
     const s3Endpoint = process.env.S3_ENDPOINT?.trim();
     const accessKeyId = process.env.S3_ACCESS_KEY_ID?.trim();
     const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY?.trim();
+    const useS3 = configuredDriver === "s3" || Boolean(s3Endpoint && accessKeyId && secretAccessKey);
 
-    if (s3Endpoint && accessKeyId && secretAccessKey) {
+    if (useS3) {
       this.driver = "s3";
       this.s3Client = new S3Client({
-        endpoint: s3Endpoint,
         region: process.env.S3_REGION?.trim() || "us-east-1",
-        forcePathStyle: true,
-        credentials: {
-          accessKeyId,
-          secretAccessKey
-        }
+        ...(s3Endpoint ? { endpoint: s3Endpoint, forcePathStyle: true } : {}),
+        ...(accessKeyId && secretAccessKey
+          ? {
+              credentials: {
+                accessKeyId,
+                secretAccessKey
+              }
+            }
+          : {})
       });
     } else {
       this.driver = "local";

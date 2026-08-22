@@ -147,13 +147,13 @@ export class ExceptionsService {
     }
 
     const reviewer = await prisma.user.findFirst({
-      where: {
-        id: input.reviewedByUserId,
-        organizationId: existing.organizationId,
-        active: true,
-        role: { in: ["admin", "supervisor"] }
-      }
-    });
+        where: {
+          id: input.reviewedByUserId,
+          organizationId: existing.organizationId,
+          active: true,
+          role: { in: ["admin", "supervisor_auditor"] }
+        }
+      });
 
     if (!reviewer) {
       throw new NotFoundException(`Reviewer ${input.reviewedByUserId} was not found.`);

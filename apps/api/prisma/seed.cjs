@@ -146,6 +146,50 @@ async function main() {
     ]
   });
 
+  await prisma.canton.createMany({
+    data: [
+      {
+        id: "canton_escazu",
+        organizationId: "org_capris",
+        provinceId: "province_san_jose",
+        name: "Escazu",
+        code: "SJ-ESCAZU",
+        active: true
+      },
+      {
+        id: "canton_alajuela",
+        organizationId: "org_capris",
+        provinceId: "province_alajuela",
+        name: "Alajuela",
+        code: "A-ALAJUELA",
+        active: true
+      }
+    ]
+  });
+
+  await prisma.district.createMany({
+    data: [
+      {
+        id: "district_san_rafael_escazu",
+        organizationId: "org_capris",
+        provinceId: "province_san_jose",
+        cantonId: "canton_escazu",
+        name: "San Rafael",
+        code: "SJ-ESCAZU-SAN-RAFAEL",
+        active: true
+      },
+      {
+        id: "district_alajuela_centro",
+        organizationId: "org_capris",
+        provinceId: "province_alajuela",
+        cantonId: "canton_alajuela",
+        name: "Alajuela",
+        code: "A-ALAJUELA-CENTRO",
+        active: true
+      }
+    ]
+  });
+
   await prisma.client.createMany({
     data: [
       {
@@ -172,13 +216,13 @@ async function main() {
       id: "pos_escazu_001",
       organizationId: "org_capris",
       provinceId: "province_san_jose",
+      cantonId: "canton_escazu",
+      districtId: "district_san_rafael_escazu",
       zoneId: "zone_central",
       clientId: "client_auto_mercado",
       name: "Escazu Plaza",
       code: "ESCAZU-001",
       address: "Escazu, San Jose",
-      latitude: 9.9186,
-      longitude: -84.1397,
       active: true
     }
   });
@@ -230,7 +274,6 @@ async function main() {
         activityTypeId: "activity_exhibition",
         requiresBeforePhoto: true,
         requiresAfterPhoto: true,
-        requiresGps: true,
         requiresComment: false,
         requiresSupervisorApproval: false,
         requiresConsignationEmail: false
@@ -242,7 +285,6 @@ async function main() {
         activityTypeId: "activity_consignation",
         requiresBeforePhoto: true,
         requiresAfterPhoto: true,
-        requiresGps: true,
         requiresComment: true,
         requiresSupervisorApproval: false,
         requiresConsignationEmail: true
@@ -279,6 +321,8 @@ async function main() {
       ownerUserId: "user_supervisor_001",
       clientId: "client_auto_mercado",
       provinceId: "province_san_jose",
+      cantonId: "canton_escazu",
+      districtId: "district_san_rafael_escazu",
       zoneId: "zone_central",
       pointOfSaleId: "pos_escazu_001",
       status: "open",
@@ -297,6 +341,8 @@ async function main() {
       assigneeId: "user_field_001",
       scheduledFor: "2026-05-08",
       provinceId: "province_san_jose",
+      cantonId: "canton_escazu",
+      districtId: "district_san_rafael_escazu",
       zoneId: "zone_central",
       clientId: "client_auto_mercado",
       pointOfSaleId: "pos_escazu_001",
@@ -316,6 +362,8 @@ async function main() {
       assigneeId: "user_field_001",
       scheduledFor: "2026-05-08",
       provinceId: "province_san_jose",
+      cantonId: "canton_escazu",
+      districtId: "district_san_rafael_escazu",
       zoneId: "zone_central",
       pointOfSaleId: "pos_escazu_001",
       status: "scheduled"
@@ -348,9 +396,7 @@ async function main() {
       visitId: "visit_launch_display",
       mediaAssetId: "media_before_launch_display",
       type: "before",
-      capturedAt: "2026-05-08T13:40:00.000Z",
-      latitude: 9.9186,
-      longitude: -84.1397
+      capturedAt: "2026-05-08T13:40:00.000Z"
     }
   });
 

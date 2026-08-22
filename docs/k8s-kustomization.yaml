@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: capris
+resources:
+  - k8s-namespace.yaml
+  - k8s-configmap.yaml
+  - k8s-secret.example.yaml
+  - k8s-api-deployment.yaml
+  - k8s-api-service.yaml
+  - k8s-web-deployment.yaml
+  - k8s-web-service.yaml
+  - k8s-ingress.yaml

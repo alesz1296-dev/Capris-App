@@ -57,7 +57,6 @@ import {
   saveBootstrapCache,
   updateSyncOperation
 } from "./offline-store";
-import { resolveDeviceCoordinates, type CapturedDeviceLocation } from "./device-location";
 
 const FIELD_USER_ID = "user_field_001";
 const ORGANIZATION_ID = "org_capris";
@@ -121,8 +120,6 @@ export default function App() {
   const [localSyncOperations, setLocalSyncOperations] = useState<SyncOperation[]>([]);
   const [consignationReviewDrafts, setConsignationReviewDrafts] = useState<Record<string, ConsignationReviewDraft>>({});
   const [syncingQueue, setSyncingQueue] = useState(false);
-  const [currentLocationSnapshot, setCurrentLocationSnapshot] = useState<CapturedDeviceLocation | null>(null);
-  const [locationBusy, setLocationBusy] = useState(false);
   const autoSyncEnabledRef = useRef(true);
   const effectiveUserId = mobileSession?.profile?.user.id ?? FIELD_USER_ID;
   const locale: Locale = mobileSession?.profile?.user.locale ?? "en";
@@ -205,7 +202,6 @@ export default function App() {
       setBootstrap(applyPendingOperationsToBootstrap(cachedBootstrap ?? createFallbackBootstrap(), storedOperations));
       if (storedSession) {
         await loadRouteDay();
-        void refreshCurrentLocation();
       } else {
         setStatusMessage(textByLocale(locale, "Sign in with Google to sync live route data.", "Inicia sesion con Google para sincronizar datos de ruta en vivo."));
       }
@@ -222,7 +218,6 @@ export default function App() {
       setMobileSession(session);
       setStatusMessage(textByLocale(locale, "Signed in on mobile.", "Sesion iniciada en movil."));
       await loadRouteDay();
-      void refreshCurrentLocation();
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : textByLocale(locale, "Unable to sign in on mobile.", "No se pudo iniciar sesion en movil."));
     } finally {
@@ -289,22 +284,6 @@ export default function App() {
     }
   }
 
-  async function refreshCurrentLocation(pointOfSaleId?: string) {
-    try {
-      setLocationBusy(true);
-      const linkedPointOfSale = pointsOfSale.find((pointOfSale) => pointOfSale.id === pointOfSaleId);
-      const nextLocation = await resolveDeviceCoordinates({
-        locale,
-        pointOfSaleName: linkedPointOfSale?.name,
-        pointOfSaleLatitude: linkedPointOfSale?.latitude,
-        pointOfSaleLongitude: linkedPointOfSale?.longitude
-      });
-      setCurrentLocationSnapshot(nextLocation);
-    } finally {
-      setLocationBusy(false);
-    }
-  }
-
   async function queueOperation(operation: SyncOperation, successMessage: string) {
     await enqueueSyncOperation(operation);
     const nextOperations = [...localSyncOperations, operation];
@@ -314,28 +293,16 @@ export default function App() {
   }
 
   async function transitionVisit(visit: Visit, action: "check_in" | "check_out") {
-    const linkedPointOfSale = pointsOfSale.find((pointOfSale) => pointOfSale.id === visit.pointOfSaleId);
-    const location = await resolveDeviceCoordinates({
-      locale,
-      pointOfSaleName: linkedPointOfSale?.name,
-      pointOfSaleLatitude: linkedPointOfSale?.latitude,
-      pointOfSaleLongitude: linkedPointOfSale?.longitude
-    });
-    setCurrentLocationSnapshot(location);
     const endpoint = action === "check_in" ? "check-in" : "check-out";
     const payload =
       action === "check_in"
         ? ({
             visitId: visit.id,
-            checkedInAt: new Date().toISOString(),
-            checkedInLatitude: location.latitude,
-            checkedInLongitude: location.longitude
+            checkedInAt: new Date().toISOString()
           } satisfies VisitCheckInSyncPayload)
         : ({
             visitId: visit.id,
-            checkedOutAt: new Date().toISOString(),
-            checkedOutLatitude: location.latitude,
-            checkedOutLongitude: location.longitude
+            checkedOutAt: new Date().toISOString()
           } satisfies VisitCheckOutSyncPayload);
 
     try {
@@ -402,17 +369,6 @@ export default function App() {
         throw new Error(textByLocale(locale, "Selected image is missing base64 data.", "La imagen seleccionada no incluye datos base64."));
       }
       const clientOperationId = `sync_photo_upload_${Date.now()}`;
-      const linkedVisit = visits.find((item) => item.id === visitId);
-      const linkedPointOfSale = pointsOfSale.find(
-        (pointOfSale) => pointOfSale.id === linkedVisit?.pointOfSaleId || pointOfSale.id === visibleTasks.find((task) => task.id === taskId)?.pointOfSaleId
-      );
-      const location = await resolveDeviceCoordinates({
-        locale,
-        pointOfSaleName: linkedPointOfSale?.name,
-        pointOfSaleLatitude: linkedPointOfSale?.latitude,
-        pointOfSaleLongitude: linkedPointOfSale?.longitude
-      });
-      setCurrentLocationSnapshot(location);
       const uploadRequest: UploadCapturedEvidenceInput = {
         organizationId: ORGANIZATION_ID,
         taskId,
@@ -421,8 +377,6 @@ export default function App() {
         clientOperationId,
         type,
         capturedAt: new Date().toISOString(),
-        latitude: location.latitude,
-        longitude: location.longitude,
         fileName: asset.fileName ?? `${taskId}-${type}-${Date.now()}.jpg`,
         mimeType: asset.mimeType ?? "image/jpeg",
         fileBase64,
@@ -988,30 +942,6 @@ export default function App() {
         ) : null}
 
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>{textByLocale(locale, "Live GPS capture", "Captura GPS en vivo")}</Text>
-          <View style={styles.notePanel}>
-            <Text style={styles.taskMeta}>
-              {currentLocationSnapshot
-                ? `${currentLocationSnapshot.label} - ${formatCoordinatePair(currentLocationSnapshot.latitude, currentLocationSnapshot.longitude)}`
-                : textByLocale(locale, "No GPS capture yet.", "Todavia no hay captura GPS.")}
-            </Text>
-            <Text style={styles.syncMeta}>
-              {textByLocale(locale, "Source", "Origen")}:{" "}
-              {currentLocationSnapshot ? currentLocationSnapshot.source : textByLocale(locale, "Pending", "Pendiente")}
-            </Text>
-            <Text style={styles.syncMeta}>
-              {textByLocale(locale, "Captured at", "Capturado a las")}:{" "}
-              {currentLocationSnapshot?.capturedAt ?? textByLocale(locale, "Pending", "Pendiente")}
-            </Text>
-            <TouchableOpacity style={styles.secondaryButton} disabled={locationBusy} onPress={() => void refreshCurrentLocation()}>
-              <Text style={styles.secondaryButtonText}>
-                {locationBusy ? textByLocale(locale, "Refreshing GPS...", "Actualizando GPS...") : textByLocale(locale, "Refresh live GPS", "Actualizar GPS en vivo")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.panel}>
           <Text style={styles.sectionTitle}>{textByLocale(locale, "Pending sync queue", "Cola de sincronizacion pendiente")}</Text>
           {pendingSyncOperations.length > 0 ? (
             pendingSyncOperations.map((operation) => (
@@ -1043,9 +973,6 @@ export default function App() {
             const routeProvince = formatReferenceLabel(visit.provinceId, pointOfSale);
             const routeZone = formatReferenceLabel(visit.zoneId);
             const taskEvidence = evidence.filter((item) => item.taskId === visit.taskId);
-            const latestEvidence = [...taskEvidence]
-              .filter((item) => item.latitude !== undefined && item.longitude !== undefined)
-              .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt))[0];
             const taskComments = comments.filter((item) => item.taskId === visit.taskId);
             const taskObservations = observations.filter((item) => item.taskId === visit.taskId);
             const taskConsignations = consignations.filter((item) => item.taskId === visit.taskId);
@@ -1075,17 +1002,6 @@ export default function App() {
                     {textByLocale(locale, "Check-out", "Salida")}: {visit.checkedOutAt ?? textByLocale(locale, "Pending", "Pendiente")}
                   </Text>
                   <Text style={styles.routeValue}>
-                    {textByLocale(locale, "Visit GPS", "GPS de visita")}:{" "}
-                    {formatCoordinatePair(
-                      visit.checkedOutLatitude ?? visit.checkedInLatitude,
-                      visit.checkedOutLongitude ?? visit.checkedInLongitude
-                    )}
-                  </Text>
-                  <Text style={styles.routeValue}>
-                    {textByLocale(locale, "Latest evidence GPS", "Ultimo GPS de evidencia")}:{" "}
-                    {latestEvidence ? formatCoordinatePair(latestEvidence.latitude, latestEvidence.longitude) : textByLocale(locale, "Pending", "Pendiente")}
-                  </Text>
-                  <Text style={styles.routeValue}>
                     {t(locale, "evidence.requirements")}: {summary?.missingTypes.length ? `${textByLocale(locale, "Missing", "Falta")} ${summary.missingTypes.join(", ")}` : textByLocale(locale, "Complete", "Completo")}
                   </Text>
                 </View>
@@ -1104,9 +1020,6 @@ export default function App() {
                           </Text>
                           <Text style={styles.syncMeta}>
                             {textByLocale(locale, "Progress", "Progreso")} {Math.round(mediaAsset?.uploadProgress ?? 0)}% / {textByLocale(locale, "chunks", "bloques")} {mediaAsset?.uploadedChunkCount ?? 0} {textByLocale(locale, "of", "de")} {mediaAsset?.chunkCount ?? 0}
-                          </Text>
-                          <Text style={styles.syncMeta}>
-                            GPS {formatCoordinatePair(item.latitude, item.longitude)}
                           </Text>
                           <Text style={styles.syncMeta}>
                             {textByLocale(locale, "Transfer reference", "Referencia de transferencia")}{" "}
@@ -1452,14 +1365,6 @@ function createFallbackBootstrap(): EvidenceBootstrap {
   };
 }
 
-function formatCoordinatePair(latitude?: number, longitude?: number) {
-  if (latitude === undefined || longitude === undefined) {
-    return "--";
-  }
-
-  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-}
-
 function formatReferenceLabel(referenceId: string, fallback = "") {
   if (!referenceId) {
     return fallback || "--";
@@ -1545,14 +1450,14 @@ function applyPendingOperationsToBootstrap(base: EvidenceBootstrap, operations: 
       const payload = operation.payload as VisitCheckInSyncPayload;
       next.visits = next.visits.map((visit) =>
         visit.id === payload.visitId
-          ? { ...visit, status: "checked_in", checkedInAt: payload.checkedInAt, checkedInLatitude: payload.checkedInLatitude, checkedInLongitude: payload.checkedInLongitude }
+          ? { ...visit, status: "checked_in", checkedInAt: payload.checkedInAt }
           : visit
       );
     } else if (operation.type === "visit_check_out") {
       const payload = operation.payload as VisitCheckOutSyncPayload;
       next.visits = next.visits.map((visit) =>
         visit.id === payload.visitId
-          ? { ...visit, status: "checked_out", checkedOutAt: payload.checkedOutAt, checkedOutLatitude: payload.checkedOutLatitude, checkedOutLongitude: payload.checkedOutLongitude }
+          ? { ...visit, status: "checked_out", checkedOutAt: payload.checkedOutAt }
           : visit
       );
     } else if (operation.type === "photo_upload") {
@@ -1698,8 +1603,6 @@ function upsertMediaAndEvidence(
     mediaAssetId: payload.localMediaAssetId,
     type: payload.uploadRequest.type,
     capturedAt: payload.uploadRequest.capturedAt,
-    latitude: payload.uploadRequest.latitude,
-    longitude: payload.uploadRequest.longitude,
     uploadStatus: mediaStatus
   };
 

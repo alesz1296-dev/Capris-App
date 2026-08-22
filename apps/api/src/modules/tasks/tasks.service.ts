@@ -19,9 +19,11 @@ import { IdentityAccessService } from "../identity-access/identity-access.servic
 import { PrismaService } from "../database/prisma.service";
 
 const ALLOWED_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  pending: ["in_progress", "completed"],
-  in_progress: ["completed"],
-  completed: []
+  pending: ["in_progress", "completed", "cancelled", "rescheduled"],
+  in_progress: ["pending", "completed", "cancelled", "rescheduled"],
+  completed: [],
+  cancelled: [],
+  rescheduled: ["pending"]
 };
 
 @Injectable()
@@ -46,6 +48,8 @@ export class TasksService {
       tasks,
       users: users.map(({ permissions, ...user }: any) => user),
       provinces: catalogs.provinces,
+      cantons: catalogs.cantons,
+      districts: catalogs.districts,
       zones: catalogs.zones,
       clients: catalogs.clients,
       pointsOfSale: catalogs.pointsOfSale,
@@ -101,6 +105,8 @@ export class TasksService {
       provinceId: input.provinceId,
       zoneId: input.zoneId,
       clientId: input.clientId,
+      cantonId: input.cantonId,
+      districtId: input.districtId,
       pointOfSaleId: input.pointOfSaleId,
       activityTypeId: input.activityTypeId,
       taskTypeId: input.taskTypeId
@@ -122,10 +128,13 @@ export class TasksService {
         id: this.createId("task"),
         organizationId: input.organizationId,
         title: input.title.trim(),
+        objective: input.objective?.trim() || null,
         requesterId: input.requesterId,
         assigneeId: input.assigneeId,
         scheduledFor: input.scheduledFor,
         provinceId: input.provinceId,
+        cantonId: input.cantonId ?? null,
+        districtId: input.districtId ?? null,
         zoneId: input.zoneId,
         clientId: input.clientId ?? null,
         pointOfSaleId: input.pointOfSaleId ?? null,
@@ -160,6 +169,8 @@ export class TasksService {
       requesterId: input.requesterId ?? task.requesterId,
       assigneeId: input.assigneeId ?? task.assigneeId,
       provinceId: input.provinceId ?? task.provinceId,
+      cantonId: input.cantonId === undefined ? task.cantonId ?? undefined : input.cantonId,
+      districtId: input.districtId === undefined ? task.districtId ?? undefined : input.districtId,
       zoneId: input.zoneId ?? task.zoneId,
       clientId: input.clientId === undefined ? task.clientId ?? undefined : input.clientId,
       pointOfSaleId: input.pointOfSaleId === undefined ? task.pointOfSaleId ?? undefined : input.pointOfSaleId,
@@ -184,10 +195,13 @@ export class TasksService {
       where: { id },
       data: {
         title: input.title?.trim(),
+        objective: input.objective?.trim(),
         requesterId: nextValues.requesterId,
         assigneeId: nextValues.assigneeId,
         scheduledFor: input.scheduledFor,
         provinceId: nextValues.provinceId,
+        cantonId: nextValues.cantonId ?? null,
+        districtId: nextValues.districtId ?? null,
         zoneId: nextValues.zoneId,
         clientId: nextValues.clientId ?? null,
         pointOfSaleId: nextValues.pointOfSaleId ?? null,
@@ -336,6 +350,8 @@ export class TasksService {
     requesterId: string;
     assigneeId: string;
     provinceId: string;
+    cantonId?: string;
+    districtId?: string;
     zoneId: string;
     clientId?: string;
     pointOfSaleId?: string;
@@ -379,6 +395,27 @@ export class TasksService {
       throw new NotFoundException(`Zone ${input.zoneId} was not found in province ${input.provinceId}.`);
     }
 
+    if (input.cantonId) {
+      const canton = await this.prisma.canton.findFirst({
+        where: { id: input.cantonId, organizationId: input.organizationId, provinceId: input.provinceId, active: true }
+      });
+      if (!canton) {
+        throw new NotFoundException(`Canton ${input.cantonId} was not found in province ${input.provinceId}.`);
+      }
+    }
+
+    if (input.districtId) {
+      if (!input.cantonId) {
+        throw new BadRequestException("districtId requires cantonId.");
+      }
+      const district = await this.prisma.district.findFirst({
+        where: { id: input.districtId, organizationId: input.organizationId, provinceId: input.provinceId, cantonId: input.cantonId, active: true }
+      });
+      if (!district) {
+        throw new NotFoundException(`District ${input.districtId} was not found in canton ${input.cantonId}.`);
+      }
+    }
+
     if (!activityType) {
       throw new NotFoundException(`Activity type ${input.activityTypeId} was not found.`);
     }
@@ -403,6 +440,8 @@ export class TasksService {
           id: input.pointOfSaleId,
           organizationId: input.organizationId,
           provinceId: input.provinceId,
+          ...(input.cantonId ? { cantonId: input.cantonId } : {}),
+          ...(input.districtId ? { districtId: input.districtId } : {}),
           zoneId: input.zoneId,
           clientId: input.clientId,
           active: true
@@ -419,10 +458,13 @@ export class TasksService {
     id: string;
     organizationId: string;
     title: string;
+    objective: string | null;
     requesterId: string;
     assigneeId: string;
     scheduledFor: string;
     provinceId: string;
+    cantonId: string | null;
+    districtId: string | null;
     zoneId: string;
     clientId: string | null;
     pointOfSaleId: string | null;
@@ -436,10 +478,13 @@ export class TasksService {
       id: task.id,
       organizationId: task.organizationId,
       title: task.title,
+      objective: task.objective ?? undefined,
       requesterId: task.requesterId,
       assigneeId: task.assigneeId,
       scheduledFor: task.scheduledFor,
       provinceId: task.provinceId,
+      cantonId: task.cantonId ?? undefined,
+      districtId: task.districtId ?? undefined,
       zoneId: task.zoneId,
       clientId: task.clientId ?? undefined,
       pointOfSaleId: task.pointOfSaleId ?? undefined,

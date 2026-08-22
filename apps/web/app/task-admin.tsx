@@ -20,10 +20,13 @@ const ORGANIZATION_ID = "org_capris";
 
 type TaskFormState = {
   title: string;
+  objective: string;
   requesterId: string;
   assigneeId: string;
   scheduledFor: string;
   provinceId: string;
+  cantonId: string;
+  districtId: string;
   zoneId: string;
   clientId: string;
   pointOfSaleId: string;
@@ -40,9 +43,11 @@ type TaskFilterState = {
 };
 
 const STATUS_FLOW: Record<TaskStatus, TaskStatus[]> = {
-  pending: ["in_progress", "completed"],
-  in_progress: ["completed"],
-  completed: []
+  pending: ["in_progress", "completed", "cancelled", "rescheduled"],
+  in_progress: ["pending", "completed", "cancelled", "rescheduled"],
+  completed: [],
+  cancelled: [],
+  rescheduled: ["pending"]
 };
 
 const PRIORITY_RANK: Record<Priority, number> = {
@@ -54,10 +59,13 @@ const PRIORITY_RANK: Record<Priority, number> = {
 
 const DEFAULT_TASK_FORM: TaskFormState = {
   title: "",
+  objective: "",
   requesterId: "",
   assigneeId: "",
   scheduledFor: "2026-05-08",
   provinceId: "",
+  cantonId: "",
+  districtId: "",
   zoneId: "",
   clientId: "",
   pointOfSaleId: "",
@@ -84,6 +92,8 @@ export function TaskAdmin() {
 
   const users = bootstrap?.users ?? [];
   const provinces = bootstrap?.provinces.filter((province) => province.active) ?? [];
+  const cantons = bootstrap?.cantons.filter((canton) => canton.active) ?? [];
+  const districts = bootstrap?.districts.filter((district) => district.active) ?? [];
   const zones = bootstrap?.zones.filter((zone) => zone.active) ?? [];
   const clients = bootstrap?.clients.filter((client) => client.active) ?? [];
   const pointsOfSale = bootstrap?.pointsOfSale.filter((pointOfSale) => pointOfSale.active) ?? [];
@@ -96,16 +106,26 @@ export function TaskAdmin() {
     () => zones.filter((zone) => zone.provinceId === taskForm.provinceId),
     [taskForm.provinceId, zones]
   );
+  const cantonsForProvince = useMemo(
+    () => cantons.filter((canton) => canton.provinceId === taskForm.provinceId),
+    [cantons, taskForm.provinceId]
+  );
+  const districtsForCanton = useMemo(
+    () => districts.filter((district) => district.cantonId === taskForm.cantonId),
+    [districts, taskForm.cantonId]
+  );
   const clientsForZone = useMemo(() => clients, [clients]);
   const pointsOfSaleForScope = useMemo(
     () =>
       pointsOfSale.filter(
         (pointOfSale) =>
           pointOfSale.provinceId === taskForm.provinceId &&
+          pointOfSale.cantonId === taskForm.cantonId &&
+          pointOfSale.districtId === taskForm.districtId &&
           pointOfSale.zoneId === taskForm.zoneId &&
           (!taskForm.clientId || pointOfSale.clientId === taskForm.clientId)
       ),
-    [pointsOfSale, taskForm.clientId, taskForm.provinceId, taskForm.zoneId]
+    [pointsOfSale, taskForm.cantonId, taskForm.clientId, taskForm.districtId, taskForm.provinceId, taskForm.zoneId]
   );
 
   const visibleTasks = useMemo(() => {
@@ -166,6 +186,20 @@ export function TaskAdmin() {
   }, [taskForm.zoneId, zonesForProvince]);
 
   useEffect(() => {
+    const validCanton = cantonsForProvince.some((canton) => canton.id === taskForm.cantonId);
+    if (!validCanton) {
+      setTaskForm((current) => ({ ...current, cantonId: cantonsForProvince[0]?.id ?? "", districtId: "" }));
+    }
+  }, [cantonsForProvince, taskForm.cantonId]);
+
+  useEffect(() => {
+    const validDistrict = districtsForCanton.some((district) => district.id === taskForm.districtId);
+    if (!validDistrict) {
+      setTaskForm((current) => ({ ...current, districtId: districtsForCanton[0]?.id ?? "" }));
+    }
+  }, [districtsForCanton, taskForm.districtId]);
+
+  useEffect(() => {
     const validClient = clientsForZone.some((client) => client.id === taskForm.clientId);
     if (!validClient) {
       setTaskForm((current) => ({ ...current, clientId: clientsForZone[0]?.id ?? "" }));
@@ -219,6 +253,8 @@ export function TaskAdmin() {
       requesterId: current.requesterId || users[0]?.id || "",
       assigneeId: current.assigneeId || users[0]?.id || "",
       provinceId: provinces[0]?.id || "",
+      cantonId: cantons.filter((canton) => canton.provinceId === (provinces[0]?.id || ""))[0]?.id || "",
+      districtId: "",
       zoneId: zones.filter((zone) => zone.provinceId === (provinces[0]?.id || ""))[0]?.id || "",
       clientId: clients[0]?.id || "",
       pointOfSaleId: pointsOfSale[0]?.id || "",
@@ -231,10 +267,13 @@ export function TaskAdmin() {
     setEditingTaskId(task.id);
     setTaskForm({
       title: task.title,
+      objective: task.objective ?? "",
       requesterId: task.requesterId,
       assigneeId: task.assigneeId,
       scheduledFor: task.scheduledFor,
       provinceId: task.provinceId,
+      cantonId: task.cantonId ?? "",
+      districtId: task.districtId ?? "",
       zoneId: task.zoneId,
       clientId: task.clientId ?? "",
       pointOfSaleId: task.pointOfSaleId ?? "",
@@ -251,6 +290,8 @@ export function TaskAdmin() {
       !taskForm.requesterId ||
       !taskForm.assigneeId ||
       !taskForm.provinceId ||
+      !taskForm.cantonId ||
+      !taskForm.districtId ||
       !taskForm.zoneId ||
       !taskForm.pointOfSaleId ||
       !taskForm.activityTypeId ||
@@ -263,10 +304,13 @@ export function TaskAdmin() {
     const payload: CreateTaskInput = {
       organizationId: ORGANIZATION_ID,
       title: taskForm.title.trim(),
+      objective: taskForm.objective.trim() || undefined,
       requesterId: taskForm.requesterId,
       assigneeId: taskForm.assigneeId,
       scheduledFor: taskForm.scheduledFor,
       provinceId: taskForm.provinceId,
+      cantonId: taskForm.cantonId,
+      districtId: taskForm.districtId,
       zoneId: taskForm.zoneId,
       clientId: taskForm.clientId || undefined,
       pointOfSaleId: taskForm.pointOfSaleId || undefined,
@@ -291,10 +335,13 @@ export function TaskAdmin() {
             editingTaskId
               ? ({
                   title: payload.title,
+                  objective: payload.objective,
                   requesterId: payload.requesterId,
                   assigneeId: payload.assigneeId,
                   scheduledFor: payload.scheduledFor,
                   provinceId: payload.provinceId,
+                  cantonId: payload.cantonId,
+                  districtId: payload.districtId,
                   zoneId: payload.zoneId,
                   clientId: payload.clientId,
                   pointOfSaleId: payload.pointOfSaleId,
@@ -356,8 +403,14 @@ export function TaskAdmin() {
     <section className="catalogSection" id="tasks">
       <div className="sectionHeading">
         <p className="eyebrow">{t(locale, "tasks.title")}</p>
-        <h2>{t(locale, "tasks.sectionTitle")}</h2>
-        <p className="sectionDescription">{t(locale, "tasks.sectionDescription")}</p>
+        <h2>{textByLocale(locale, "Create and track field assignments", "Crear y dar seguimiento a asignaciones de campo")}</h2>
+        <p className="sectionDescription">
+          {textByLocale(
+            locale,
+            "Pick who goes where, what they need to do, the objective, and the service date. Keep this page focused on the daily assignment workflow.",
+            "Elige quien va, donde trabaja, que debe hacer, el objetivo y la fecha. Esta pagina se enfoca en el flujo diario de asignacion."
+          )}
+        </p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadTasks()}>
           {actionDisabled ? textByLocale(locale, "Refreshing...", "Actualizando...") : t(locale, "tasks.refresh")}
         </button>
@@ -374,33 +427,19 @@ export function TaskAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{editingTaskId ? textByLocale(locale, "Edit task", "Editar tarea") : t(locale, "tasks.add")}</h3>
-              <p>{textByLocale(locale, "Create task assignments using the same catalogs, scope, and workflow data already managed in the admin workspace.", "Crea asignaciones de tareas usando los mismos catalogos, alcance y reglas de flujo ya administrados en el panel.")}</p>
+              <h3>{editingTaskId ? textByLocale(locale, "Edit assignment", "Editar asignacion") : textByLocale(locale, "Register assignment", "Registrar asignacion")}</h3>
+              <p>{textByLocale(locale, "Assign a team member, client, location, activity, objective, and date in one clean work order.", "Asigna colaborador, cliente, ubicacion, actividad, objetivo y fecha en una orden de trabajo sencilla.")}</p>
             </div>
           </div>
 
           <div className="formGrid">
-            <label className="fullWidth">
-              <span>{textByLocale(locale, "Title", "Titulo")}</span>
-              <input
-                value={taskForm.title}
-                onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder={textByLocale(locale, "Install launch display and capture before/after evidence", "Instalar material de lanzamiento y capturar evidencia antes y despues")}
-              />
-            </label>
-            <label>
-              <span>{t(locale, "tasks.requester")}</span>
-              <select
-                value={taskForm.requesterId}
-                onChange={(event) => setTaskForm((current) => ({ ...current, requesterId: event.target.value }))}
-              >
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="formStepHeader fullWidth">
+              <span>1</span>
+              <div>
+                <strong>{textByLocale(locale, "Who and when", "Quien y cuando")}</strong>
+                <p>{textByLocale(locale, "Choose the field user and service date.", "Elige el usuario de campo y la fecha de ejecucion.")}</p>
+              </div>
+            </div>
             <label>
               <span>{t(locale, "tasks.assignee")}</span>
               <select
@@ -422,32 +461,13 @@ export function TaskAdmin() {
                 onChange={(event) => setTaskForm((current) => ({ ...current, scheduledFor: event.target.value }))}
               />
             </label>
-            <label>
-              <span>{textByLocale(locale, "Province", "Provincia")}</span>
-              <select
-                value={taskForm.provinceId}
-                onChange={(event) => setTaskForm((current) => ({ ...current, provinceId: event.target.value }))}
-              >
-                {provinces.map((province) => (
-                  <option key={province.id} value={province.id}>
-                    {province.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{textByLocale(locale, "Zone", "Zona")}</span>
-              <select
-                value={taskForm.zoneId}
-                onChange={(event) => setTaskForm((current) => ({ ...current, zoneId: event.target.value }))}
-              >
-                {zonesForProvince.map((zone) => (
-                  <option key={zone.id} value={zone.id}>
-                    {zone.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="formStepHeader fullWidth">
+              <span>2</span>
+              <div>
+                <strong>{textByLocale(locale, "Client and location", "Cliente y ubicacion")}</strong>
+                <p>{textByLocale(locale, "Use Costa Rica province, canton, district, and store/location.", "Usa provincia, canton, distrito y tienda/ubicacion de Costa Rica.")}</p>
+              </div>
+            </div>
             <label>
               <span>{t(locale, "tasks.client")}</span>
               <select
@@ -462,7 +482,59 @@ export function TaskAdmin() {
               </select>
             </label>
             <label>
-              <span>{t(locale, "tasks.pointOfSale")}</span>
+              <span>{textByLocale(locale, "Province", "Provincia")}</span>
+              <select
+                value={taskForm.provinceId}
+                onChange={(event) => setTaskForm((current) => ({ ...current, provinceId: event.target.value, cantonId: "", districtId: "", pointOfSaleId: "" }))}
+              >
+                {provinces.map((province) => (
+                  <option key={province.id} value={province.id}>
+                    {province.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Canton", "Canton")}</span>
+              <select
+                value={taskForm.cantonId}
+                onChange={(event) => setTaskForm((current) => ({ ...current, cantonId: event.target.value, districtId: "", pointOfSaleId: "" }))}
+              >
+                {cantonsForProvince.map((canton) => (
+                  <option key={canton.id} value={canton.id}>
+                    {canton.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "District", "Distrito")}</span>
+              <select
+                value={taskForm.districtId}
+                onChange={(event) => setTaskForm((current) => ({ ...current, districtId: event.target.value, pointOfSaleId: "" }))}
+              >
+                {districtsForCanton.map((district) => (
+                  <option key={district.id} value={district.id}>
+                    {district.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Route territory", "Territorio de ruta")}</span>
+              <select
+                value={taskForm.zoneId}
+                onChange={(event) => setTaskForm((current) => ({ ...current, zoneId: event.target.value, pointOfSaleId: "" }))}
+              >
+                {zonesForProvince.map((zone) => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{textByLocale(locale, "Store / location", "Tienda / ubicacion")}</span>
               <select
                 value={taskForm.pointOfSaleId}
                 onChange={(event) => setTaskForm((current) => ({ ...current, pointOfSaleId: event.target.value }))}
@@ -474,8 +546,32 @@ export function TaskAdmin() {
                 ))}
               </select>
               {!pointsOfSaleForScope.length ? (
-                <small className="fieldHint">{textByLocale(locale, "Add a route stop first, then assign work to it.", "Primero agrega una parada de ruta y luego asigna trabajo.")}</small>
+                <small className="fieldHint">{textByLocale(locale, "No store matches this location yet. Add it in Settings first.", "No hay tienda para esta ubicacion. Agregala primero en Configuracion.")}</small>
               ) : null}
+            </label>
+            <div className="formStepHeader fullWidth">
+              <span>3</span>
+              <div>
+                <strong>{textByLocale(locale, "Work to complete", "Trabajo a completar")}</strong>
+                <p>{textByLocale(locale, "Describe the activity and the expected result.", "Describe la actividad y el resultado esperado.")}</p>
+              </div>
+            </div>
+            <label className="fullWidth">
+              <span>{textByLocale(locale, "Assignment name", "Nombre de la asignacion")}</span>
+              <input
+                value={taskForm.title}
+                onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder={textByLocale(locale, "Install launch display and capture before/after evidence", "Instalar material de lanzamiento y capturar evidencia antes y despues")}
+              />
+            </label>
+            <label className="fullWidth">
+              <span>{textByLocale(locale, "Objective", "Objetivo")}</span>
+              <textarea
+                value={taskForm.objective}
+                onChange={(event) => setTaskForm((current) => ({ ...current, objective: event.target.value }))}
+                placeholder={textByLocale(locale, "Example: verify display placement and upload before/after photos.", "Ejemplo: verificar colocacion de exhibidor y subir fotos antes/despues.")}
+                rows={3}
+              />
             </label>
             <label>
               <span>{t(locale, "tasks.activityType")}</span>
@@ -490,52 +586,70 @@ export function TaskAdmin() {
                 ))}
               </select>
             </label>
-            <label>
-              <span>{t(locale, "tasks.taskType")}</span>
-              <select
-                value={taskForm.taskTypeId}
-                onChange={(event) => setTaskForm((current) => ({ ...current, taskTypeId: event.target.value }))}
-              >
-                {taskTypes.map((taskType) => (
-                  <option key={taskType.id} value={taskType.id}>
-                    {taskType.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{t(locale, "tasks.priority")}</span>
-              <select
-                value={taskForm.priority}
-                onChange={(event) =>
-                  setTaskForm((current) => ({ ...current, priority: event.target.value as Priority }))
-                }
-              >
-                {PRIORITIES.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {t(locale, `priority.${priority}` as never)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{t(locale, "tasks.difficulty")}</span>
-              <select
-                value={taskForm.difficulty}
-                onChange={(event) =>
-                  setTaskForm((current) => ({ ...current, difficulty: event.target.value as Difficulty }))
-                }
-              >
-                {DIFFICULTIES.map((difficulty) => (
-                  <option key={difficulty} value={difficulty}>
-                    {t(locale, `difficulty.${difficulty}` as never)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <details className="advancedFormDetails fullWidth">
+              <summary>{textByLocale(locale, "Advanced details", "Detalles avanzados")}</summary>
+              <div className="formGrid compactFormGrid">
+                <label>
+                  <span>{t(locale, "tasks.requester")}</span>
+                  <select
+                    value={taskForm.requesterId}
+                    onChange={(event) => setTaskForm((current) => ({ ...current, requesterId: event.target.value }))}
+                  >
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>{t(locale, "tasks.taskType")}</span>
+                  <select
+                    value={taskForm.taskTypeId}
+                    onChange={(event) => setTaskForm((current) => ({ ...current, taskTypeId: event.target.value }))}
+                  >
+                    {taskTypes.map((taskType) => (
+                      <option key={taskType.id} value={taskType.id}>
+                        {taskType.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>{t(locale, "tasks.priority")}</span>
+                  <select
+                    value={taskForm.priority}
+                    onChange={(event) =>
+                      setTaskForm((current) => ({ ...current, priority: event.target.value as Priority }))
+                    }
+                  >
+                    {PRIORITIES.map((priority) => (
+                      <option key={priority} value={priority}>
+                        {t(locale, `priority.${priority}` as never)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>{t(locale, "tasks.difficulty")}</span>
+                  <select
+                    value={taskForm.difficulty}
+                    onChange={(event) =>
+                      setTaskForm((current) => ({ ...current, difficulty: event.target.value as Difficulty }))
+                    }
+                  >
+                    {DIFFICULTIES.map((difficulty) => (
+                      <option key={difficulty} value={difficulty}>
+                        {t(locale, `difficulty.${difficulty}` as never)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </details>
             <div className="taskFormActions fullWidth">
               <button className="primaryAction" disabled={actionDisabled || !taskForm.pointOfSaleId} type="button" onClick={submitTask}>
-                {actionDisabled ? textByLocale(locale, "Saving...", "Guardando...") : editingTaskId ? textByLocale(locale, "Save changes", "Guardar cambios") : t(locale, "tasks.add")}
+                  {actionDisabled ? textByLocale(locale, "Saving...", "Guardando...") : editingTaskId ? textByLocale(locale, "Save changes", "Guardar cambios") : textByLocale(locale, "Create assignment", "Crear asignacion")}
               </button>
               {editingTaskId ? (
                 <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={resetTaskForm}>
@@ -549,8 +663,8 @@ export function TaskAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{textByLocale(locale, "Active task list", "Lista activa de tareas")}</h3>
-              <p>{textByLocale(locale, "Track assignment ownership, schedule, scope, and the allowed next status changes.", "Da seguimiento a responsables, calendario, alcance y los siguientes cambios de estado permitidos.")}</p>
+              <h3>{textByLocale(locale, "Assignments", "Asignaciones")}</h3>
+              <p>{textByLocale(locale, "Review upcoming work and update status clearly: pending, in progress, completed, cancelled, or rescheduled.", "Revisa el trabajo pendiente y actualiza el estado claramente: pendiente, en proceso, completada, cancelada o reprogramada.")}</p>
             </div>
           </div>
 
@@ -667,6 +781,7 @@ function TaskCard({
       <div className="taskCardHeader">
         <div>
           <h4>{task.title}</h4>
+          {task.objective ? <p className="taskObjective">{task.objective}</p> : null}
           <p>
             {t(locale, "tasks.status")}: {t(locale, `status.${task.status}` as never)}
           </p>
@@ -709,7 +824,7 @@ function TaskCard({
 
       <div className="taskStatusActions">
         <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={() => onEdit(task)}>
-          {textByLocale(locale, "Edit task", "Editar tarea")}
+          {textByLocale(locale, "Edit assignment", "Editar asignacion")}
         </button>
         {STATUS_FLOW[task.status].map((nextStatus) => (
           <button
@@ -719,12 +834,36 @@ function TaskCard({
             type="button"
             onClick={() => void onStatusChange(task.id, nextStatus)}
           >
-            {textByLocale(locale, "Move to", "Mover a")} {t(locale, `status.${nextStatus}` as never)}
+            {statusActionLabel(locale, nextStatus)}
           </button>
         ))}
       </div>
     </article>
   );
+}
+
+function statusActionLabel(locale: "en" | "es", status: TaskStatus) {
+  if (status === "completed") {
+    return textByLocale(locale, "Mark completed", "Marcar completada");
+  }
+
+  if (status === "in_progress") {
+    return textByLocale(locale, "Mark in progress", "Marcar en proceso");
+  }
+
+  if (status === "pending") {
+    return textByLocale(locale, "Mark pending", "Marcar pendiente");
+  }
+
+  if (status === "cancelled") {
+    return textByLocale(locale, "Cancel task", "Cancelar tarea");
+  }
+
+  if (status === "rescheduled") {
+    return textByLocale(locale, "Reschedule", "Reprogramar");
+  }
+
+  return textByLocale(locale, "Update status", "Actualizar estado");
 }
 
 async function extractErrorMessage(response: Response, fallback: string) {

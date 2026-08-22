@@ -1,10 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import type {
+  CreateCantonInput,
   CreateClientInput,
+  CreateDistrictInput,
   CreatePointOfSaleInput,
   CreateProvinceInput,
   CreateZoneInput,
+  UpdateCantonInput,
   UpdateClientInput,
+  UpdateDistrictInput,
   UpdatePointOfSaleInput,
   UpdateProvinceInput,
   UpdateZoneInput
@@ -53,6 +57,56 @@ export class CatalogsController {
   @Delete("provinces/:id")
   archiveProvince(@Param("id") id: string) {
     return this.service.archiveProvince(id);
+  }
+
+  @Get("cantons")
+  getCantons() {
+    return this.service.getCantons();
+  }
+
+  @Get("cantons/:id")
+  getCanton(@Param("id") id: string) {
+    return this.service.getCanton(id);
+  }
+
+  @Post("cantons")
+  createCanton(@Body() input: CreateCantonInput) {
+    return this.service.createCanton(input);
+  }
+
+  @Patch("cantons/:id")
+  updateCanton(@Param("id") id: string, @Body() input: UpdateCantonInput) {
+    return this.service.updateCanton(id, input);
+  }
+
+  @Delete("cantons/:id")
+  archiveCanton(@Param("id") id: string) {
+    return this.service.archiveCanton(id);
+  }
+
+  @Get("districts")
+  getDistricts() {
+    return this.service.getDistricts();
+  }
+
+  @Get("districts/:id")
+  getDistrict(@Param("id") id: string) {
+    return this.service.getDistrict(id);
+  }
+
+  @Post("districts")
+  createDistrict(@Body() input: CreateDistrictInput) {
+    return this.service.createDistrict(input);
+  }
+
+  @Patch("districts/:id")
+  updateDistrict(@Param("id") id: string, @Body() input: UpdateDistrictInput) {
+    return this.service.updateDistrict(id, input);
+  }
+
+  @Delete("districts/:id")
+  archiveDistrict(@Param("id") id: string) {
+    return this.service.archiveDistrict(id);
   }
 
   @Get("zones")

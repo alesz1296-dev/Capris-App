@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   type AuthProfileResponse,
   ROLE_DEFINITIONS,
@@ -22,6 +22,8 @@ const APP_DEPLOYMENT_ID = process.env.NEXT_PUBLIC_APP_DEPLOYMENT_ID ?? "local";
 const APP_DEPLOYED_AT = process.env.NEXT_PUBLIC_APP_DEPLOYED_AT ?? "";
 const APP_DEPLOYMENT_STORAGE_KEY = "capris:last-deployment-id";
 const VERSION_CHECK_INTERVAL_MS = 60_000;
+const SESSION_CHECK_TIMEOUT_MS = 8_000;
+const SESSION_CHECK_FAILSAFE_MS = 10_000;
 
 const scopeExamples: { type: SupervisorScopeType; referenceName: string }[] = [
   { type: "organization", referenceName: "Capris Costa Rica" },
@@ -30,16 +32,13 @@ const scopeExamples: { type: SupervisorScopeType; referenceName: string }[] = [
 ];
 
 const navigation = [
-  { href: "/", en: "Dashboard", es: "Panel" },
-  { href: "/agenda", en: "Agenda", es: "Agenda" },
-  { href: "/tasks", en: "Tasks", es: "Tareas" },
-  { href: "/routes", en: "Routes", es: "Rutas" },
+  { href: "/", en: "Dashboard", es: "Panel", roles: ["admin", "supervisor_auditor"] },
+  { href: "/agenda", en: "Schedule", es: "Agenda" },
+  { href: "/tasks", en: "Assignments", es: "Asignaciones" },
   { href: "/evidence", en: "Evidence", es: "Evidencia" },
-  { href: "/exceptions", en: "Exceptions", es: "Excepciones" },
-  { href: "/activities", en: "Activities", es: "Actividades" },
-  { href: "/reports", en: "Reports", es: "Reportes" },
-  { href: "/imports", en: "Imports", es: "Importaciones" },
-  { href: "/access", en: "Access", es: "Acceso", privileged: true }
+  { href: "/reports", en: "Reports", es: "Reportes", roles: ["admin", "supervisor_auditor"] },
+  { href: "/catalogs", en: "Settings", es: "Configuracion", roles: ["admin"] },
+  { href: "/observability", en: "Ops", es: "Ops", roles: ["admin", "developer_sre"] }
 ] as const;
 
 type AppShellProps = {
@@ -52,32 +51,65 @@ type AppShellProps = {
 export function AppShell({ eyebrow, title, description, children }: AppShellProps) {
   const locale = useAppLocale();
   const pathname = usePathname();
-  const [authState, setAuthState] = useState<"checking" | "authorized">("checking");
+  const router = useRouter();
+  const [authState, setAuthState] = useState<"checking" | "authorized" | "blocked">("checking");
+  const [authError, setAuthError] = useState<string | null>(null);
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
   const [deploymentMessage, setDeploymentMessage] = useState<string | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
-  const visibleNavigation = navigation.filter((item) => !("privileged" in item) || canUsePrivilegedNavigation(profile?.user.role));
+  const visibleNavigation = navigation.filter((item) => canUseNavigationItem(item, profile?.user.role));
   const activePage = visibleNavigation.find((item) => isNavigationActive(item.href, pathname));
+
+  const navigateTo = (href: string) => {
+    if (href === pathname) {
+      return;
+    }
+
+    router.push(href);
+
+    window.setTimeout(() => {
+      if (window.location.pathname !== href) {
+        window.location.assign(href);
+      }
+    }, 450);
+  };
 
   useEffect(() => {
     let cancelled = false;
+    setAuthState("checking");
+    setAuthError(null);
+
+    const failsafeId = window.setTimeout(() => {
+      if (!cancelled) {
+        setAuthState("blocked");
+        setAuthError(
+          textByLocale(locale, "Session verification took too long. Please sign in again.", "La verificación de sesión tardó demasiado. Ingresa de nuevo.")
+        );
+      }
+    }, SESSION_CHECK_FAILSAFE_MS);
 
     async function verifySession() {
       const tokens = loadStoredTokens();
       if (!tokens) {
+        window.clearTimeout(failsafeId);
         redirectToLogin(pathname);
         return;
       }
 
       try {
-        const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store" });
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), SESSION_CHECK_TIMEOUT_MS);
+        const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { cache: "no-store", signal: controller.signal }).finally(() => {
+          window.clearTimeout(timeoutId);
+        });
         if (!response.ok) {
           throw new Error("Session is not active.");
         }
 
         const payload = (await response.json()) as AuthProfileResponse;
-        if (pathname === "/access" && !canUsePrivilegedNavigation(payload.user.role)) {
-          window.location.replace("/");
+        const deniedRoute = isRouteDeniedForRole(pathname, payload.user.role);
+        if (deniedRoute) {
+          window.location.replace(getDefaultRouteForRole(payload.user.role));
           return;
         }
 
@@ -88,8 +120,11 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
       } catch {
         clearStoredTokens();
         if (!cancelled) {
-          redirectToLogin(pathname);
+          setAuthState("blocked");
+          setAuthError(textByLocale(locale, "Your session could not be verified. Please sign in again.", "No se pudo verificar tu sesión. Ingresa de nuevo."));
         }
+      } finally {
+        window.clearTimeout(failsafeId);
       }
     }
 
@@ -97,8 +132,9 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
 
     return () => {
       cancelled = true;
+      window.clearTimeout(failsafeId);
     };
-  }, [pathname]);
+  }, [locale, pathname]);
 
   useEffect(() => {
     return subscribeToAuthChanges(() => {
@@ -174,6 +210,29 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
           <p className="pageLead">
             {textByLocale(locale, "Confirming your session before loading the app.", "Confirmando tu sesión antes de cargar la app.")}
           </p>
+          <p className="authFallbackLink">
+            <a href={getLoginHref(pathname)}>{textByLocale(locale, "Go to sign in", "Ir a iniciar sesión")}</a>
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (authState === "blocked") {
+    return (
+      <main className="loginPage">
+        <section className="loginCard" aria-label={textByLocale(locale, "Session issue", "Problema de sesión")}>
+          <p className="eyebrow">Capris Costa Rica</p>
+          <h1>{textByLocale(locale, "Sign in required", "Debes iniciar sesión")}</h1>
+          <p className="pageLead">{authError ?? textByLocale(locale, "Please sign in again to continue.", "Ingresa de nuevo para continuar.")}</p>
+          <div className="taskFormActions">
+            <a className="primaryAction" href={getLoginHref(pathname)}>
+              {textByLocale(locale, "Go to sign in", "Ir a iniciar sesión")}
+            </a>
+            <button className="secondaryAction" type="button" onClick={() => window.location.reload()}>
+              {textByLocale(locale, "Retry", "Reintentar")}
+            </button>
+          </div>
         </section>
       </main>
     );
@@ -185,9 +244,13 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
         <strong>{t(locale, "app.name")}</strong>
         <nav>
           {visibleNavigation.map((item) => {
-            const active = pathname === item.href;
+            const active = isNavigationActive(item.href, pathname);
             return (
               <Link
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigateTo(item.href);
+                }}
                 aria-current={active ? "page" : undefined}
                 className={active ? "sidebarLink sidebarLinkActive" : "sidebarLink"}
                 href={item.href}
@@ -243,6 +306,10 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
               const active = isNavigationActive(item.href, pathname);
               return (
                 <Link
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigateTo(item.href);
+                  }}
                   aria-current={active ? "page" : undefined}
                   className={active ? "mobileQuickLink mobileQuickLinkActive" : "mobileQuickLink"}
                   href={item.href}
@@ -253,6 +320,20 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
               );
             })}
           </nav>
+          <label className="mobilePageSelectLabel">
+            <span>{textByLocale(locale, "Jump to page", "Ir a pagina")}</span>
+            <select
+              aria-label={textByLocale(locale, "Jump to page", "Ir a pagina")}
+              value={activePage?.href ?? pathname ?? "/"}
+              onChange={(event) => navigateTo(event.target.value)}
+            >
+              {visibleNavigation.map((item) => (
+                <option key={`mobile-select-${item.href}`} value={item.href}>
+                  {locale === "es" ? item.es : item.en}
+                </option>
+              ))}
+            </select>
+          </label>
           <p className="mobileQuickAccessHint">
             {textByLocale(locale, "Use these page shortcuts to move between sections without long scrolling.", "Usa estos accesos de pagina para moverte entre secciones sin hacer scroll largo.")}
           </p>
@@ -266,6 +347,10 @@ export function AppShell({ eyebrow, title, description, children }: AppShellProp
           const active = isNavigationActive(item.href, pathname);
           return (
             <Link
+              onClick={(event) => {
+                event.preventDefault();
+                navigateTo(item.href);
+              }}
               aria-current={active ? "page" : undefined}
               className={active ? "mobileBottomLink mobileBottomLinkActive" : "mobileBottomLink"}
               href={item.href}
@@ -285,13 +370,42 @@ function redirectToLogin(pathname: string | null) {
     return;
   }
 
-  const nextPath = pathname && pathname !== "/login" ? pathname : "/";
-  const next = encodeURIComponent(`${nextPath}${window.location.search}`);
-  window.location.replace(`/login?next=${next}`);
+  window.location.replace(getLoginHref(pathname, window.location.search));
 }
 
-function canUsePrivilegedNavigation(role: string | undefined) {
-  return role === "admin" || role === "supervisor" || role === "developer" || role === "dev";
+function getLoginHref(pathname: string | null, search = "") {
+  const nextPath = pathname && pathname !== "/login" ? pathname : "/";
+  const next = encodeURIComponent(`${nextPath}${search}`);
+  return `/login?next=${next}`;
+}
+
+function canUseNavigationItem(item: (typeof navigation)[number], role: string | undefined) {
+  return !("roles" in item) || item.roles.includes(role as never);
+}
+
+function isRouteDeniedForRole(pathname: string | null, role: string | undefined) {
+  if (pathname === "/") {
+    return !canUseNavigationItem(navigation[0], role);
+  }
+
+  const matchingItem = navigation
+    .filter((item) => item.href !== "/")
+    .sort((left, right) => right.href.length - left.href.length)
+    .find((item) => pathname === item.href || pathname?.startsWith(`${item.href}/`));
+
+  return Boolean(matchingItem && !canUseNavigationItem(matchingItem, role));
+}
+
+function getDefaultRouteForRole(role: string | undefined) {
+  if (role === "developer_sre") {
+    return "/observability";
+  }
+
+  if (role === "field_user") {
+    return "/agenda";
+  }
+
+  return "/";
 }
 
 function isNavigationActive(href: string, pathname: string | null) {
