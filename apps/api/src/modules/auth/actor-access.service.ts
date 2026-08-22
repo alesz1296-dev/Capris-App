@@ -39,7 +39,7 @@ export class ActorAccessService {
   }
 
   async assertOperationAccess(actor: AuthJwtPayload, target: OperationAccessTarget) {
-    const scopes = actor.role === "supervisor" ? await this.getActiveSupervisorScopes(actor.sub, actor.organizationId) : [];
+    const scopes = actor.role === "supervisor_auditor" ? await this.getActiveSupervisorScopes(actor.sub, actor.organizationId) : [];
     if (!this.hasAccess(actor, target, scopes)) {
       if (actor.organizationId !== target.organizationId) {
         throw new UnauthorizedException("Authenticated actor cannot access a different organization.");
@@ -47,7 +47,7 @@ export class ActorAccessService {
       if (actor.role === "field_user") {
         throw new UnauthorizedException("Field users can only act on their own operational records.");
       }
-      throw new UnauthorizedException("Supervisor access is outside the allowed operational scope.");
+      throw new UnauthorizedException("Supervisor/auditor access is outside the allowed operational scope.");
     }
   }
 
@@ -64,7 +64,7 @@ export class ActorAccessService {
       return items;
     }
 
-    const scopes = actor.role === "supervisor" ? await this.getActiveSupervisorScopes(actor.sub, actor.organizationId) : [];
+    const scopes = actor.role === "supervisor_auditor" ? await this.getActiveSupervisorScopes(actor.sub, actor.organizationId) : [];
     return items.filter((item) => this.hasAccess(actor, resolveTarget(item), scopes));
   }
 

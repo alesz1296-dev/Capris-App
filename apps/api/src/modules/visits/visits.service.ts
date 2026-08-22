@@ -36,21 +36,36 @@ export class VisitsService {
     ]);
     const userIds = new Set([...visits.map((visit) => visit.assigneeId), ...tasks.map((task) => task.assigneeId)]);
     const provinceIds = new Set([...visits.map((visit) => visit.provinceId), ...tasks.map((task) => task.provinceId)]);
+    const cantonIds = new Set([...visits.map((visit) => visit.cantonId), ...tasks.map((task) => task.cantonId)].filter(Boolean));
+    const districtIds = new Set([...visits.map((visit) => visit.districtId), ...tasks.map((task) => task.districtId)].filter(Boolean));
     const zoneIds = new Set([...visits.map((visit) => visit.zoneId), ...tasks.map((task) => task.zoneId)]);
     const pointOfSaleIds = new Set([...visits.map((visit) => visit.pointOfSaleId), ...tasks.map((task) => task.pointOfSaleId)].filter(Boolean));
     const organizationCatalogs = {
       provinces: actor ? catalogs.provinces.filter((province) => province.organizationId === actor.organizationId) : catalogs.provinces,
+      cantons: actor ? catalogs.cantons.filter((canton) => canton.organizationId === actor.organizationId) : catalogs.cantons,
+      districts: actor ? catalogs.districts.filter((district) => district.organizationId === actor.organizationId) : catalogs.districts,
       zones: actor ? catalogs.zones.filter((zone) => zone.organizationId === actor.organizationId) : catalogs.zones,
       pointsOfSale: actor ? catalogs.pointsOfSale.filter((pointOfSale) => pointOfSale.organizationId === actor.organizationId) : catalogs.pointsOfSale
     };
     const accessibleCatalogs =
       !actor || actor.role === "admin"
         ? organizationCatalogs
-        : actor.role === "supervisor"
+        : actor.role === "supervisor_auditor"
           ? {
               provinces: await this.actorAccessService.filterReadable(actor, organizationCatalogs.provinces, (province) => ({
                 organizationId: province.organizationId,
                 provinceId: province.id
+              })),
+              cantons: await this.actorAccessService.filterReadable(actor, organizationCatalogs.cantons, (canton) => ({
+                organizationId: canton.organizationId,
+                provinceId: canton.provinceId,
+                cantonId: canton.id
+              })),
+              districts: await this.actorAccessService.filterReadable(actor, organizationCatalogs.districts, (district) => ({
+                organizationId: district.organizationId,
+                provinceId: district.provinceId,
+                cantonId: district.cantonId,
+                districtId: district.id
               })),
               zones: await this.actorAccessService.filterReadable(actor, organizationCatalogs.zones, (zone) => ({
                 organizationId: zone.organizationId,
@@ -66,6 +81,8 @@ export class VisitsService {
             }
           : {
               provinces: organizationCatalogs.provinces.filter((province) => provinceIds.has(province.id)),
+              cantons: organizationCatalogs.cantons.filter((canton) => cantonIds.has(canton.id) || provinceIds.has(canton.provinceId)),
+              districts: organizationCatalogs.districts.filter((district) => districtIds.has(district.id) || cantonIds.has(district.cantonId)),
               zones: organizationCatalogs.zones.filter((zone) => zoneIds.has(zone.id)),
               pointsOfSale: organizationCatalogs.pointsOfSale.filter((pointOfSale) => pointOfSaleIds.has(pointOfSale.id))
             };
@@ -75,6 +92,8 @@ export class VisitsService {
       tasks,
       users: users.map(({ permissions, ...user }: any) => user).filter((user: any) => userIds.has(user.id)),
       provinces: accessibleCatalogs.provinces,
+      cantons: accessibleCatalogs.cantons,
+      districts: accessibleCatalogs.districts,
       zones: accessibleCatalogs.zones,
       pointsOfSale: accessibleCatalogs.pointsOfSale
     };
@@ -125,6 +144,8 @@ export class VisitsService {
         assigneeId: input.assigneeId,
         scheduledFor: input.scheduledFor,
         provinceId: input.provinceId,
+        cantonId: input.cantonId ?? null,
+        districtId: input.districtId ?? null,
         zoneId: input.zoneId,
         pointOfSaleId: input.pointOfSaleId ?? null,
         status: input.status ?? "scheduled"
@@ -165,9 +186,7 @@ export class VisitsService {
       where: { id },
       data: {
         status: "checked_in",
-        checkedInAt: input.checkedInAt,
-        checkedInLatitude: input.checkedInLatitude,
-        checkedInLongitude: input.checkedInLongitude
+        checkedInAt: input.checkedInAt
       }
     });
 
@@ -207,9 +226,7 @@ export class VisitsService {
       where: { id },
       data: {
         status: "checked_out",
-        checkedOutAt: input.checkedOutAt,
-        checkedOutLatitude: input.checkedOutLatitude,
-        checkedOutLongitude: input.checkedOutLongitude
+        checkedOutAt: input.checkedOutAt
       }
     });
 
@@ -238,6 +255,8 @@ export class VisitsService {
           organizationId: input.organizationId,
           assigneeId: input.assigneeId,
           provinceId: input.provinceId,
+          ...(input.cantonId ? { cantonId: input.cantonId } : {}),
+          ...(input.districtId ? { districtId: input.districtId } : {}),
           zoneId: input.zoneId
         }
       }),
@@ -281,12 +300,35 @@ export class VisitsService {
       throw new NotFoundException(`Zone ${input.zoneId} was not found in province ${input.provinceId}.`);
     }
 
+    if (input.cantonId) {
+      const canton = await this.prisma.canton.findFirst({
+        where: { id: input.cantonId, organizationId: input.organizationId, provinceId: input.provinceId, active: true }
+      });
+      if (!canton) {
+        throw new NotFoundException(`Canton ${input.cantonId} was not found in province ${input.provinceId}.`);
+      }
+    }
+
+    if (input.districtId) {
+      if (!input.cantonId) {
+        throw new BadRequestException("districtId requires cantonId.");
+      }
+      const district = await this.prisma.district.findFirst({
+        where: { id: input.districtId, organizationId: input.organizationId, provinceId: input.provinceId, cantonId: input.cantonId, active: true }
+      });
+      if (!district) {
+        throw new NotFoundException(`District ${input.districtId} was not found in canton ${input.cantonId}.`);
+      }
+    }
+
     if (input.pointOfSaleId) {
       const pointOfSale = await this.prisma.pointOfSale.findFirst({
         where: {
           id: input.pointOfSaleId,
           organizationId: input.organizationId,
           provinceId: input.provinceId,
+          ...(input.cantonId ? { cantonId: input.cantonId } : {}),
+          ...(input.districtId ? { districtId: input.districtId } : {}),
           zoneId: input.zoneId,
           active: true
         }
@@ -313,15 +355,13 @@ export class VisitsService {
     assigneeId: string;
     scheduledFor: string;
     provinceId: string;
+    cantonId: string | null;
+    districtId: string | null;
     zoneId: string;
     pointOfSaleId: string | null;
     status: string;
     checkedInAt: string | null;
-    checkedInLatitude: number | null;
-    checkedInLongitude: number | null;
     checkedOutAt: string | null;
-    checkedOutLatitude: number | null;
-    checkedOutLongitude: number | null;
   }): Visit {
     return {
       id: visit.id,
@@ -330,15 +370,13 @@ export class VisitsService {
       assigneeId: visit.assigneeId,
       scheduledFor: visit.scheduledFor,
       provinceId: visit.provinceId,
+      cantonId: visit.cantonId ?? undefined,
+      districtId: visit.districtId ?? undefined,
       zoneId: visit.zoneId,
       pointOfSaleId: visit.pointOfSaleId ?? undefined,
       status: visit.status as VisitStatus,
       checkedInAt: visit.checkedInAt ?? undefined,
-      checkedInLatitude: visit.checkedInLatitude ?? undefined,
-      checkedInLongitude: visit.checkedInLongitude ?? undefined,
-      checkedOutAt: visit.checkedOutAt ?? undefined,
-      checkedOutLatitude: visit.checkedOutLatitude ?? undefined,
-      checkedOutLongitude: visit.checkedOutLongitude ?? undefined
+      checkedOutAt: visit.checkedOutAt ?? undefined
     };
   }
 

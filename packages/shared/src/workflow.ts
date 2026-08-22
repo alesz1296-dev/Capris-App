@@ -21,7 +21,6 @@ export interface WorkflowRule {
   activityTypeId?: string;
   requiresBeforePhoto: boolean;
   requiresAfterPhoto: boolean;
-  requiresGps: boolean;
   requiresComment: boolean;
   requiresSupervisorApproval: boolean;
   requiresConsignationEmail: boolean;
@@ -59,7 +58,6 @@ export interface CreateWorkflowRuleInput {
   activityTypeId?: string;
   requiresBeforePhoto?: boolean;
   requiresAfterPhoto?: boolean;
-  requiresGps?: boolean;
   requiresComment?: boolean;
   requiresSupervisorApproval?: boolean;
   requiresConsignationEmail?: boolean;
@@ -70,7 +68,6 @@ export interface UpdateWorkflowRuleInput {
   activityTypeId?: string;
   requiresBeforePhoto?: boolean;
   requiresAfterPhoto?: boolean;
-  requiresGps?: boolean;
   requiresComment?: boolean;
   requiresSupervisorApproval?: boolean;
   requiresConsignationEmail?: boolean;
@@ -79,7 +76,6 @@ export interface UpdateWorkflowRuleInput {
 export const DEFAULT_FIELD_WORKFLOW_RULE: Omit<WorkflowRule, "id" | "organizationId"> = {
   requiresBeforePhoto: true,
   requiresAfterPhoto: true,
-  requiresGps: true,
   requiresComment: false,
   requiresSupervisorApproval: false,
   requiresConsignationEmail: false

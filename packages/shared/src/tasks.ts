@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { DIFFICULTIES, PRIORITIES, TASK_STATUSES, type Difficulty, type Priority, type Task, type TaskStatus, type User } from "./domain";
 import type { ActivityType, TaskType, WorkflowRule } from "./workflow";
-import type { Client, PointOfSale, Province, Zone } from "./domain";
+import type { Canton, Client, District, PointOfSale, Province, Zone } from "./domain";
 
 const identifierSchema = z.string().trim().min(1);
 const taskDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "scheduledFor must use YYYY-MM-DD format.");
@@ -9,10 +9,13 @@ const taskDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "scheduledFor mus
 export const createTaskSchema = z.object({
   organizationId: identifierSchema,
   title: z.string().trim().min(3).max(160),
+  objective: z.string().trim().min(3).max(500).optional(),
   requesterId: identifierSchema,
   assigneeId: identifierSchema,
   scheduledFor: taskDateSchema,
   provinceId: identifierSchema,
+  cantonId: identifierSchema.optional(),
+  districtId: identifierSchema.optional(),
   zoneId: identifierSchema,
   pointOfSaleId: identifierSchema.optional(),
   clientId: identifierSchema.optional(),
@@ -26,10 +29,13 @@ export const createTaskSchema = z.object({
 export const updateTaskSchema = z
   .object({
     title: z.string().trim().min(3).max(160).optional(),
+    objective: z.string().trim().min(3).max(500).optional(),
     requesterId: identifierSchema.optional(),
     assigneeId: identifierSchema.optional(),
     scheduledFor: taskDateSchema.optional(),
     provinceId: identifierSchema.optional(),
+    cantonId: identifierSchema.optional(),
+    districtId: identifierSchema.optional(),
     zoneId: identifierSchema.optional(),
     pointOfSaleId: identifierSchema.optional(),
     clientId: identifierSchema.optional(),
@@ -49,10 +55,13 @@ export const updateTaskStatusSchema = z.object({
 export interface CreateTaskInput {
   organizationId: string;
   title: string;
+  objective?: string;
   requesterId: string;
   assigneeId: string;
   scheduledFor: string;
   provinceId: string;
+  cantonId?: string;
+  districtId?: string;
   zoneId: string;
   pointOfSaleId?: string;
   clientId?: string;
@@ -65,10 +74,13 @@ export interface CreateTaskInput {
 
 export interface UpdateTaskInput {
   title?: string;
+  objective?: string;
   requesterId?: string;
   assigneeId?: string;
   scheduledFor?: string;
   provinceId?: string;
+  cantonId?: string;
+  districtId?: string;
   zoneId?: string;
   pointOfSaleId?: string;
   clientId?: string;
@@ -91,6 +103,8 @@ export interface TaskBootstrap {
   tasks: Task[];
   users: User[];
   provinces: Province[];
+  cantons: Canton[];
+  districts: District[];
   zones: Zone[];
   clients: Client[];
   pointsOfSale: PointOfSale[];

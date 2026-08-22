@@ -18,7 +18,7 @@ async function testMissingPermissionIsRejected() {
         switchToHttp: () => ({
           getRequest: () => ({
             auth: {
-              role: "supervisor"
+              role: "supervisor_auditor"
             }
           })
         })
@@ -75,7 +75,7 @@ async function testFieldUserCannotAccessSupervisorActions() {
   }
 }
 
-async function testSupervisorCanAccessRoutePlanningActions() {
+async function testSupervisorAuditorCanAccessRoutePlanningActions() {
   const reflector = new Reflector();
   const guard = new PermissionGuard(reflector);
 
@@ -89,13 +89,37 @@ async function testSupervisorCanAccessRoutePlanningActions() {
       switchToHttp: () => ({
         getRequest: () => ({
           auth: {
-            role: "supervisor"
+            role: "supervisor_auditor"
           }
         })
       })
     } as never);
 
-    assert.equal(result, true, `supervisor should be allowed to use ${permission}.`);
+    assert.equal(result, true, `supervisor_auditor should be allowed to use ${permission}.`);
+  }
+}
+
+async function testDeveloperSreCanAccessOperationalEndpoints() {
+  const reflector = new Reflector();
+  const guard = new PermissionGuard(reflector);
+
+  for (const permission of ["system_health.view", "metrics.view", "ops.read", "developer_tools.use"] as const) {
+    const handler = () => undefined;
+    Reflect.defineMetadata("capris:requiredPermissions", [permission], handler);
+
+    const result = guard.canActivate({
+      getHandler: () => handler,
+      getClass: () => class TestClass {},
+      switchToHttp: () => ({
+        getRequest: () => ({
+          auth: {
+            role: "developer_sre"
+          }
+        })
+      })
+    } as never);
+
+    assert.equal(result, true, `developer_sre should be allowed to use ${permission}.`);
   }
 }
 
@@ -103,7 +127,8 @@ async function main() {
   await testMissingPermissionIsRejected();
   await testGrantedPermissionPasses();
   await testFieldUserCannotAccessSupervisorActions();
-  await testSupervisorCanAccessRoutePlanningActions();
+  await testSupervisorAuditorCanAccessRoutePlanningActions();
+  await testDeveloperSreCanAccessOperationalEndpoints();
   console.log("Permission guard tests passed.");
 }
 

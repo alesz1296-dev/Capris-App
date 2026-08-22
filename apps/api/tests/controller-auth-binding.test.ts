@@ -76,7 +76,7 @@ async function testTasksControllerUsesAuthenticatedContextForTaskCreation() {
         sub: "user_supervisor_001",
         organizationId: "org_capris",
         email: "supervisor@example.com",
-        role: "supervisor",
+        role: "supervisor_auditor",
         locale: "es",
         name: "Supervisor User",
         sessionId: "session_2",

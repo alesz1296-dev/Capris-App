@@ -13,6 +13,8 @@ export * from "./activities";
 export * from "./calendar";
 export * from "./client-requests";
 export * from "./dashboard";
+export * from "./performance";
+export * from "./observability";
 export * from "./reporting";
 export * from "./imports";
 export * from "./admin-config";

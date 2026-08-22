@@ -115,6 +115,7 @@ type ClientRequestFormState = {
 
 type QuickTaskFormState = {
   title: string;
+  objective: string;
   assigneeId: string;
   scheduledFor: string;
   provinceId: string;
@@ -158,6 +159,7 @@ const EMPTY_REQUEST_FORM: ClientRequestFormState = {
 
 const EMPTY_QUICK_TASK_FORM: QuickTaskFormState = {
   title: "",
+  objective: "",
   assigneeId: "",
   scheduledFor: DEFAULT_DATE,
   provinceId: "",
@@ -189,7 +191,7 @@ export function AgendaAdmin() {
   const [requestForm, setRequestForm] = useState<ClientRequestFormState>(EMPTY_REQUEST_FORM);
   const [quickTaskForm, setQuickTaskForm] = useState<QuickTaskFormState>(EMPTY_QUICK_TASK_FORM);
 
-  const isPlanner = profile?.user.role === "admin" || profile?.user.role === "supervisor";
+  const isPlanner = profile?.user.role === "admin" || profile?.user.role === "supervisor_auditor";
   const entries = calendar?.entries ?? [];
   const agendaEvents = calendar?.agendaEvents ?? [];
   const requests = requestBootstrap?.requests ?? [];
@@ -371,7 +373,7 @@ export function AgendaAdmin() {
       }
 
       const profilePayload = (await profileResponse.json()) as AuthProfileResponse;
-      const planner = profilePayload.user.role === "admin" || profilePayload.user.role === "supervisor";
+      const planner = profilePayload.user.role === "admin" || profilePayload.user.role === "supervisor_auditor";
 
       const [calendarResponse, evidenceResponse, requestsResponse, tasksResponse] = await Promise.all([
         authenticatedFetch(`${API_BASE_URL}/calendar/bootstrap?view=${view}&date=${anchorDate}`, { cache: "no-store" }),
@@ -436,6 +438,7 @@ export function AgendaAdmin() {
     const payload: CreateTaskInput = {
       organizationId: ORGANIZATION_ID,
       title: quickTaskForm.title,
+      objective: quickTaskForm.objective.trim() || undefined,
       requesterId: profile?.user.id ?? "",
       assigneeId: quickTaskForm.assigneeId,
       scheduledFor: quickTaskForm.scheduledFor,
@@ -454,7 +457,7 @@ export function AgendaAdmin() {
       payload,
       textByLocale(locale, "Work assigned on the selected day.", "Trabajo asignado en el dia seleccionado.")
     );
-    setQuickTaskForm((current) => ({ ...current, title: "" }));
+    setQuickTaskForm((current) => ({ ...current, title: "", objective: "" }));
   }
 
   async function createClientRequest() {
@@ -759,8 +762,17 @@ export function AgendaAdmin() {
                 <summary>{textByLocale(locale, "Assign work from this day", "Asignar trabajo desde este dia")}</summary>
                 <div className="formGrid">
                   <label className="fullWidth">
-                    <span>{textByLocale(locale, "Work title", "Titulo del trabajo")}</span>
+                    <span>{textByLocale(locale, "Assignment name", "Nombre de la asignacion")}</span>
                     <input value={quickTaskForm.title} onChange={(event) => setQuickTaskForm((current) => ({ ...current, title: event.target.value }))} />
+                  </label>
+                  <label className="fullWidth">
+                    <span>{textByLocale(locale, "Objective", "Objetivo")}</span>
+                    <textarea
+                      value={quickTaskForm.objective}
+                      onChange={(event) => setQuickTaskForm((current) => ({ ...current, objective: event.target.value }))}
+                      placeholder={textByLocale(locale, "What should be achieved during this visit?", "Que se debe lograr durante esta visita?")}
+                      rows={3}
+                    />
                   </label>
                   <label>
                     <span>{textByLocale(locale, "Assigned user", "Usuario asignado")}</span>

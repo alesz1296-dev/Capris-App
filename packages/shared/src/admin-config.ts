@@ -19,7 +19,6 @@ export const adminSettingsSchema = z.object({
   organizationId: identifierSchema,
   defaultRecipientEmails: z.array(z.string().email()).default([]),
   retentionPhotoDays: z.number().int().min(1).max(3650),
-  retentionGpsDays: z.number().int().min(1).max(3650),
   retentionAuditDays: z.number().int().min(1).max(3650)
 });
 
@@ -37,7 +36,6 @@ export interface AdminSettings {
   organizationId: string;
   defaultRecipientEmails: string[];
   retentionPhotoDays: number;
-  retentionGpsDays: number;
   retentionAuditDays: number;
 }
 

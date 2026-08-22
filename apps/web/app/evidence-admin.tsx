@@ -12,11 +12,12 @@ import {
   type UploadStatus
 } from "@capris/shared";
 import { API_BASE_URL, authenticatedFetch, subscribeToAuthChanges } from "./auth-client";
-import { formatCoordinates, resolveWebCoordinates } from "./location-client";
 import { textByLocale, useAppLocale } from "./locale-client";
 
 const ORGANIZATION_ID = "org_capris";
 const EVIDENCE_TYPES: EvidenceType[] = ["before", "after", "supporting"];
+const ACCEPTED_EVIDENCE_MIME_TYPES =
+  "image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const UPLOAD_NEXT_ACTIONS: Record<UploadStatus, UploadStatus[]> = {
   pending_upload: ["uploading", "uploaded", "failed"],
   uploading: ["uploaded", "failed"],
@@ -55,7 +56,6 @@ export function EvidenceAdmin() {
   const users = bootstrap?.users ?? [];
   const evidence = bootstrap?.evidence ?? [];
   const mediaAssets = bootstrap?.mediaAssets ?? [];
-  const pointsOfSale = bootstrap?.pointsOfSale ?? [];
   const requirementSummaries = bootstrap?.requirementSummaries ?? [];
   const pendingSyncOperations = bootstrap?.pendingSyncOperations ?? [];
   const actionDisabled = loading || isPending;
@@ -123,11 +123,6 @@ export function EvidenceAdmin() {
 
     const dataUrl = await fileToDataUrl(selectedFile);
     const timestamp = new Date().toISOString();
-    const selectedVisit = visits.find((visit) => visit.id === evidenceForm.visitId);
-    const linkedPointOfSale = pointsOfSale.find(
-      (pointOfSale) => pointOfSale.id === selectedVisit?.pointOfSaleId || pointOfSale.id === selectedTask.pointOfSaleId
-    );
-    const location = await resolveWebCoordinates(locale, linkedPointOfSale);
     const payload: UploadCapturedEvidenceInput = {
       organizationId: ORGANIZATION_ID,
       taskId: evidenceForm.taskId,
@@ -135,16 +130,14 @@ export function EvidenceAdmin() {
       uploaderUserId: evidenceForm.uploaderUserId,
       type: evidenceForm.type,
       capturedAt: timestamp,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      fileName: selectedFile.name || evidenceForm.fileName.trim() || `${selectedTask.id}-${evidenceForm.type}.jpg`,
-      mimeType: selectedFile.type || "image/jpeg",
+      fileName: selectedFile.name || evidenceForm.fileName.trim() || `${selectedTask.id}-${evidenceForm.type}`,
+      mimeType: selectedFile.type || "application/octet-stream",
       fileBase64: dataUrl,
       captureSource: "web_file",
       byteSize: selectedFile.size || undefined
     };
 
-    await submitUpload(payload, textByLocale(locale, "Evidence uploaded to object storage successfully.", "Evidencia subida correctamente al almacenamiento de objetos."));
+    await submitUpload(payload, textByLocale(locale, "Evidence saved successfully.", "Evidencia guardada correctamente."));
   }
 
   async function queueEvidence() {
@@ -156,11 +149,6 @@ export function EvidenceAdmin() {
     const now = Date.now();
     const timestamp = new Date(now).toISOString();
     const uploadSessionId = `upload_${now}`;
-    const selectedVisit = visits.find((visit) => visit.id === evidenceForm.visitId);
-    const linkedPointOfSale = pointsOfSale.find(
-      (pointOfSale) => pointOfSale.id === selectedVisit?.pointOfSaleId || pointOfSale.id === selectedTask.pointOfSaleId
-    );
-    const location = await resolveWebCoordinates(locale, linkedPointOfSale);
     const payload: CreateEvidenceInput = {
       organizationId: ORGANIZATION_ID,
       taskId: evidenceForm.taskId,
@@ -168,12 +156,10 @@ export function EvidenceAdmin() {
       uploaderUserId: evidenceForm.uploaderUserId,
       type: evidenceForm.type,
       capturedAt: timestamp,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      fileName: evidenceForm.fileName.trim() || `${selectedTask.id}-${evidenceForm.type}.jpg`,
-      mimeType: selectedFile?.type || "image/jpeg",
-      originalStoragePath: `/local-device/originals/${now}-${evidenceForm.type}.jpg`,
-      thumbnailStoragePath: `/local-device/thumbs/${now}-${evidenceForm.type}.jpg`,
+      fileName: evidenceForm.fileName.trim() || `${selectedTask.id}-${evidenceForm.type}`,
+      mimeType: selectedFile?.type || "application/octet-stream",
+      originalStoragePath: `/local-device/originals/${now}-${evidenceForm.fileName.trim() || evidenceForm.type}`,
+      thumbnailStoragePath: selectedFile?.type.startsWith("image/") ? `/local-device/thumbs/${now}-${evidenceForm.fileName.trim() || evidenceForm.type}` : undefined,
       uploadStatus: "pending_upload",
       syncState: "pending_sync",
       uploadSessionId,
@@ -298,8 +284,14 @@ export function EvidenceAdmin() {
     <section className="catalogSection" id="evidence">
       <div className="sectionHeading">
         <p className="eyebrow">{t(locale, "evidence.title")}</p>
-        <h2>{t(locale, "evidence.sectionTitle")}</h2>
-        <p className="sectionDescription">{t(locale, "evidence.sectionDescription")}</p>
+        <h2>{textByLocale(locale, "Upload work evidence", "Subir evidencia del trabajo")}</h2>
+        <p className="sectionDescription">
+          {textByLocale(
+            locale,
+            "Choose the assignment, attach a photo or document, and submit it so admins can review completed work.",
+            "Elige la asignacion, adjunta una foto o documento y envialo para que administradores revisen el trabajo completado."
+          )}
+        </p>
         <button className="secondaryAction sectionAction" disabled={actionDisabled} type="button" onClick={() => void loadEvidence()}>
           {actionDisabled ? textByLocale(locale, "Refreshing...", "Actualizando...") : textByLocale(locale, "Refresh evidence", "Actualizar evidencia")}
         </button>
@@ -316,14 +308,21 @@ export function EvidenceAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{t(locale, "evidence.create")}</h3>
-              <p>{textByLocale(locale, "Select a real image file to upload through the evidence API into object storage, or queue the metadata-only variant to keep the sync path visible.", "Selecciona una imagen real para subirla por la API de evidencia al almacenamiento de objetos, o encola la variante solo con metadatos para mantener visible la ruta de sincronizacion.")}</p>
+              <h3>{textByLocale(locale, "Submit evidence", "Enviar evidencia")}</h3>
+              <p>{textByLocale(locale, "This is the field-user flow: pick a task, choose before/after/supporting evidence, attach the file, and upload.", "Este es el flujo del usuario de campo: elige tarea, selecciona evidencia antes/despues/soporte, adjunta el archivo y subelo.")}</p>
             </div>
           </div>
 
           <div className="formGrid">
+            <div className="formStepHeader fullWidth">
+              <span>1</span>
+              <div>
+                <strong>{textByLocale(locale, "Select assignment", "Seleccionar asignacion")}</strong>
+                <p>{textByLocale(locale, "Attach evidence to the work you completed.", "Adjunta evidencia al trabajo completado.")}</p>
+              </div>
+            </div>
             <label className="fullWidth">
-              <span>{textByLocale(locale, "Task", "Tarea")}</span>
+              <span>{textByLocale(locale, "Assignment", "Asignacion")}</span>
               <select
                 value={evidenceForm.taskId}
                 onChange={(event) =>
@@ -341,30 +340,13 @@ export function EvidenceAdmin() {
                 ))}
               </select>
             </label>
-            <label>
-              <span>{textByLocale(locale, "Visit", "Visita")}</span>
-              <select value={evidenceForm.visitId} onChange={(event) => setEvidenceForm((current) => ({ ...current, visitId: event.target.value }))}>
-                <option value="">{textByLocale(locale, "No visit link", "Sin vinculacion de visita")}</option>
-                {visitsForTask.map((visit) => (
-                  <option key={visit.id} value={visit.id}>
-                    {visit.id}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{t(locale, "evidence.uploader")}</span>
-              <select
-                value={evidenceForm.uploaderUserId}
-                onChange={(event) => setEvidenceForm((current) => ({ ...current, uploaderUserId: event.target.value }))}
-              >
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="formStepHeader fullWidth">
+              <span>2</span>
+              <div>
+                <strong>{textByLocale(locale, "Attach file", "Adjuntar archivo")}</strong>
+                <p>{textByLocale(locale, "Photos, PDFs, and common office documents are supported.", "Se permiten fotos, PDF y documentos comunes de oficina.")}</p>
+              </div>
+            </div>
             <label>
               <span>{t(locale, "evidence.type")}</span>
               <select
@@ -379,13 +361,9 @@ export function EvidenceAdmin() {
               </select>
             </label>
             <label className="fullWidth">
-              <span>{t(locale, "evidence.fileName")}</span>
-              <input value={evidenceForm.fileName} onChange={(event) => setEvidenceForm((current) => ({ ...current, fileName: event.target.value }))} />
-            </label>
-            <label className="fullWidth">
-              <span>{textByLocale(locale, "Select image", "Seleccionar imagen")}</span>
+              <span>{textByLocale(locale, "Select photo or document", "Seleccionar foto o documento")}</span>
               <input
-                accept="image/*"
+                accept={ACCEPTED_EVIDENCE_MIME_TYPES}
                 type="file"
                 onChange={(event) => {
                   const file = event.target.files?.[0] ?? null;
@@ -398,14 +376,55 @@ export function EvidenceAdmin() {
                   }
                 }}
               />
+              {selectedFile ? (
+                <small className="fieldHint">
+                  {selectedFile.name} - {selectedFile.type || textByLocale(locale, "unknown file type", "tipo de archivo desconocido")}
+                </small>
+              ) : null}
             </label>
+            <details className="advancedFormDetails fullWidth">
+              <summary>{textByLocale(locale, "Optional details", "Detalles opcionales")}</summary>
+              <div className="formGrid compactFormGrid">
+                <label>
+                  <span>{textByLocale(locale, "Visit", "Visita")}</span>
+                  <select value={evidenceForm.visitId} onChange={(event) => setEvidenceForm((current) => ({ ...current, visitId: event.target.value }))}>
+                    <option value="">{textByLocale(locale, "No visit link", "Sin vinculacion de visita")}</option>
+                    {visitsForTask.map((visit) => (
+                      <option key={visit.id} value={visit.id}>
+                        {visit.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>{t(locale, "evidence.uploader")}</span>
+                  <select
+                    value={evidenceForm.uploaderUserId}
+                    onChange={(event) => setEvidenceForm((current) => ({ ...current, uploaderUserId: event.target.value }))}
+                  >
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="fullWidth">
+                  <span>{t(locale, "evidence.fileName")}</span>
+                  <input value={evidenceForm.fileName} onChange={(event) => setEvidenceForm((current) => ({ ...current, fileName: event.target.value }))} />
+                </label>
+              </div>
+            </details>
             <div className="taskFormActions fullWidth">
               <button className="primaryAction" disabled={actionDisabled || !selectedFile} type="button" onClick={() => void uploadSelectedFile()}>
-                {actionDisabled ? textByLocale(locale, "Uploading...", "Subiendo...") : textByLocale(locale, "Upload selected file", "Subir archivo seleccionado")}
+                {actionDisabled ? textByLocale(locale, "Uploading...", "Subiendo...") : textByLocale(locale, "Submit evidence", "Enviar evidencia")}
               </button>
-              <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={() => void queueEvidence()}>
-                {textByLocale(locale, "Queue metadata-only upload", "Encolar carga solo de metadatos")}
-              </button>
+              <details className="inlineAdvancedAction">
+                <summary>{textByLocale(locale, "Developer test action", "Accion de prueba")}</summary>
+                <button className="secondaryAction" disabled={actionDisabled} type="button" onClick={() => void queueEvidence()}>
+                  {textByLocale(locale, "Queue metadata-only upload", "Encolar carga solo de metadatos")}
+                </button>
+              </details>
             </div>
           </div>
         </article>
@@ -413,25 +432,28 @@ export function EvidenceAdmin() {
         <article className="catalogManagerCard">
           <div className="catalogManagerHeader">
             <div>
-              <h3>{t(locale, "evidence.reviewStub")}</h3>
-              <p>{textByLocale(locale, "Review thumbnails, upload progress, retry counts, and pending-sync operations. Real stored thumbnails now render through the storage endpoint whenever the upload has completed.", "Revisa miniaturas, progreso de carga, conteos de reintento y operaciones pendientes de sincronizacion. Las miniaturas almacenadas ya se muestran por el endpoint de almacenamiento cuando la carga se completa.")}</p>
+              <h3>{textByLocale(locale, "Submitted evidence", "Evidencia enviada")}</h3>
+              <p>{textByLocale(locale, "Review uploaded files and see whether the assignment evidence requirements are complete.", "Revisa archivos cargados y verifica si los requisitos de evidencia de la asignacion estan completos.")}</p>
             </div>
           </div>
 
-          <div className="evidenceOpsSummary">
-            <div className="evidenceOpsMetric">
-              <strong>{pendingSyncOperations.length}</strong>
-              <span>{textByLocale(locale, "Pending sync operations", "Operaciones pendientes de sincronizacion")}</span>
+          <details className="advancedFormDetails">
+            <summary>{textByLocale(locale, "Upload health details", "Detalles de salud de cargas")}</summary>
+            <div className="evidenceOpsSummary">
+              <div className="evidenceOpsMetric">
+                <strong>{pendingSyncOperations.length}</strong>
+                <span>{textByLocale(locale, "Pending sync operations", "Operaciones pendientes de sincronizacion")}</span>
+              </div>
+              <div className="evidenceOpsMetric">
+                <strong>{failedMediaAssets.length}</strong>
+                <span>{textByLocale(locale, "Failed uploads ready for retry", "Cargas fallidas listas para reintento")}</span>
+              </div>
+              <div className="evidenceOpsMetric">
+                <strong>{mediaAssets.filter((item) => item.uploadStatus === "uploading").length}</strong>
+                <span>{textByLocale(locale, "Uploads currently in progress", "Cargas actualmente en progreso")}</span>
+              </div>
             </div>
-            <div className="evidenceOpsMetric">
-              <strong>{failedMediaAssets.length}</strong>
-              <span>{textByLocale(locale, "Failed uploads ready for retry", "Cargas fallidas listas para reintento")}</span>
-            </div>
-            <div className="evidenceOpsMetric">
-              <strong>{mediaAssets.filter((item) => item.uploadStatus === "uploading").length}</strong>
-              <span>{textByLocale(locale, "Uploads currently in progress", "Cargas actualmente en progreso")}</span>
-            </div>
-          </div>
+          </details>
 
           {pendingSyncOperations.length > 0 ? (
             <div className="syncQueuePanel">
@@ -492,6 +514,8 @@ function EvidenceCard({
   const uploadStatus = mediaAsset?.uploadStatus ?? evidence.uploadStatus;
   const missingTypes = requirementSummary?.missingTypes ?? [];
   const previewSrc = createThumbnailPreview(mediaAsset, evidence.type);
+  const isImageEvidence = isImageMedia(mediaAsset);
+  const downloadHref = getStoredAssetHref(mediaAsset);
 
   return (
     <article className="taskCard">
@@ -507,7 +531,20 @@ function EvidenceCard({
 
       <div className="evidencePreviewLayout">
         <div className="evidenceThumbnailFrame">
-          <img alt={`${evidence.type} preview`} className="evidenceThumbnail" src={previewSrc} />
+          {isImageEvidence ? (
+            <img alt={`${evidence.type} preview`} className="evidenceThumbnail" src={previewSrc} />
+          ) : (
+            <div className="evidenceDocumentPreview">
+              <strong>{textByLocale(locale, "Document", "Documento")}</strong>
+              <span>{mediaAsset?.fileName ?? evidence.id}</span>
+              <small>{mediaAsset?.mimeType ?? textByLocale(locale, "MIME pending", "MIME pendiente")}</small>
+              {downloadHref ? (
+                <a href={downloadHref} rel="noreferrer" target="_blank">
+                  {textByLocale(locale, "Preview / download", "Vista previa / descargar")}
+                </a>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div className="evidenceReviewDetails">
@@ -517,20 +554,12 @@ function EvidenceCard({
               <dd>{evidence.capturedAt}</dd>
             </div>
             <div>
-              <dt>{t(locale, "evidence.originalPath")}</dt>
-              <dd>{mediaAsset?.originalStoragePath ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
-            </div>
-            <div>
-              <dt>{t(locale, "evidence.thumbnailPath")}</dt>
-              <dd>{mediaAsset?.thumbnailStoragePath ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
+              <dt>{textByLocale(locale, "File type", "Tipo de archivo")}</dt>
+              <dd>{mediaAsset?.mimeType ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
             </div>
             <div>
               <dt>{t(locale, "evidence.uploadStatus")}</dt>
               <dd>{t(locale, `uploadStatus.${uploadStatus}` as never)}</dd>
-            </div>
-            <div>
-              <dt>GPS</dt>
-              <dd>{formatCoordinates(evidence.latitude, evidence.longitude)}</dd>
             </div>
             <div>
               <dt>{t(locale, "evidence.requirements")}</dt>
@@ -540,33 +569,46 @@ function EvidenceCard({
               <dt>{textByLocale(locale, "Visit link", "Vinculo de visita")}</dt>
               <dd>{evidence.visitId ?? textByLocale(locale, "Task-only evidence", "Evidencia solo de tarea")}</dd>
             </div>
-            <div>
-              <dt>{textByLocale(locale, "Sync state", "Estado de sincronizacion")}</dt>
-              <dd>{mediaAsset?.syncState ?? "pending_sync"}</dd>
-            </div>
-            <div>
-              <dt>{textByLocale(locale, "Transfer reference", "Referencia de transferencia")}</dt>
-              <dd>{mediaAsset?.uploadSessionId ?? textByLocale(locale, "Not assigned", "Sin asignar")}</dd>
-            </div>
-            <div>
-              <dt>{textByLocale(locale, "Retries", "Reintentos")}</dt>
-              <dd>{mediaAsset?.retryCount ?? 0}</dd>
-            </div>
           </dl>
 
-          <div className="evidenceProgressPanel">
-            <div className="evidenceProgressHeader">
-              <strong>{textByLocale(locale, "Upload progress", "Progreso de carga")}</strong>
-              <span>{Math.round(mediaAsset?.uploadProgress ?? 0)}%</span>
+          <details className="advancedFormDetails">
+            <summary>{textByLocale(locale, "Technical upload details", "Detalles tecnicos de carga")}</summary>
+            <dl className="taskMetaGrid">
+              <div>
+                <dt>{t(locale, "evidence.originalPath")}</dt>
+                <dd>{mediaAsset?.originalStoragePath ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
+              </div>
+              <div>
+                <dt>{t(locale, "evidence.thumbnailPath")}</dt>
+                <dd>{mediaAsset?.thumbnailStoragePath ?? textByLocale(locale, "Pending", "Pendiente")}</dd>
+              </div>
+              <div>
+                <dt>{textByLocale(locale, "Sync state", "Estado de sincronizacion")}</dt>
+                <dd>{mediaAsset?.syncState ?? "pending_sync"}</dd>
+              </div>
+              <div>
+                <dt>{textByLocale(locale, "Transfer reference", "Referencia de transferencia")}</dt>
+                <dd>{mediaAsset?.uploadSessionId ?? textByLocale(locale, "Not assigned", "Sin asignar")}</dd>
+              </div>
+              <div>
+                <dt>{textByLocale(locale, "Retries", "Reintentos")}</dt>
+                <dd>{mediaAsset?.retryCount ?? 0}</dd>
+              </div>
+            </dl>
+            <div className="evidenceProgressPanel">
+              <div className="evidenceProgressHeader">
+                <strong>{textByLocale(locale, "Upload progress", "Progreso de carga")}</strong>
+                <span>{Math.round(mediaAsset?.uploadProgress ?? 0)}%</span>
+              </div>
+              <div className="evidenceProgressBar">
+                <span style={{ width: `${Math.max(4, mediaAsset?.uploadProgress ?? 0)}%` }} />
+              </div>
+              <p className="evidenceProgressCopy">
+                {textByLocale(locale, "Chunks", "Bloques")}: {mediaAsset?.uploadedChunkCount ?? 0} / {mediaAsset?.chunkCount ?? 0}
+              </p>
+              {mediaAsset?.lastError ? <p className="feedbackError evidenceInlineError">{mediaAsset.lastError}</p> : null}
             </div>
-            <div className="evidenceProgressBar">
-              <span style={{ width: `${Math.max(4, mediaAsset?.uploadProgress ?? 0)}%` }} />
-            </div>
-            <p className="evidenceProgressCopy">
-              {textByLocale(locale, "Chunks", "Bloques")}: {mediaAsset?.uploadedChunkCount ?? 0} / {mediaAsset?.chunkCount ?? 0}
-            </p>
-            {mediaAsset?.lastError ? <p className="feedbackError evidenceInlineError">{mediaAsset.lastError}</p> : null}
-          </div>
+          </details>
         </div>
       </div>
 
@@ -678,6 +720,18 @@ function createThumbnailPreview(mediaAsset: MediaAsset | undefined, evidenceType
   `);
 
   return `data:image/svg+xml;charset=UTF-8,${encoded}`;
+}
+
+function isImageMedia(mediaAsset: MediaAsset | undefined) {
+  return !mediaAsset || mediaAsset.mimeType.startsWith("image/");
+}
+
+function getStoredAssetHref(mediaAsset: MediaAsset | undefined) {
+  if (!mediaAsset?.originalStoragePath?.startsWith("/api/v1/storage/")) {
+    return undefined;
+  }
+
+  return `${API_BASE_URL.replace("/api/v1", "")}${mediaAsset.originalStoragePath}`;
 }
 
 function fileToDataUrl(file: File) {

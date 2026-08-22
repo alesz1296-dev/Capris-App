@@ -274,6 +274,55 @@ h1 {
   margin-bottom: 0;
 }
 
+.mobilePageSelectLabel {
+  display: none;
+}
+
+.mobilePageSelectLabel span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.mobilePageSelectLabel select {
+  appearance: none;
+  background: #fffdfd;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  font: inherit;
+  min-height: 46px;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+textarea {
+  background: #fffdfd;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.taskObjective {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 6px 0 0;
+}
+
+.presetButtonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .mobileBottomNav {
   background: rgba(255, 253, 253, 0.96);
   border-top: 1px solid var(--line);
@@ -340,6 +389,16 @@ h1 {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+}
+
+.authFallbackLink {
+  margin-top: 18px;
+}
+
+.authFallbackLink a {
+  color: var(--brand-strong);
+  font-weight: 800;
+  text-decoration: underline;
 }
 
 .authIdentity {
@@ -439,6 +498,11 @@ h1 {
   gap: 14px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 28px 0;
+}
+
+.performanceMetrics,
+.observabilityMetrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .metric,
@@ -1386,6 +1450,44 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.compactFormGrid {
+  margin-top: 12px;
+}
+
+.formStepHeader {
+  align-items: center;
+  background: #fffafb;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+
+.formStepHeader span {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 999px;
+  color: white;
+  display: inline-flex;
+  font-weight: 900;
+  height: 32px;
+  justify-content: center;
+  min-width: 32px;
+}
+
+.formStepHeader strong {
+  color: var(--ink);
+  display: block;
+  font-size: 15px;
+}
+
+.formStepHeader p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 2px 0 0;
+}
+
 .formGrid label {
   color: var(--muted);
   display: grid;
@@ -1412,6 +1514,28 @@ a {
 
 .fullWidth {
   grid-column: 1 / -1;
+}
+
+.advancedFormDetails {
+  background: #fffdfd;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.advancedFormDetails summary,
+.inlineAdvancedAction summary {
+  color: var(--brand);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.inlineAdvancedAction {
+  align-self: center;
+}
+
+.inlineAdvancedAction button {
+  margin-top: 8px;
 }
 
 .primaryAction {
@@ -1627,6 +1751,33 @@ a {
   max-width: 100%;
 }
 
+.evidenceDocumentPreview {
+  align-items: center;
+  color: var(--ink);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  min-height: 180px;
+  text-align: center;
+  width: 100%;
+}
+
+.evidenceDocumentPreview strong {
+  color: var(--brand);
+  font-size: 22px;
+}
+
+.evidenceDocumentPreview span,
+.evidenceDocumentPreview small {
+  overflow-wrap: anywhere;
+}
+
+.evidenceDocumentPreview a {
+  color: var(--brand);
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .evidenceReviewDetails {
   display: grid;
   gap: 14px;
@@ -1679,6 +1830,74 @@ a {
   font-family: "Cascadia Code", "Consolas", monospace;
   min-height: 240px;
   white-space: pre;
+}
+
+.statusBreakdownGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.statusBreakdownItem {
+  background: #fffafb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-height: 82px;
+  padding: 12px;
+}
+
+.statusBreakdownItem span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.statusBreakdownItem strong {
+  font-size: 24px;
+}
+
+.scorecardPanel {
+  margin-top: 18px;
+}
+
+.scorecardTableWrap {
+  overflow-x: auto;
+}
+
+.scorecardTable {
+  border-collapse: collapse;
+  min-width: 920px;
+  width: 100%;
+}
+
+.scorecardTable th,
+.scorecardTable td {
+  border-bottom: 1px solid var(--line);
+  padding: 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.scorecardTable th {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.scorecardTable td span {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.observabilityLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .workflowForm {
@@ -1754,6 +1973,10 @@ a {
     padding: 14px;
   }
 
+  .mobilePageSelectLabel {
+    display: block;
+  }
+
   .mobileBottomNav {
     display: flex;
   }
@@ -1764,6 +1987,8 @@ a {
   }
 
   .metrics,
+  .performanceMetrics,
+  .observabilityMetrics,
   .operations,
   .accessGrid,
   .catalogGrid,
@@ -1776,7 +2001,8 @@ a {
   .formGrid,
   .toggleGrid,
   .roleGrid,
-  .taskMetaGrid {
+  .taskMetaGrid,
+  .statusBreakdownGrid {
     grid-template-columns: 1fr;
   }
 

@@ -7,9 +7,12 @@ import {
   REPORT_NAMES,
   ROLE_DEFINITIONS,
   ROLE_PERMISSIONS,
+  TASK_STATUSES,
   t,
   type ClientRequestStatus,
   type DashboardResponse,
+  type FieldUserPerformanceScorecard,
+  type PerformanceDashboardResponse,
   type ProductivityDimension,
   type ProductivitySummary,
   type CreateReportSnapshotInput,
@@ -182,6 +185,53 @@ export class FieldOperationsService {
         clients: this.buildProductivity("client", tasks, visits, activities, exhibitions, requests, taskById, clientLabelById)
       }
     };
+  }
+
+  async getPerformanceDashboard(
+    locale: Locale,
+    filters: ReportFilters = {},
+    actor?: AuthJwtPayload
+  ): Promise<PerformanceDashboardResponse> {
+    const context = await this.getReportingContext(filters, actor);
+    const today = new Date().toISOString().slice(0, 10);
+    const completedTasks = context.tasks.filter((task) => task.status === "completed").length;
+    const pendingTasks = context.tasks.filter((task) => task.status === "pending").length;
+    const inProgressTasks = context.tasks.filter((task) => task.status === "in_progress").length;
+    const cancelledTasks = context.tasks.filter((task) => task.status === "cancelled").length;
+    const rescheduledTasks = context.tasks.filter((task) => task.status === "rescheduled").length;
+    const overdueTasks = context.tasks.filter((task) => !["completed", "cancelled"].includes(task.status) && task.scheduledFor < today).length;
+    const visitsCompleted = context.visits.filter((visit: any) => visit.status === "checked_out").length;
+    const activitiesCount = context.activities.reduce((total: number, item: any) => total + item.quantity, 0);
+    const exhibitionsCount = context.exhibitions.reduce((total: number, item: any) => total + item.quantity, 0);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      locale,
+      filters,
+      summary: {
+        assignedTasks: context.tasks.length,
+        completedTasks,
+        pendingTasks,
+        inProgressTasks,
+        cancelledTasks,
+        rescheduledTasks,
+        overdueTasks,
+        completionRate: context.tasks.length ? this.toPercent(completedTasks / context.tasks.length) : 0,
+        visitsCompleted,
+        evidenceItems: context.evidencePhotos.length,
+        activitiesCount,
+        exhibitionsCount
+      },
+      statusBreakdown: TASK_STATUSES.map((status) => ({
+        status,
+        count: context.tasks.filter((task) => task.status === status).length
+      })),
+      scorecards: this.buildFieldUserScorecards(context)
+    };
+  }
+
+  async getPerformanceScorecards(locale: Locale, filters: ReportFilters = {}, actor?: AuthJwtPayload) {
+    return (await this.getPerformanceDashboard(locale, filters, actor)).scorecards;
   }
 
   async getReportBootstrap(locale: Locale, actor?: AuthJwtPayload): Promise<ReportBootstrap> {
@@ -415,6 +465,100 @@ export class FieldOperationsService {
           return right.completedTasks - left.completedTasks;
         }
         return right.activitiesCount - left.activitiesCount;
+      });
+  }
+
+  private buildFieldUserScorecards(context: Awaited<ReturnType<FieldOperationsService["getReportingContext"]>>): FieldUserPerformanceScorecard[] {
+    const today = new Date().toISOString().slice(0, 10);
+    const userLabelById = new Map<string, string>(context.users.map((user: any) => [user.id, user.name]));
+    const buckets = new Map<string, FieldUserPerformanceScorecard>();
+
+    const ensureBucket = (userId: string) => {
+      const existing = buckets.get(userId);
+      if (existing) {
+        return existing;
+      }
+
+      const created: FieldUserPerformanceScorecard = {
+        userId,
+        userName: userLabelById.get(userId) ?? userId,
+        assignedTasks: 0,
+        completedTasks: 0,
+        pendingTasks: 0,
+        inProgressTasks: 0,
+        cancelledTasks: 0,
+        rescheduledTasks: 0,
+        overdueTasks: 0,
+        completionRate: 0,
+        visitsCompleted: 0,
+        activitiesCount: 0,
+        exhibitionsCount: 0,
+        evidenceItems: 0,
+        openClientRequests: 0,
+        overdueClientRequests: 0
+      };
+      buckets.set(userId, created);
+      return created;
+    };
+
+    for (const task of context.tasks) {
+      const bucket = ensureBucket(task.assigneeId);
+      bucket.assignedTasks += 1;
+      if (task.status === "completed") {
+        bucket.completedTasks += 1;
+      } else if (task.status === "pending") {
+        bucket.pendingTasks += 1;
+      } else if (task.status === "in_progress") {
+        bucket.inProgressTasks += 1;
+      } else if (task.status === "cancelled") {
+        bucket.cancelledTasks += 1;
+      } else if (task.status === "rescheduled") {
+        bucket.rescheduledTasks += 1;
+      }
+      if (!["completed", "cancelled"].includes(task.status) && task.scheduledFor < today) {
+        bucket.overdueTasks += 1;
+      }
+    }
+
+    for (const visit of context.visits) {
+      const bucket = ensureBucket(visit.assigneeId);
+      if (visit.status === "checked_out") {
+        bucket.visitsCompleted += 1;
+      }
+    }
+
+    for (const item of context.activities) {
+      ensureBucket(item.userId).activitiesCount += item.quantity;
+    }
+
+    for (const item of context.exhibitions) {
+      ensureBucket(item.userId).exhibitionsCount += item.quantity;
+    }
+
+    for (const item of context.evidencePhotos) {
+      ensureBucket(item.uploaderUserId).evidenceItems += 1;
+    }
+
+    for (const request of context.requests) {
+      const bucket = ensureBucket(request.ownerUserId);
+      if (!["resolved", "closed"].includes(request.status)) {
+        bucket.openClientRequests += 1;
+        if (request.dueDate < today) {
+          bucket.overdueClientRequests += 1;
+        }
+      }
+    }
+
+    return [...buckets.values()]
+      .map((bucket) => ({
+        ...bucket,
+        completionRate: bucket.assignedTasks ? this.toPercent(bucket.completedTasks / bucket.assignedTasks) : 0
+      }))
+      .sort((left, right) => {
+        if (right.completionRate !== left.completionRate) {
+          return right.completionRate - left.completionRate;
+        }
+        return right.completedTasks - left.completedTasks;
       });
   }
 

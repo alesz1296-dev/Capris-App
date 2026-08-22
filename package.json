@@ -10,6 +10,7 @@
   "scripts": {
     "dev:api": "npm --workspace apps/api run start:dev",
     "dev:web": "npm --workspace apps/web run dev",
+    "dev:web:fresh:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-web-fresh.ps1",
     "dev:mobile": "npm --workspace apps/mobile run start",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",

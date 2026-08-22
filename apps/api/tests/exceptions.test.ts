@@ -36,7 +36,7 @@ async function testExceptionValidation() {
       controller.createException(
         {
           organizationId: "org_capris",
-          type: "missing_gps",
+          type: "missing_location",
           title: "x",
           submittedByUserId: "user_field_001",
           submittedAt: "2026-05-08T14:00:00.000Z"
@@ -80,8 +80,8 @@ async function testExceptionReferenceValidation() {
     () =>
       service.createException({
         organizationId: "org_capris",
-        type: "missing_gps",
-        title: "Missing GPS on route",
+        type: "missing_location",
+        title: "Missing location on route",
         submittedByUserId: "user_field_001",
         taskId: "task_001",
         submittedAt: "2026-05-08T14:00:00.000Z"
@@ -105,7 +105,7 @@ async function testRejectedExceptionRequiresReviewNote() {
         findFirst: async () => ({
           id: "user_supervisor_001",
           organizationId: "org_capris",
-          role: "supervisor",
+          role: "supervisor_auditor",
           active: true
         })
       }
@@ -143,7 +143,7 @@ async function testControllerReviewUsesAuthenticatedReviewer() {
         sub: "user_supervisor_001",
         organizationId: "org_capris",
         email: "supervisor@example.com",
-        role: "supervisor",
+        role: "supervisor_auditor",
         locale: "es",
         name: "Supervisor User",
         sessionId: "session_2",

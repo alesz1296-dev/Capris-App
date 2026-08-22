@@ -64,6 +64,30 @@ CREATE TABLE IF NOT EXISTS "Zone" (
     CONSTRAINT "Zone_provinceId_fkey" FOREIGN KEY ("provinceId") REFERENCES "Province" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS "Canton" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "organizationId" TEXT NOT NULL,
+    "provinceId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT "Canton_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Canton_provinceId_fkey" FOREIGN KEY ("provinceId") REFERENCES "Province" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "District" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "organizationId" TEXT NOT NULL,
+    "provinceId" TEXT NOT NULL,
+    "cantonId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT "District_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "District_provinceId_fkey" FOREIGN KEY ("provinceId") REFERENCES "Province" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "District_cantonId_fkey" FOREIGN KEY ("cantonId") REFERENCES "Canton" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS "Client" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "organizationId" TEXT NOT NULL,
@@ -78,16 +102,18 @@ CREATE TABLE IF NOT EXISTS "PointOfSale" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "organizationId" TEXT NOT NULL,
     "provinceId" TEXT NOT NULL,
+    "cantonId" TEXT,
+    "districtId" TEXT,
     "zoneId" TEXT NOT NULL,
     "clientId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "address" TEXT,
-    "latitude" REAL,
-    "longitude" REAL,
     "active" BOOLEAN NOT NULL DEFAULT true,
     CONSTRAINT "PointOfSale_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "PointOfSale_provinceId_fkey" FOREIGN KEY ("provinceId") REFERENCES "Province" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "PointOfSale_cantonId_fkey" FOREIGN KEY ("cantonId") REFERENCES "Canton" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "PointOfSale_districtId_fkey" FOREIGN KEY ("districtId") REFERENCES "District" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "PointOfSale_zoneId_fkey" FOREIGN KEY ("zoneId") REFERENCES "Zone" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "PointOfSale_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -117,7 +143,6 @@ CREATE TABLE IF NOT EXISTS "WorkflowRule" (
     "activityTypeId" TEXT,
     "requiresBeforePhoto" BOOLEAN NOT NULL DEFAULT true,
     "requiresAfterPhoto" BOOLEAN NOT NULL DEFAULT true,
-    "requiresGps" BOOLEAN NOT NULL DEFAULT true,
     "requiresComment" BOOLEAN NOT NULL DEFAULT false,
     "requiresSupervisorApproval" BOOLEAN NOT NULL DEFAULT false,
     "requiresConsignationEmail" BOOLEAN NOT NULL DEFAULT false,
@@ -130,6 +155,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX IF NOT EXISTS "SupervisorScope_userId_organizationId_type_referenceId_key" ON "SupervisorScope"("userId", "organizationId", "type", "referenceId");
 CREATE UNIQUE INDEX IF NOT EXISTS "Province_organizationId_code_key" ON "Province"("organizationId", "code");
 CREATE UNIQUE INDEX IF NOT EXISTS "Zone_organizationId_code_key" ON "Zone"("organizationId", "code");
+CREATE UNIQUE INDEX IF NOT EXISTS "Canton_organizationId_code_key" ON "Canton"("organizationId", "code");
+CREATE UNIQUE INDEX IF NOT EXISTS "District_organizationId_code_key" ON "District"("organizationId", "code");
 CREATE UNIQUE INDEX IF NOT EXISTS "Client_organizationId_code_key" ON "Client"("organizationId", "code");
 CREATE UNIQUE INDEX IF NOT EXISTS "PointOfSale_organizationId_code_key" ON "PointOfSale"("organizationId", "code");
 CREATE UNIQUE INDEX IF NOT EXISTS "ActivityType_organizationId_code_key" ON "ActivityType"("organizationId", "code");

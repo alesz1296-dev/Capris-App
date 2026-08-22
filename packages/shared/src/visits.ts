@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { VISIT_STATUSES, type PointOfSale, type Province, type Task, type User, type Visit, type VisitStatus, type Zone } from "./domain";
+import { VISIT_STATUSES, type Canton, type District, type PointOfSale, type Province, type Task, type User, type Visit, type VisitStatus, type Zone } from "./domain";
 
 const identifierSchema = z.string().trim().min(1);
 const visitDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "scheduledFor must use YYYY-MM-DD format.");
 const isoTimestampSchema = z.string().datetime({ offset: true });
-const latitudeSchema = z.number().min(-90).max(90);
-const longitudeSchema = z.number().min(-180).max(180);
 
 export const createVisitSchema = z.object({
   organizationId: identifierSchema,
@@ -13,21 +11,19 @@ export const createVisitSchema = z.object({
   assigneeId: identifierSchema,
   scheduledFor: visitDateSchema,
   provinceId: identifierSchema,
+  cantonId: identifierSchema.optional(),
+  districtId: identifierSchema.optional(),
   zoneId: identifierSchema,
   pointOfSaleId: identifierSchema.optional(),
   status: z.enum(VISIT_STATUSES).optional()
 });
 
 export const visitCheckInSchema = z.object({
-  checkedInAt: isoTimestampSchema,
-  checkedInLatitude: latitudeSchema,
-  checkedInLongitude: longitudeSchema
+  checkedInAt: isoTimestampSchema
 });
 
 export const visitCheckOutSchema = z.object({
-  checkedOutAt: isoTimestampSchema,
-  checkedOutLatitude: latitudeSchema,
-  checkedOutLongitude: longitudeSchema
+  checkedOutAt: isoTimestampSchema
 });
 
 export interface CreateVisitInput {
@@ -36,6 +32,8 @@ export interface CreateVisitInput {
   assigneeId: string;
   scheduledFor: string;
   provinceId: string;
+  cantonId?: string;
+  districtId?: string;
   zoneId: string;
   pointOfSaleId?: string;
   status?: VisitStatus;
@@ -43,14 +41,10 @@ export interface CreateVisitInput {
 
 export interface VisitCheckInInput {
   checkedInAt: string;
-  checkedInLatitude: number;
-  checkedInLongitude: number;
 }
 
 export interface VisitCheckOutInput {
   checkedOutAt: string;
-  checkedOutLatitude: number;
-  checkedOutLongitude: number;
 }
 
 export interface VisitMutationResult {
@@ -63,6 +57,8 @@ export interface VisitBootstrap {
   tasks: Task[];
   users: User[];
   provinces: Province[];
+  cantons: Canton[];
+  districts: District[];
   zones: Zone[];
   pointsOfSale: PointOfSale[];
 }

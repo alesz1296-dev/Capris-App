@@ -128,7 +128,6 @@ export class AdminConfigService {
         organizationId: "org_capris",
         defaultRecipientEmails: [],
         retentionPhotoDays: 365,
-        retentionGpsDays: 180,
         retentionAuditDays: 730
       };
     }
@@ -142,14 +141,12 @@ export class AdminConfigService {
       update: {
         defaultRecipientEmails: JSON.stringify(input.defaultRecipientEmails),
         retentionPhotoDays: input.retentionPhotoDays,
-        retentionGpsDays: input.retentionGpsDays,
         retentionAuditDays: input.retentionAuditDays
       },
       create: {
         organizationId: input.organizationId,
         defaultRecipientEmails: JSON.stringify(input.defaultRecipientEmails),
         retentionPhotoDays: input.retentionPhotoDays,
-        retentionGpsDays: input.retentionGpsDays,
         retentionAuditDays: input.retentionAuditDays
       }
     });
@@ -163,7 +160,6 @@ export class AdminConfigService {
       metadata: {
         recipientCount: input.defaultRecipientEmails.length,
         retentionPhotoDays: input.retentionPhotoDays,
-        retentionGpsDays: input.retentionGpsDays,
         retentionAuditDays: input.retentionAuditDays
       }
     });
@@ -307,8 +303,6 @@ export class AdminConfigService {
         clientId: client.id,
         name: required(row.name, "name"),
         address: row.address?.trim() || null,
-        latitude: row.latitude ? Number(row.latitude) : null,
-        longitude: row.longitude ? Number(row.longitude) : null,
         active: parseBoolean(row.active, true)
       });
     }
@@ -377,14 +371,12 @@ export class AdminConfigService {
     organizationId: string;
     defaultRecipientEmails: string;
     retentionPhotoDays: number;
-    retentionGpsDays: number;
     retentionAuditDays: number;
   }): AdminSettings {
     return {
       organizationId: item.organizationId,
       defaultRecipientEmails: item.defaultRecipientEmails ? (JSON.parse(item.defaultRecipientEmails) as string[]) : [],
       retentionPhotoDays: item.retentionPhotoDays,
-      retentionGpsDays: item.retentionGpsDays,
       retentionAuditDays: item.retentionAuditDays
     };
   }

@@ -148,7 +148,7 @@ async function testPrepareDefaultsToTaskAssignee() {
       organizationId: "org_capris",
       sub: "user_supervisor_001",
       email: "supervisor@example.com",
-      role: "supervisor",
+      role: "supervisor_auditor",
       locale: "es"
     } as never
   );

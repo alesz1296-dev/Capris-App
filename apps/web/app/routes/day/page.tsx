@@ -8,8 +8,8 @@ export default function RouteDayPage() {
       eyebrow={{ en: "Route execution", es: "Ejecucion de ruta" }}
       title={{ en: "Route day and visits", es: "Dia de ruta y visitas" }}
       description={{
-        en: "Focused route execution for map review, visits, check-ins, check-outs, and live GPS.",
-        es: "Ejecucion enfocada para revisar mapa, visitas, entradas, salidas y GPS en vivo."
+        en: "Focused route execution for visits, check-ins, check-outs, and administrative location review.",
+        es: "Ejecucion enfocada para revisar visitas, entradas, salidas y ubicacion administrativa."
       }}
     >
       <RouteSectionNav locale="es" />

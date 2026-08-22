@@ -1,5 +1,4 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
 import { DEFAULT_COUNTRY, DEFAULT_FIELD_WORKFLOW_RULE, DEFAULT_TIMEZONE } from "@capris/shared";
 import { PrismaService } from "./prisma.service";
 
@@ -12,8 +11,8 @@ export class DatabaseSeederService implements OnModuleInit {
 
     try {
       existingOrganizationCount = await this.prisma.organization.count();
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+    } catch (error: unknown) {
+      if (isPrismaMissingTableError(error)) {
         console.warn("Skipping database seed because Prisma tables are not initialized yet. Run prisma db push before seeding.");
         return;
       }
@@ -50,7 +49,7 @@ export class DatabaseSeederService implements OnModuleInit {
           organizationId: "org_capris",
           name: "Daniel Rojas",
           email: "daniel.rojas@capris.example",
-          role: "supervisor",
+          role: "supervisor_auditor",
           locale: "es",
           active: true
         },
@@ -150,6 +149,50 @@ export class DatabaseSeederService implements OnModuleInit {
       ]
     });
 
+    await this.prisma.canton.createMany({
+      data: [
+        {
+          id: "canton_escazu",
+          organizationId: "org_capris",
+          provinceId: "province_san_jose",
+          name: "Escazu",
+          code: "SJ-ESCAZU",
+          active: true
+        },
+        {
+          id: "canton_alajuela",
+          organizationId: "org_capris",
+          provinceId: "province_alajuela",
+          name: "Alajuela",
+          code: "A-ALAJUELA",
+          active: true
+        }
+      ]
+    });
+
+    await this.prisma.district.createMany({
+      data: [
+        {
+          id: "district_san_rafael_escazu",
+          organizationId: "org_capris",
+          provinceId: "province_san_jose",
+          cantonId: "canton_escazu",
+          name: "San Rafael",
+          code: "SJ-ESCAZU-SAN-RAFAEL",
+          active: true
+        },
+        {
+          id: "district_alajuela_centro",
+          organizationId: "org_capris",
+          provinceId: "province_alajuela",
+          cantonId: "canton_alajuela",
+          name: "Alajuela",
+          code: "A-ALAJUELA-CENTRO",
+          active: true
+        }
+      ]
+    });
+
     await this.prisma.client.createMany({
       data: [
         {
@@ -176,13 +219,13 @@ export class DatabaseSeederService implements OnModuleInit {
         id: "pos_escazu_001",
         organizationId: "org_capris",
         provinceId: "province_san_jose",
+        cantonId: "canton_escazu",
+        districtId: "district_san_rafael_escazu",
         zoneId: "zone_central",
         clientId: "client_auto_mercado",
         name: "Escazu Plaza",
         code: "ESCAZU-001",
         address: "Escazu, San Jose",
-        latitude: 9.9186,
-        longitude: -84.1397,
         active: true
       }
     });
@@ -241,7 +284,6 @@ export class DatabaseSeederService implements OnModuleInit {
           activityTypeId: "activity_consignation",
           requiresBeforePhoto: true,
           requiresAfterPhoto: true,
-          requiresGps: true,
           requiresComment: true,
           requiresSupervisorApproval: false,
           requiresConsignationEmail: true
@@ -287,4 +329,8 @@ export class DatabaseSeederService implements OnModuleInit {
       }
     });
   }
+}
+
+function isPrismaMissingTableError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "P2021";
 }

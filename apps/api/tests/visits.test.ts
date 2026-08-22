@@ -15,7 +15,7 @@ async function testVisitCreationValidation() {
         throw new Error("Service should not be reached for invalid visit payloads.");
       }
     } as never,
-    { getActor: () => ({ organizationId: "org_capris", sub: "user_supervisor_001", role: "supervisor" }) } as never
+    { getActor: () => ({ organizationId: "org_capris", sub: "user_supervisor_001", role: "supervisor_auditor" }) } as never
   );
 
   assert.throws(
@@ -101,11 +101,7 @@ async function testAllowedVisitCheckIn() {
           pointOfSaleId: "pos_escazu_001",
           status: "scheduled",
           checkedInAt: null,
-          checkedInLatitude: null,
-          checkedInLongitude: null,
           checkedOutAt: null,
-          checkedOutLatitude: null,
-          checkedOutLongitude: null
         }),
         update: async ({ data }: { data: { status: string; checkedInAt: string } }) => ({
           id: "visit_launch_display",
@@ -118,11 +114,7 @@ async function testAllowedVisitCheckIn() {
           pointOfSaleId: "pos_escazu_001",
           status: data.status,
           checkedInAt: data.checkedInAt,
-          checkedInLatitude: 9.9186,
-          checkedInLongitude: -84.1397,
           checkedOutAt: null,
-          checkedOutLatitude: null,
-          checkedOutLongitude: null
         })
       }
     } as never,
@@ -134,9 +126,7 @@ async function testAllowedVisitCheckIn() {
   );
 
   const result = await service.checkInVisit("visit_launch_display", {
-    checkedInAt: "2026-05-08T14:00:00.000Z",
-    checkedInLatitude: 9.9186,
-    checkedInLongitude: -84.1397
+    checkedInAt: "2026-05-08T14:00:00.000Z"
   });
 
   assert.equal(result.item.status, "checked_in");
@@ -159,11 +149,7 @@ async function testDisallowedVisitCheckOut() {
           pointOfSaleId: "pos_escazu_001",
           status: "scheduled",
           checkedInAt: null,
-          checkedInLatitude: null,
-          checkedInLongitude: null,
           checkedOutAt: null,
-          checkedOutLatitude: null,
-          checkedOutLongitude: null
         }),
         update: async () => {
           throw new Error("Visit update should not run for an invalid check-out transition.");
@@ -180,9 +166,7 @@ async function testDisallowedVisitCheckOut() {
   await assert.rejects(
     () =>
       service.checkOutVisit("visit_launch_display", {
-        checkedOutAt: "2026-05-08T15:00:00.000Z",
-        checkedOutLatitude: 9.9186,
-        checkedOutLongitude: -84.1397
+        checkedOutAt: "2026-05-08T15:00:00.000Z"
       }),
     (error: unknown) =>
       error instanceof BadRequestException &&
@@ -202,3 +186,4 @@ void main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+

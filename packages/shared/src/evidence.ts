@@ -22,8 +22,6 @@ import type { WorkflowRule } from "./workflow";
 
 const identifierSchema = z.string().trim().min(1);
 const isoTimestampSchema = z.string().datetime({ offset: true });
-const latitudeSchema = z.number().min(-90).max(90);
-const longitudeSchema = z.number().min(-180).max(180);
 const storagePathSchema = z.string().trim().min(1);
 const fileNameSchema = z.string().trim().min(1);
 const mimeTypeSchema = z.string().trim().min(1);
@@ -42,8 +40,6 @@ export const createEvidenceSchema = z
     clientOperationId: identifierSchema.optional(),
     type: z.enum(EVIDENCE_TYPES),
     capturedAt: isoTimestampSchema,
-    latitude: latitudeSchema.optional(),
-    longitude: longitudeSchema.optional(),
     fileName: fileNameSchema,
     mimeType: mimeTypeSchema,
     originalStoragePath: storagePathSchema,
@@ -126,8 +122,6 @@ export const uploadCapturedEvidenceSchema = z.object({
   clientOperationId: identifierSchema.optional(),
   type: z.enum(EVIDENCE_TYPES),
   capturedAt: isoTimestampSchema,
-  latitude: latitudeSchema.optional(),
-  longitude: longitudeSchema.optional(),
   fileName: fileNameSchema,
   mimeType: mimeTypeSchema,
   fileBase64: base64PayloadSchema,
@@ -145,8 +139,6 @@ export interface CreateEvidenceInput {
   clientOperationId?: string;
   type: EvidenceType;
   capturedAt: string;
-  latitude?: number;
-  longitude?: number;
   fileName: string;
   mimeType: string;
   originalStoragePath: string;
@@ -190,8 +182,6 @@ export interface UploadCapturedEvidenceInput {
   clientOperationId?: string;
   type: EvidenceType;
   capturedAt: string;
-  latitude?: number;
-  longitude?: number;
   fileName: string;
   mimeType: string;
   fileBase64: string;

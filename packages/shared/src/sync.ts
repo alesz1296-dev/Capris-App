@@ -34,15 +34,11 @@ export interface TaskUpdateSyncPayload {
 export interface VisitCheckInSyncPayload {
   visitId: string;
   checkedInAt: string;
-  checkedInLatitude: number;
-  checkedInLongitude: number;
 }
 
 export interface VisitCheckOutSyncPayload {
   visitId: string;
   checkedOutAt: string;
-  checkedOutLatitude: number;
-  checkedOutLongitude: number;
 }
 
 export interface PhotoUploadSyncPayload {
@@ -55,8 +51,6 @@ export interface PhotoUploadSyncPayload {
     clientOperationId?: string;
     type: "before" | "after" | "supporting";
     capturedAt: string;
-    latitude?: number;
-    longitude?: number;
     fileName: string;
     mimeType: string;
     fileBase64: string;

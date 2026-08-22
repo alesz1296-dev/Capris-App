@@ -95,7 +95,6 @@ export function ImportsAdmin() {
   const [settingsForm, setSettingsForm] = useState({
     defaultRecipientEmails: "",
     retentionPhotoDays: "365",
-    retentionGpsDays: "180",
     retentionAuditDays: "730"
   });
 
@@ -133,7 +132,6 @@ export function ImportsAdmin() {
       setSettingsForm({
         defaultRecipientEmails: payload.settings.defaultRecipientEmails.join(", "),
         retentionPhotoDays: String(payload.settings.retentionPhotoDays),
-        retentionGpsDays: String(payload.settings.retentionGpsDays),
         retentionAuditDays: String(payload.settings.retentionAuditDays)
       });
     } catch (loadError) {
@@ -216,7 +214,6 @@ export function ImportsAdmin() {
           .map((email) => email.trim())
           .filter(Boolean),
         retentionPhotoDays: Number(settingsForm.retentionPhotoDays),
-        retentionGpsDays: Number(settingsForm.retentionGpsDays),
         retentionAuditDays: Number(settingsForm.retentionAuditDays)
       };
       const response = await authenticatedFetch(`${API_BASE_URL}/admin-config/settings`, {
@@ -381,10 +378,6 @@ export function ImportsAdmin() {
           <label>
             <span>{textByLocale(locale, "Photo retention days", "Dias de retencion de fotos")}</span>
             <input value={settingsForm.retentionPhotoDays} onChange={(event) => setSettingsForm((current) => ({ ...current, retentionPhotoDays: event.target.value }))} />
-          </label>
-          <label>
-            <span>{textByLocale(locale, "GPS retention days", "Dias de retencion de GPS")}</span>
-            <input value={settingsForm.retentionGpsDays} onChange={(event) => setSettingsForm((current) => ({ ...current, retentionGpsDays: event.target.value }))} />
           </label>
           <label>
             <span>{textByLocale(locale, "Audit retention days", "Dias de retencion de auditoria")}</span>

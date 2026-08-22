@@ -5,10 +5,13 @@ import type { ReactNode } from "react";
 import type {
   ActivityType,
   AuthProfileResponse,
+  Canton,
   CatalogBootstrap,
   Client,
   CreateActivityTypeInput,
+  CreateCantonInput,
   CreateClientInput,
+  CreateDistrictInput,
   CreatePointOfSaleInput,
   CreateProvinceInput,
   CreateTaskTypeInput,
@@ -16,6 +19,7 @@ import type {
   CreateZoneInput,
   PointOfSale,
   Province,
+  District,
   TaskType,
   WorkflowRule,
   Zone
@@ -38,6 +42,19 @@ type ZoneFormState = {
   provinceId: string;
 };
 
+type CantonFormState = {
+  name: string;
+  code: string;
+  provinceId: string;
+};
+
+type DistrictFormState = {
+  name: string;
+  code: string;
+  provinceId: string;
+  cantonId: string;
+};
+
 type ClientFormState = {
   name: string;
   code: string;
@@ -48,6 +65,8 @@ type PointOfSaleFormState = {
   name: string;
   code: string;
   provinceId: string;
+  cantonId: string;
+  districtId: string;
   zoneId: string;
   clientId: string;
   address: string;
@@ -63,7 +82,6 @@ type WorkflowFormState = {
   activityTypeId: string;
   requiresBeforePhoto: boolean;
   requiresAfterPhoto: boolean;
-  requiresGps: boolean;
   requiresComment: boolean;
   requiresSupervisorApproval: boolean;
   requiresConsignationEmail: boolean;
@@ -80,6 +98,8 @@ function catalogText(locale: "en" | "es", english: string, spanish: string) {
 const CREATE_LABELS: Record<string, string> = {
   provinces: "Province",
   zones: "Zone",
+  cantons: "Canton",
+  districts: "District",
   clients: "Client",
   "points-of-sale": "Point of sale",
   "activity-types": "Activity type",
@@ -90,6 +110,8 @@ const CREATE_LABELS: Record<string, string> = {
 const ARCHIVE_LABELS: Record<string, string> = {
   provinces: "Province",
   zones: "Zone",
+  cantons: "Canton",
+  districts: "District",
   clients: "Client",
   "points-of-sale": "Point of sale",
   "activity-types": "Activity type",
@@ -106,6 +128,8 @@ export function CatalogAdmin() {
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
 
   const [provinces, setProvinces] = useState<Province[]>([]);
+  const [cantons, setCantons] = useState<Canton[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [pointsOfSale, setPointsOfSale] = useState<PointOfSale[]>([]);
@@ -114,12 +138,16 @@ export function CatalogAdmin() {
   const [workflowRules, setWorkflowRules] = useState<WorkflowRule[]>([]);
 
   const [provinceForm, setProvinceForm] = useState<ProvinceFormState>({ name: "", code: "" });
+  const [cantonForm, setCantonForm] = useState<CantonFormState>({ name: "", code: "", provinceId: "" });
+  const [districtForm, setDistrictForm] = useState<DistrictFormState>({ name: "", code: "", provinceId: "", cantonId: "" });
   const [zoneForm, setZoneForm] = useState<ZoneFormState>({ name: "", code: "", provinceId: "" });
   const [clientForm, setClientForm] = useState<ClientFormState>({ name: "", code: "", contactEmail: "" });
   const [pointOfSaleForm, setPointOfSaleForm] = useState<PointOfSaleFormState>({
     name: "",
     code: "",
     provinceId: "",
+    cantonId: "",
+    districtId: "",
     zoneId: "",
     clientId: "",
     address: ""
@@ -131,17 +159,21 @@ export function CatalogAdmin() {
     activityTypeId: "",
     requiresBeforePhoto: true,
     requiresAfterPhoto: true,
-    requiresGps: true,
     requiresComment: false,
     requiresSupervisorApproval: false,
     requiresConsignationEmail: false
   });
 
   const activeProvinces = provinces.filter((province) => province.active);
+  const activeCantons = cantons.filter((canton) => canton.active);
+  const activeDistricts = districts.filter((district) => district.active);
   const activeZones = zones.filter((zone) => zone.active);
   const activeClients = clients.filter((client) => client.active);
   const activeTaskTypes = taskTypes.filter((taskType) => taskType.active);
   const activeActivityTypes = activityTypes.filter((activityType) => activityType.active);
+  const cantonsForDistrictFormProvince = activeCantons.filter((canton) => canton.provinceId === districtForm.provinceId);
+  const cantonsForSelectedProvince = activeCantons.filter((canton) => canton.provinceId === pointOfSaleForm.provinceId);
+  const districtsForSelectedCanton = activeDistricts.filter((district) => district.cantonId === pointOfSaleForm.cantonId);
   const zonesForSelectedProvince = activeZones.filter((zone) => zone.provinceId === pointOfSaleForm.provinceId);
   const actionDisabled = loading || isPending;
 
@@ -153,6 +185,14 @@ export function CatalogAdmin() {
   }, []);
 
   useEffect(() => {
+    if (!cantonForm.provinceId && activeProvinces[0]) {
+      setCantonForm((current) => ({ ...current, provinceId: activeProvinces[0].id }));
+    }
+
+    if (!districtForm.provinceId && activeProvinces[0]) {
+      setDistrictForm((current) => ({ ...current, provinceId: activeProvinces[0].id }));
+    }
+
     if (!zoneForm.provinceId && activeProvinces[0]) {
       setZoneForm((current) => ({ ...current, provinceId: activeProvinces[0].id }));
     }
@@ -160,7 +200,30 @@ export function CatalogAdmin() {
     if (!pointOfSaleForm.provinceId && activeProvinces[0]) {
       setPointOfSaleForm((current) => ({ ...current, provinceId: activeProvinces[0].id }));
     }
-  }, [activeProvinces, pointOfSaleForm.provinceId, zoneForm.provinceId]);
+  }, [activeProvinces, cantonForm.provinceId, districtForm.provinceId, pointOfSaleForm.provinceId, zoneForm.provinceId]);
+
+  useEffect(() => {
+    const provinceCantons = activeCantons.filter((canton) => canton.provinceId === districtForm.provinceId);
+    const hasValidCanton = provinceCantons.some((canton) => canton.id === districtForm.cantonId);
+    if (!hasValidCanton) {
+      setDistrictForm((current) => ({ ...current, cantonId: provinceCantons[0]?.id ?? "" }));
+    }
+  }, [activeCantons, districtForm.cantonId, districtForm.provinceId]);
+
+  useEffect(() => {
+    const hasValidCanton = cantonsForSelectedProvince.some((canton) => canton.id === pointOfSaleForm.cantonId);
+    if (!hasValidCanton) {
+      const nextCantonId = cantonsForSelectedProvince[0]?.id ?? "";
+      setPointOfSaleForm((current) => ({ ...current, cantonId: nextCantonId, districtId: "" }));
+    }
+  }, [cantonsForSelectedProvince, pointOfSaleForm.cantonId]);
+
+  useEffect(() => {
+    const hasValidDistrict = districtsForSelectedCanton.some((district) => district.id === pointOfSaleForm.districtId);
+    if (!hasValidDistrict) {
+      setPointOfSaleForm((current) => ({ ...current, districtId: districtsForSelectedCanton[0]?.id ?? "" }));
+    }
+  }, [districtsForSelectedCanton, pointOfSaleForm.districtId]);
 
   useEffect(() => {
     const hasValidZone = zonesForSelectedProvince.some((zone) => zone.id === pointOfSaleForm.zoneId);
@@ -207,6 +270,8 @@ export function CatalogAdmin() {
       if (profilePayload.user.role !== "admin") {
         setCatalogState({
           provinces: [],
+          cantons: [],
+          districts: [],
           zones: [],
           clients: [],
           pointsOfSale: [],
@@ -236,6 +301,8 @@ export function CatalogAdmin() {
 
   function setCatalogState(data: CatalogBootstrap) {
     setProvinces(data.provinces);
+    setCantons(data.cantons);
+    setDistricts(data.districts);
     setZones(data.zones);
     setClients(data.clients);
     setPointsOfSale(data.pointsOfSale);
@@ -310,6 +377,43 @@ export function CatalogAdmin() {
     });
   }
 
+  function handleCantonCreate() {
+    if (!cantonForm.name.trim() || !cantonForm.code.trim() || !cantonForm.provinceId) {
+      return;
+    }
+
+    const payload: CreateCantonInput = {
+      organizationId: ORGANIZATION_ID,
+      provinceId: cantonForm.provinceId,
+      name: cantonForm.name.trim(),
+      code: cantonForm.code.trim().toUpperCase(),
+      active: true
+    };
+
+    void submitCreate("cantons", payload, () => {
+      setCantonForm((current) => ({ ...current, name: "", code: "" }));
+    });
+  }
+
+  function handleDistrictCreate() {
+    if (!districtForm.name.trim() || !districtForm.code.trim() || !districtForm.provinceId || !districtForm.cantonId) {
+      return;
+    }
+
+    const payload: CreateDistrictInput = {
+      organizationId: ORGANIZATION_ID,
+      provinceId: districtForm.provinceId,
+      cantonId: districtForm.cantonId,
+      name: districtForm.name.trim(),
+      code: districtForm.code.trim().toUpperCase(),
+      active: true
+    };
+
+    void submitCreate("districts", payload, () => {
+      setDistrictForm((current) => ({ ...current, name: "", code: "" }));
+    });
+  }
+
   function handleZoneCreate() {
     if (!zoneForm.name.trim() || !zoneForm.code.trim() || !zoneForm.provinceId) {
       return;
@@ -351,6 +455,8 @@ export function CatalogAdmin() {
       !pointOfSaleForm.name.trim() ||
       !pointOfSaleForm.code.trim() ||
       !pointOfSaleForm.provinceId ||
+      !pointOfSaleForm.cantonId ||
+      !pointOfSaleForm.districtId ||
       !pointOfSaleForm.zoneId ||
       !pointOfSaleForm.clientId
     ) {
@@ -360,6 +466,8 @@ export function CatalogAdmin() {
     const payload: CreatePointOfSaleInput = {
       organizationId: ORGANIZATION_ID,
       provinceId: pointOfSaleForm.provinceId,
+      cantonId: pointOfSaleForm.cantonId || undefined,
+      districtId: pointOfSaleForm.districtId || undefined,
       zoneId: pointOfSaleForm.zoneId,
       clientId: pointOfSaleForm.clientId,
       name: pointOfSaleForm.name.trim(),
@@ -418,7 +526,6 @@ export function CatalogAdmin() {
       activityTypeId: workflowForm.activityTypeId,
       requiresBeforePhoto: workflowForm.requiresBeforePhoto,
       requiresAfterPhoto: workflowForm.requiresAfterPhoto,
-      requiresGps: workflowForm.requiresGps,
       requiresComment: workflowForm.requiresComment,
       requiresSupervisorApproval: workflowForm.requiresSupervisorApproval,
       requiresConsignationEmail: workflowForm.requiresConsignationEmail
@@ -543,6 +650,124 @@ export function CatalogAdmin() {
 
         <CatalogPanel
           locale={locale}
+          title={catalogText(locale, "Cantons", "Cantones")}
+          description={catalogText(locale, "Maintain Costa Rica cantons under each province.", "Mantiene los cantones de Costa Rica dentro de cada provincia.")}
+          form={
+            <FormGrid>
+              <label>
+                <span>{catalogText(locale, "Province", "Provincia")}</span>
+                <select
+                  value={cantonForm.provinceId}
+                  onChange={(event) => setCantonForm((current) => ({ ...current, provinceId: event.target.value }))}
+                >
+                  {activeProvinces.map((province) => (
+                    <option key={province.id} value={province.id}>
+                      {province.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>{catalogText(locale, "Name", "Nombre")}</span>
+                <input
+                  value={cantonForm.name}
+                  onChange={(event) => setCantonForm((current) => ({ ...current, name: event.target.value }))}
+                  placeholder={catalogText(locale, "Escazu", "Escazu")}
+                />
+              </label>
+              <label>
+                <span>{catalogText(locale, "Code", "Codigo")}</span>
+                <input
+                  value={cantonForm.code}
+                  onChange={(event) => setCantonForm((current) => ({ ...current, code: event.target.value }))}
+                  placeholder="SJ-ESCAZU"
+                />
+              </label>
+              <button className="primaryAction" disabled={actionDisabled} type="button" onClick={handleCantonCreate}>
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add canton", "Agregar canton")}
+              </button>
+            </FormGrid>
+          }
+          actionDisabled={actionDisabled}
+          items={cantons.map((canton) => {
+            const provinceName = provinces.find((province) => province.id === canton.provinceId)?.name ?? canton.provinceId;
+            return {
+              id: canton.id,
+              label: `${provinceName} / ${canton.name} (${canton.code}) - ${statusLabel(locale, canton.active)}`,
+              archived: !canton.active,
+              onArchive: () => void archiveItem("cantons", canton.id)
+            };
+          })}
+        />
+
+        <CatalogPanel
+          locale={locale}
+          title={catalogText(locale, "Districts", "Distritos")}
+          description={catalogText(locale, "Maintain Costa Rica districts under the selected canton.", "Mantiene los distritos de Costa Rica dentro del canton seleccionado.")}
+          form={
+            <FormGrid>
+              <label>
+                <span>{catalogText(locale, "Province", "Provincia")}</span>
+                <select
+                  value={districtForm.provinceId}
+                  onChange={(event) => setDistrictForm((current) => ({ ...current, provinceId: event.target.value, cantonId: "" }))}
+                >
+                  {activeProvinces.map((province) => (
+                    <option key={province.id} value={province.id}>
+                      {province.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>{catalogText(locale, "Canton", "Canton")}</span>
+                <select
+                  value={districtForm.cantonId}
+                  onChange={(event) => setDistrictForm((current) => ({ ...current, cantonId: event.target.value }))}
+                >
+                  {cantonsForDistrictFormProvince.map((canton) => (
+                    <option key={canton.id} value={canton.id}>
+                      {canton.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>{catalogText(locale, "Name", "Nombre")}</span>
+                <input
+                  value={districtForm.name}
+                  onChange={(event) => setDistrictForm((current) => ({ ...current, name: event.target.value }))}
+                  placeholder={catalogText(locale, "San Rafael", "San Rafael")}
+                />
+              </label>
+              <label>
+                <span>{catalogText(locale, "Code", "Codigo")}</span>
+                <input
+                  value={districtForm.code}
+                  onChange={(event) => setDistrictForm((current) => ({ ...current, code: event.target.value }))}
+                  placeholder="SJ-ESCAZU-SAN-RAFAEL"
+                />
+              </label>
+              <button className="primaryAction" disabled={actionDisabled} type="button" onClick={handleDistrictCreate}>
+                {actionDisabled ? catalogText(locale, "Saving...", "Guardando...") : catalogText(locale, "Add district", "Agregar distrito")}
+              </button>
+            </FormGrid>
+          }
+          actionDisabled={actionDisabled}
+          items={districts.map((district) => {
+            const provinceName = provinces.find((province) => province.id === district.provinceId)?.name ?? district.provinceId;
+            const cantonName = cantons.find((canton) => canton.id === district.cantonId)?.name ?? district.cantonId;
+            return {
+              id: district.id,
+              label: `${provinceName} / ${cantonName} / ${district.name} (${district.code}) - ${statusLabel(locale, district.active)}`,
+              archived: !district.active,
+              onArchive: () => void archiveItem("districts", district.id)
+            };
+          })}
+        />
+
+        <CatalogPanel
+          locale={locale}
           title={catalogText(locale, "Clients", "Clientes")}
           description={catalogText(locale, "Track retail clients and their operational contact points.", "Da seguimiento a clientes y sus puntos de contacto operativos.")}
           form={
@@ -604,6 +829,36 @@ export function CatalogAdmin() {
                   {activeProvinces.map((province) => (
                     <option key={province.id} value={province.id}>
                       {province.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>{catalogText(locale, "Canton", "Canton")}</span>
+                <select
+                  value={pointOfSaleForm.cantonId}
+                  onChange={(event) =>
+                    setPointOfSaleForm((current) => ({ ...current, cantonId: event.target.value, districtId: "" }))
+                  }
+                >
+                  {cantonsForSelectedProvince.map((canton) => (
+                    <option key={canton.id} value={canton.id}>
+                      {canton.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>{catalogText(locale, "District", "Distrito")}</span>
+                <select
+                  value={pointOfSaleForm.districtId}
+                  onChange={(event) =>
+                    setPointOfSaleForm((current) => ({ ...current, districtId: event.target.value }))
+                  }
+                >
+                  {districtsForSelectedCanton.map((district) => (
+                    <option key={district.id} value={district.id}>
+                      {district.name}
                     </option>
                   ))}
                 </select>
@@ -677,7 +932,11 @@ export function CatalogAdmin() {
           actionDisabled={actionDisabled}
           items={pointsOfSale.map((point) => ({
             id: point.id,
-            label: `${point.name} (${point.code}) - ${statusLabel(locale, point.active)}`,
+            label: `${point.name} (${point.code}) - ${[
+              provinces.find((province) => province.id === point.provinceId)?.name,
+              cantons.find((canton) => canton.id === point.cantonId)?.name,
+              districts.find((district) => district.id === point.districtId)?.name
+            ].filter(Boolean).join(" / ")} - ${statusLabel(locale, point.active)}`,
             archived: !point.active,
             onArchive: () => void archiveItem("points-of-sale", point.id)
           }))}
@@ -767,7 +1026,7 @@ export function CatalogAdmin() {
         <CatalogPanel
           locale={locale}
           title={catalogText(locale, "Workflow rules", "Reglas de flujo")}
-          description={catalogText(locale, "Configure evidence, GPS, comments, approvals, and consignation email behavior per execution combination.", "Configura evidencia, GPS, comentarios, aprobaciones y comportamiento del correo de consignacion por combinacion de ejecucion.")}
+          description={catalogText(locale, "Configure evidence, comments, approvals, and consignation email behavior per execution combination.", "Configura evidencia, comentarios, aprobaciones y comportamiento del correo de consignacion por combinacion de ejecucion.")}
           form={
             <div className="workflowForm">
               <FormGrid>
@@ -814,11 +1073,6 @@ export function CatalogAdmin() {
                   onChange={(checked) => setWorkflowForm((current) => ({ ...current, requiresAfterPhoto: checked }))}
                 />
                 <CheckboxRow
-                  label="GPS"
-                  checked={workflowForm.requiresGps}
-                  onChange={(checked) => setWorkflowForm((current) => ({ ...current, requiresGps: checked }))}
-                />
-                <CheckboxRow
                   label={catalogText(locale, "Comment", "Comentario")}
                   checked={workflowForm.requiresComment}
                   onChange={(checked) => setWorkflowForm((current) => ({ ...current, requiresComment: checked }))}
@@ -856,7 +1110,7 @@ export function CatalogAdmin() {
 
             return {
               id: rule.id,
-              label: `${taskType} / ${activityType} - ${catalogText(locale, "photos", "fotos")}:${rule.requiresBeforePhoto && rule.requiresAfterPhoto ? catalogText(locale, "required", "requeridas") : catalogText(locale, "partial", "parcial")} gps:${rule.requiresGps ? catalogText(locale, "yes", "si") : catalogText(locale, "no", "no")}`,
+              label: `${taskType} / ${activityType} - ${catalogText(locale, "photos", "fotos")}:${rule.requiresBeforePhoto && rule.requiresAfterPhoto ? catalogText(locale, "required", "requeridas") : catalogText(locale, "partial", "parcial")}`,
               onArchive: () => void archiveItem("workflow-rules", rule.id)
             };
           })}
