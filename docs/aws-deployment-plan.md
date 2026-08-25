@@ -34,7 +34,7 @@ Required API environment variables:
 S3_BUCKET=<bucket-name>
 S3_REGION=<aws-region>
 OBJECT_STORAGE_DRIVER=s3
-MEDIA_URL_SIGNING_SECRET=<long-random-secret>
+MEDIA_URL_SIGNING_SECRET=<store in AWS Secrets Manager or SSM>
 ```
 
 Optional for S3-compatible local/dev providers or deployments without IAM role credentials:
@@ -42,7 +42,7 @@ Optional for S3-compatible local/dev providers or deployments without IAM role c
 ```env
 S3_ENDPOINT=<custom-s3-compatible-endpoint>
 S3_ACCESS_KEY_ID=<access-key>
-S3_SECRET_ACCESS_KEY=<secret-access-key>
+S3_SECRET_ACCESS_KEY=<store in AWS Secrets Manager or use an IAM role instead>
 ```
 
 For AWS production, prefer an IAM role attached to the runtime instead of long-lived access keys. With `OBJECT_STORAGE_DRIVER=s3`, the API uses the AWS SDK default credential chain when explicit access keys are not provided.
@@ -53,11 +53,11 @@ API:
 
 ```env
 NODE_ENV=production
-DATABASE_URL=postgresql://<user>:<password>@<rds-host>:5432/capris_app?schema=public
-JWT_ACCESS_SECRET=<secret>
-JWT_REFRESH_SECRET=<secret>
-MEDIA_URL_SIGNING_SECRET=<secret>
-METRICS_BEARER_TOKEN=<optional-secret>
+DATABASE_URL=<store in AWS Secrets Manager or SSM>
+JWT_ACCESS_SECRET=<store in AWS Secrets Manager or SSM>
+JWT_REFRESH_SECRET=<store in AWS Secrets Manager or SSM>
+MEDIA_URL_SIGNING_SECRET=<store in AWS Secrets Manager or SSM>
+METRICS_BEARER_TOKEN=<optional value stored in AWS Secrets Manager or SSM>
 S3_BUCKET=<bucket-name>
 S3_REGION=<aws-region>
 OBJECT_STORAGE_DRIVER=s3

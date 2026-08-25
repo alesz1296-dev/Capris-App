@@ -28,6 +28,7 @@ docs/*
 !docs/phase-3-analytics-observability.md
 !docs/aws-deployment-plan.md
 !docs/local-first-validation.md
+!docs/mvp-happy-path-qa.md
 !docs/grafana-prometheus-operations.md
 !docs/k8s-*.yaml
 !docs/k8s-manifests-guide.md

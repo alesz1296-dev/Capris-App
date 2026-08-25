@@ -15,12 +15,10 @@ const prisma = new PrismaClient({
   }
 });
 
-const defaultPassword = "CaprisLocal123!";
-const password = process.env.CAPRIS_QA_PASSWORD ?? defaultPassword;
-
-if (process.env.NODE_ENV === "production" && !process.env.CAPRIS_QA_PASSWORD) {
-  throw new Error("Refusing to create production role fixtures without CAPRIS_QA_PASSWORD.");
+if (!process.env.CAPRIS_QA_PASSWORD) {
+  throw new Error("CAPRIS_QA_PASSWORD must be set before creating role fixtures.");
 }
+const password = process.env.CAPRIS_QA_PASSWORD;
 
 async function hashPassword(value) {
   const salt = randomBytes(16).toString("hex");
@@ -56,7 +54,7 @@ async function main() {
       id: "user_supervisor_001",
       name: "Daniel Rojas",
       email: "daniel.rojas@capris.example",
-      role: "supervisor",
+      role: "supervisor_auditor",
       locale: "es"
     },
     {
@@ -127,9 +125,6 @@ async function main() {
   console.log("Role fixtures ready:");
   for (const user of users) {
     console.log(`- ${user.role}: ${user.email}`);
-  }
-  if (!process.env.CAPRIS_QA_PASSWORD) {
-    console.log("Default local password: CaprisLocal123!");
   }
 }
 
