@@ -1,12 +1,13 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { BadRequestException, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { AuthController } from "../src/modules/auth/auth.controller";
 import { AuthService } from "../src/modules/auth/auth.service";
 import { AuthTokenService } from "../src/modules/auth/auth-token.service";
 
-process.env.JWT_ACCESS_SECRET = "test-access-secret";
-process.env.JWT_REFRESH_SECRET = "test-refresh-secret";
+process.env.JWT_ACCESS_SECRET = randomBytes(32).toString("hex");
+process.env.JWT_REFRESH_SECRET = randomBytes(32).toString("hex");
 
 const auditServiceStub = {
   recordAudit: async () => undefined

@@ -1,12 +1,13 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { AuthService } from "../src/modules/auth/auth.service";
 import { AuthTokenService } from "../src/modules/auth/auth-token.service";
 import { ConsignationsService } from "../src/modules/consignations/consignations.service";
 import { FieldOperationsService } from "../src/modules/field-operations/field-operations.service";
 
-process.env.JWT_ACCESS_SECRET = "test-access-secret";
-process.env.JWT_REFRESH_SECRET = "test-refresh-secret";
+process.env.JWT_ACCESS_SECRET = randomBytes(32).toString("hex");
+process.env.JWT_REFRESH_SECRET = randomBytes(32).toString("hex");
 
 async function testAuthWritesAuditLog() {
   const auditCalls: Array<Record<string, unknown>> = [];

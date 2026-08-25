@@ -102,6 +102,14 @@ Install dependencies from the repo root:
 npm install
 ```
 
+Create or repair your untracked local `.env` on Windows:
+
+```bash
+npm run env:init:win
+```
+
+This generates local-only values for PostgreSQL, JWT/session signing, media URL signing, MinIO/S3-compatible storage, and `CAPRIS_QA_PASSWORD`.
+
 Run local apps:
 
 ```bash
@@ -129,23 +137,36 @@ The project is PostgreSQL-first.
 Local example:
 
 ```env
-DATABASE_URL=postgresql://<db_user>:<db_password>@localhost:5432/capris_app?schema=public
+DATABASE_URL=<set in your untracked local environment>
 ```
 
 Docker Compose example:
 
 ```env
-DATABASE_URL_DOCKER=postgresql://<db_user>:<db_password>@postgres:5432/capris_app?schema=public
+DATABASE_URL_DOCKER=<set in your untracked local environment>
 ```
 
 Useful API database commands:
 
 ```bash
+npm run env:init:win
+npm --workspace apps/api run db:setup:mvp
 npm --workspace apps/api run db:generate
 npm --workspace apps/api run db:push
 npm --workspace apps/api run db:seed
 npm --workspace apps/api run db:seed:roles
 ```
+
+`db:setup:mvp` applies the Prisma schema and upserts MVP-ready demo data. It is safe to rerun locally.
+
+The MVP seed includes:
+
+- the Capris organization
+- admin, supervisor/auditor, developer/SRE, and field-user QA accounts
+- all 7 Costa Rica provinces
+- representative real cantons and districts for local QA
+- default field zones per province
+- sample clients, points of sale, activity types, task types, workflow rules, tasks, visits, evidence metadata, and dashboard-ready task statuses
 
 For AWS, use the RDS PostgreSQL connection string in the deployed API environment. Keep local and container database URLs separate so host-local tooling can use `localhost` while Compose containers use the `postgres` service name.
 
@@ -156,7 +177,7 @@ For AWS, use the RDS PostgreSQL connection string in the deployed API environmen
 - Developer/SRE: `andres.campos@capris.example`
 - Field user: `lucia.vargas@capris.example`
 
-Set `CAPRIS_QA_PASSWORD` before running the role fixture script in staging. If no password is provided outside production, the local-only default is `CaprisLocal123!`.
+Set `CAPRIS_QA_PASSWORD` in your untracked local environment before running the role fixture script. The repo intentionally does not provide a default fixture password.
 
 ## Docker
 
@@ -169,10 +190,12 @@ Files:
 - `apps/web/Dockerfile`
 
 Local-first validation notes live in [docs/local-first-validation.md](/C:/Users/alesz/Projects_Apps/Capris-App/docs/local-first-validation.md).
+MVP happy-path QA notes live in [docs/mvp-happy-path-qa.md](/C:/Users/alesz/Projects_Apps/Capris-App/docs/mvp-happy-path-qa.md).
 
 Bring the stack up with:
 
 ```bash
+npm run env:init:win
 docker compose up --build
 ```
 
@@ -182,9 +205,9 @@ Env split:
 - `DATABASE_URL_DOCKER` is for the API container inside Compose
 - keep both values aligned on credentials and database name, but use `localhost` for local tools and `postgres` for Compose
 
-This starts:
+By default, this starts:
 
-- Postgres on `5432`
+- Postgres exposed on `5433`
 - MinIO S3-compatible storage on `9000`
 - MinIO console on `9001`
 - API on `4000`

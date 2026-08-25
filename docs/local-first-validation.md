@@ -25,9 +25,9 @@ S3_REGION=us-east-1
 S3_ENDPOINT_DOCKER=http://minio:9000
 S3_ENDPOINT=http://localhost:9000
 S3_ACCESS_KEY_ID=capris_local_minio
-S3_SECRET_ACCESS_KEY=change-me-local-minio-secret
+S3_SECRET_ACCESS_KEY=<set in local .env>
 MINIO_ROOT_USER=capris_local_minio
-MINIO_ROOT_PASSWORD=change-me-local-minio-secret
+MINIO_ROOT_PASSWORD=<set in local .env>
 ```
 
 The `minio-create-bucket` Compose service creates the bucket automatically.

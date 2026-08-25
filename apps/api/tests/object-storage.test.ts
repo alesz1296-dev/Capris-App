@@ -1,10 +1,13 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { ObjectStorageService } from "../src/modules/object-storage/object-storage.service";
 
+const mediaSigningKey = randomBytes(32).toString("hex");
+
 async function testStoragePathsAreSignedForApiObjects() {
-  process.env.MEDIA_URL_SIGNING_SECRET = "capris-test-media-secret";
+  process.env.MEDIA_URL_SIGNING_SECRET = mediaSigningKey;
   process.env.MEDIA_URL_TTL_SECONDS = "900";
 
   const service = new ObjectStorageService();
@@ -15,7 +18,7 @@ async function testStoragePathsAreSignedForApiObjects() {
 }
 
 async function testLocalPendingPathsRemainUnchanged() {
-  process.env.MEDIA_URL_SIGNING_SECRET = "capris-test-media-secret";
+  process.env.MEDIA_URL_SIGNING_SECRET = mediaSigningKey;
 
   const service = new ObjectStorageService();
   const localPath = "local-pending://thumbnail";
@@ -24,7 +27,7 @@ async function testLocalPendingPathsRemainUnchanged() {
 }
 
 async function testUnsignedMediaReadsAreRejected() {
-  process.env.MEDIA_URL_SIGNING_SECRET = "capris-test-media-secret";
+  process.env.MEDIA_URL_SIGNING_SECRET = mediaSigningKey;
 
   const service = new ObjectStorageService();
   const encodedKey = Buffer.from("evidence/test-missing.jpg").toString("base64url");
@@ -36,7 +39,7 @@ async function testUnsignedMediaReadsAreRejected() {
 }
 
 async function testInvalidSignaturesAreRejected() {
-  process.env.MEDIA_URL_SIGNING_SECRET = "capris-test-media-secret";
+  process.env.MEDIA_URL_SIGNING_SECRET = mediaSigningKey;
 
   const service = new ObjectStorageService();
   const encodedKey = Buffer.from("evidence/test-invalid.jpg").toString("base64url");
@@ -48,7 +51,7 @@ async function testInvalidSignaturesAreRejected() {
 }
 
 async function testValidSignedReadsAdvancePastAuthorization() {
-  process.env.MEDIA_URL_SIGNING_SECRET = "capris-test-media-secret";
+  process.env.MEDIA_URL_SIGNING_SECRET = mediaSigningKey;
   process.env.MEDIA_URL_TTL_SECONDS = "900";
 
   const service = new ObjectStorageService();

@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -16,6 +16,7 @@ type StoredObject = {
 
 const STORAGE_ROUTE_PREFIX = "/api/v1/storage/";
 const DEFAULT_SIGNED_MEDIA_TTL_SECONDS = 15 * 60;
+const developmentMediaSigningSecret = randomBytes(32).toString("hex");
 
 @Injectable()
 export class ObjectStorageService {
@@ -36,7 +37,7 @@ export class ObjectStorageService {
     this.signedReadSecret =
       process.env.MEDIA_URL_SIGNING_SECRET?.trim() ||
       process.env.JWT_ACCESS_SECRET?.trim() ||
-      "capris-dev-media-signing-secret";
+      developmentMediaSigningSecret;
     this.signedReadTtlSeconds = Number(process.env.MEDIA_URL_TTL_SECONDS?.trim() || DEFAULT_SIGNED_MEDIA_TTL_SECONDS);
     const configuredDriver = process.env.OBJECT_STORAGE_DRIVER?.trim().toLowerCase();
     const s3Endpoint = process.env.S3_ENDPOINT?.trim();
